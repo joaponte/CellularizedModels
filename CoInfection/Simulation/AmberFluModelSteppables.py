@@ -8,10 +8,10 @@ plot_ODEStandAlone = False
 #  2 plot virus B
 #  3 plot both viruses
 plot_CoinfectionODEtandAlone = False
-overlay_AmbersModelandCoinfection = False
-plot_CellModel = True
-overlay_AmbersModel = True
-Data_writeout = False
+overlay_AmbersModelandCoinfection = True
+plot_CellModel = False
+overlay_AmbersModel = False
+Data_writeout = True
 
 ## How to determine V
 # -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
@@ -21,7 +21,7 @@ how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 4.0  # 10 in the original model
+days_to_simulate = 5.0  # 10 in the original model
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -50,21 +50,24 @@ ModelString = '''
         I1 = 75.0 ;                                             // Initial Number of Infected Cells
 end'''
 
+'''Smith AM. Host‐pathogen kinetics during influenza infection and coinfection: insights from predictive modeling. " \
+Immunological reviews. 2018 Sep;285(1):97-112.'''
+
 Coinfection_ModelString = '''
         model coinfection()
          //State Variables and Transitions for Virus A
         V1: -> T   ; -beta * VA * T ;                               // Susceptible Cells
-        V2: -> I1A ;  beta * VA * T - k * I1A ;                     // Early Infected Cells
-        V3: -> I2A ;  k * I1A - delta_d * I2A / (K_delta + I2A) ;   // Late Infected Cells
+        V2: -> I1A ;  beta * VA * T - k * I1A ;                     // Early Infected Cells by Virus A
+        V3: -> I2A ;  k * I1A - delta_d * I2A / (K_delta + I2A) ;   // Late Infected Cells by Virus A
         V4: -> VA  ;  p * I2A - c * VA;                             // Extracellular Virus A
-        V5: -> DA  ;  delta_d * I2A / (K_delta + I2A) ;             // Dead Cells
+        V5: -> DA  ;  delta_d * I2A / (K_delta + I2A) ;             // Dead Cells by Virus A
 
          //State Variables and Transitions for Virus B
         V6: -> T   ; -beta * VB * T ;                               // Susceptible Cells
-        V7: -> I1B ;  beta * VB * T - k * I1B ;                     // Early Infected Cells
-        V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2B) ;   // Late Infected Cells
+        V7: -> I1B ;  beta * VB * T - k * I1B ;                     // Early Infected Cells by Virus B
+        V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2B) ;   // Late Infected Cells by Virus B
         V9: -> VB  ;  p * I2B - c * VB;                             // Extracellular Virus B
-        V10: -> DB  ;  delta_d * I2B / (K_delta + I2B) ;             // Dead Cells
+        V10: -> DB  ;  delta_d * I2B / (K_delta + I2B) ;            // Dead Cells by Virus B
 
         //Parameters
         beta = 2.4* 10^(-4) ;                                       // Virus Infective
@@ -120,8 +123,10 @@ class CellularModelSteppable(SteppableBasePy):
         # set initial model parameters
         self.initial_uninfected = len(self.cell_list_by_type(self.U))
         self.ExtracellularVirus = self.sbml.coinfection['VA']
+        self.get_xml_element('virus_dc').cdata = 1.0
         self.get_xml_element('virus_decay').cdata = self.sbml.ambersmithsimple['c'] * days_to_mcs
         self.ExtracellularVirusB = self.sbml.coinfection['VB']
+        self.get_xml_element('virusB_dc').cdata = 1.0
         self.get_xml_element('virusB_decay').cdata = self.sbml.ambersmithsimple['c'] * days_to_mcs
 
     def step(self, mcs):
@@ -224,29 +229,43 @@ class Data_OutputSteppable(SteppableBasePy):
 
     def start(self):
         if Data_writeout:
-            folder_path = '/Users/Josua/AmberFluModelData/'
+            folder_path = '/Users/Josua/Box Sync/LAB/CellularizedModels/CoInfection/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
-            file_name = 'ODE_output.txt'
-            self.output = open(folder_path + file_name, 'w')
-            self.output.write(
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time', 'T', 'I1A', 'I2A', 'DA', 'VA', 'I1B', 'I2B', 'DB', 'VB'))
-            self.output.flush()
+            file_name = 'SingleVirus_ODE_output.txt'
+            self.output1 = open(folder_path + file_name, 'w')
+            self.output1.write("%s,%s,%s,%s,%s,%s\n" % ('Time', 'T', 'I1', 'I2', 'D', 'V'))
+            self.output1.flush()
 
-            file_name = 'Cellular_output.txt'
+            file_name = 'Coinfection_ODE_output.txt'
             self.output2 = open(folder_path + file_name, 'w')
             self.output2.write(
                 "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time', 'T', 'I1A', 'I2A', 'DA', 'VA', 'I1B', 'I2B', 'DB', 'VB'))
             self.output2.flush()
+
+            file_name = 'Cellular_output.txt'
+            self.output3 = open(folder_path + file_name, 'w')
+            self.output3.write(
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ('Time', 'T', 'I1A', 'I2A', 'DA', 'VA', 'I1B', 'I2B', 'DB', 'VB'))
+            self.output3.flush()
 
         else:
             pass
 
     def step(self, mcs):
         if Data_writeout:
-            # Record variables from ODE model
             d = mcs * days_to_mcs
+            T = self.sbml.ambersmithsimple['T']
+            I1 = self.sbml.ambersmithsimple['I1']
+            I2 = self.sbml.ambersmithsimple['I2']
+            D = self.sbml.ambersmithsimple['D']
+            V = self.sbml.ambersmithsimple['V']
+
+            self.output1.write("%.3f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (d, T, I1, I2, D, V))
+            self.output1.flush()
+
+            # Record variables from Coinfection ODE model
             AT = self.sbml.coinfection['T']
             AI1A = self.sbml.coinfection['I1A']
             AI2A = self.sbml.coinfection['I2A']
@@ -257,9 +276,9 @@ class Data_OutputSteppable(SteppableBasePy):
             ADB = self.sbml.coinfection['DB']
             AVB = self.sbml.coinfection['VB']
 
-            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
+            self.output2.write("%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
                 d, AT, AI1A, AI2A, ADA, AVA, AI1B, AI2B, ADB, AVB))
-            self.output.flush()
+            self.output2.flush()
 
             # Record variables from Cellularized Model
             d = mcs * days_to_mcs
@@ -289,13 +308,14 @@ class Data_OutputSteppable(SteppableBasePy):
                 self.Virus_FieldB += V
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
-            self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
+            self.output3.write("%.3f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
                 d, CU, CI1A, CI2A, CDA, self.Virus_Field, CI1B, CI2B, CDB, self.Virus_FieldB))
-            self.output.flush()
+            self.output3.flush()
 
     def finish(self):
         if Data_writeout:
-            self.output.close()
+            self.output2.close()
+            self.output3.close()
 
 
 class Plot_ODEsSteppable(SteppableBasePy):

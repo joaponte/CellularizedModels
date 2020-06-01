@@ -220,61 +220,6 @@ class CellularModelSteppable(SteppableBasePy):
                                               self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
                 self.plot_win4.add_data_point("AV", mcs * days_to_mcs, np.log10(self.sbml.ambersmithsimple['V']))
 
-
-class StatisticsSteppable(SteppableBasePy):
-    def __init__(self, frequency=1):
-        SteppableBasePy.__init__(self, frequency)
-
-    def start(self):
-        self.initial_uninfected = len(self.cell_list)
-
-        self.cellular_infection = False
-        self.cellular_infection_time = 0.0
-        self.Ambersmodel_infection = False
-        self.Ambersmodel_infection_time = 0.0
-        self.infection_threshold = 0.1
-
-        if plot_Residuals:
-            self.plot_win5 = self.add_new_plot_window(title='Residuals',
-                                                      x_axis_title='days',
-                                                      y_axis_title='Variables', x_scale_type='linear',
-                                                      y_scale_type='linear',
-                                                      grid=False, config_options={'legend': True})
-            self.plot_win5.add_plot("dU", style='Lines', color='blue', size=5)
-            self.plot_win5.add_plot("dI1", style='Lines', color='yellow', size=5)
-            self.plot_win5.add_plot("dI2", style='Lines', color='red', size=5)
-            self.plot_win5.add_plot("dD", style='Lines', color='purple', size=5)
-
-    def step(self, mcs):
-        if self.cellular_infection == False:
-            if len(self.cell_list_by_type(self.I1)) / self.initial_uninfected >= self.infection_threshold:
-                self.cellular_infection_time = mcs
-                self.cellular_infection = True
-
-        if self.Ambersmodel_infection == False:
-            if self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'] >= self.infection_threshold:
-                self.Ambersmodel_infection_time = mcs
-                self.Ambersmodel_infection = True
-
-        # print("Cellular Infection = ", self.cellular_infection_time * days_to_mcs)
-        # print("ODE Infection = ", self.Ambersmodel_infection_time * days_to_mcs)
-
-        dU = (len(self.cell_list_by_type(self.U)) / self.initial_uninfected) - (
-                self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
-        dI1 = (len(self.cell_list_by_type(self.I1)) / self.initial_uninfected) - (
-                self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
-        dI2 = (len(self.cell_list_by_type(self.I2)) / self.initial_uninfected) - (
-                self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
-        dD = (len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected) - (
-                self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
-
-        if plot_Residuals:
-            self.plot_win5.add_data_point("dU", mcs * days_to_mcs, dU)
-            self.plot_win5.add_data_point("dI1", mcs * days_to_mcs, dI1)
-            self.plot_win5.add_data_point("dI2", mcs * days_to_mcs, dI2)
-            self.plot_win5.add_data_point("dD", mcs * days_to_mcs, dD)
-
-
 class Data_OutputSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -325,9 +270,56 @@ class Data_OutputSteppable(SteppableBasePy):
     def finish(self):
         if Data_writeout:
             self.output.close()
-#         # Plot lagged differences between cell populations
-#         # Start when both populations are infected
-#         # Josh--you will need to save the time series in a set of lists so you can do this
-#         # Once both times series have had infection begin
-#         # Plot (x(t-starttime)-X(t-cellstarttime)) for each series
-#         # Could do same thing to show virus with lags and also RMS deviation with lags
+
+class StatisticsSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        self.initial_uninfected = len(self.cell_list)
+
+        self.cellular_infection = False
+        self.cellular_infection_time = 0.0
+        self.Ambersmodel_infection = False
+        self.Ambersmodel_infection_time = 0.0
+        self.infection_threshold = 0.1
+
+        if plot_Residuals:
+            self.plot_win5 = self.add_new_plot_window(title='Residuals',
+                                                      x_axis_title='days',
+                                                      y_axis_title='Variables', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False, config_options={'legend': True})
+            self.plot_win5.add_plot("dU", style='Lines', color='blue', size=5)
+            self.plot_win5.add_plot("dI1", style='Lines', color='yellow', size=5)
+            self.plot_win5.add_plot("dI2", style='Lines', color='red', size=5)
+            self.plot_win5.add_plot("dD", style='Lines', color='purple', size=5)
+
+    def step(self, mcs):
+        if self.cellular_infection == False:
+            if len(self.cell_list_by_type(self.I1)) / self.initial_uninfected >= self.infection_threshold:
+                self.cellular_infection_time = mcs
+                self.cellular_infection = True
+
+        if self.Ambersmodel_infection == False:
+            if self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'] >= self.infection_threshold:
+                self.Ambersmodel_infection_time = mcs
+                self.Ambersmodel_infection = True
+
+        print("Cellular Infection = ", self.cellular_infection_time * days_to_mcs)
+        print("ODE Infection = ", self.Ambersmodel_infection_time * days_to_mcs)
+
+        dU = (len(self.cell_list_by_type(self.U)) / self.initial_uninfected) - (
+                self.sbml.ambersmithsimple['T'] / self.sbml.ambersmithsimple['T0'])
+        dI1 = (len(self.cell_list_by_type(self.I1)) / self.initial_uninfected) - (
+                self.sbml.ambersmithsimple['I1'] / self.sbml.ambersmithsimple['T0'])
+        dI2 = (len(self.cell_list_by_type(self.I2)) / self.initial_uninfected) - (
+                self.sbml.ambersmithsimple['I2'] / self.sbml.ambersmithsimple['T0'])
+        dD = (len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected) - (
+                self.sbml.ambersmithsimple['D'] / self.sbml.ambersmithsimple['T0'])
+
+        if plot_Residuals:
+            self.plot_win5.add_data_point("dU", mcs * days_to_mcs, dU)
+            self.plot_win5.add_data_point("dI1", mcs * days_to_mcs, dI1)
+            self.plot_win5.add_data_point("dI2", mcs * days_to_mcs, dI2)
+            self.plot_win5.add_data_point("dD", mcs * days_to_mcs, dD)
