@@ -20,7 +20,7 @@ model_string = '''
     E8: -> V     ; P*k71*V/(1+k72*IFNe)-k73*V                               ; // Intracellular Virus
 
     //Parameters
-    k11 = 0.0       ;  //  
+    k11 = 0.0       ;  // 
     k12 = 9.746     ; 
     k13 = 12.511    ; 
     k14 = 13.562    ;
