@@ -76,6 +76,7 @@ class CellularModelSteppable(SteppableBasePy):
         # set initial model parameters
         self.initial_infected = len(self.cell_list_by_type(self.I2))
         self.FNe = self.sbml.ODEModel['IFNe']
+        self.V = self.sbml.ODEModel['V']
         self.get_xml_element('IFNe_decay').cdata = self.sbml.JordansModel['t2'] * days_to_mcs * 24.0
 
         for cell in self.cell_list_by_type(self.I2):
@@ -83,55 +84,13 @@ class CellularModelSteppable(SteppableBasePy):
             cell.dict['STATP'] = self.sbml.ODEModel['STATP']
             cell.dict['IRF7'] = self.sbml.ODEModel['IRF7']
             cell.dict['IRF7P'] = self.sbml.ODEModel['IRF7P']
-            cell.dict['V'] = self.sbml.ODEModel['V']
+            #cell.dict['V'] = self.sbml.ODEModel['V']
 
     def step(self, mcs):
-        # Transtion from Infection to Dead
-        kd = 1.0 * mcs
-        for cell in self.cell_list_by_type(self.Infected):
-            if cell.dict['Time_since_infection'] > 18.0:
-                cell.type = self.DEAD
-
-        # Transition rule to infected cell
-        for cell in self.cell_list_by_type(self.Infected):
-                cell.dict['Time_since_infection'] = mcs
-
-        p_Infected_to_Dead = self.sbml.JordansModel['k61'] /self.initial_uninfected * self.sbml.JordansModel['V'] * days_to_mcs
-        for cell in self.cell_list_by_type(self.Infected):
-            if np.random.random() < p_UtoI1:
-                cell.type = self.DEAD
-
-        # Transition rule from I1 to I2
-        k = self.sbml.ambersmithsimple['k'] * days_to_mcs
-        p_T1oI2 = k
-        for cell in self.cell_list_by_type(self.I1):
-            if np.random.random() < p_T1oI2:
-                cell.type = self.I2
-
-        # Transition rule from I2 to D
-        K_delta = self.sbml.ambersmithsimple['K_delta'] / self.sbml.ambersmithsimple['T0'] * self.initial_uninfected
-        delta_d = self.sbml.ambersmithsimple['delta_d'] / self.sbml.ambersmithsimple['T0'] * self.initial_uninfected
-        I2 = len(self.cell_list_by_type(self.I2))
-        p_T2toD = delta_d / (K_delta + I2) * days_to_mcs
+        # Transtion from I2 to Dead
+        p_I2toDead = self.sbml.ODE['k61'] * self.sbml.ODE['V'] * hours_to_mcs
+        # p_I2toDead = self.sbml.ODE['k61'] * self.V * hours_to_mcs
         for cell in self.cell_list_by_type(self.I2):
-            if np.random.random() < p_T2toD:
+            # p_I2toDead = self.sbml.ODE['k61'] *  * hours_to_mcs
+            if np.random.random() < p_I2toDead:
                 cell.type = self.DEAD
-
-        # Production of extracellular virus
-        secretor = self.get_field_secretor("Virus")
-        V = self.ExtracellularVirus
-        p = self.sbml.ambersmithsimple['p'] / self.initial_uninfected * self.sbml.ambersmithsimple['T0'] * days_to_mcs
-        c = self.sbml.ambersmithsimple['c'] * days_to_mcs
-        for cell in self.cell_list_by_type(self.I2):
-            release = secretor.secreteInsideCellTotalCount(cell, p / cell.volume)
-            self.ExtracellularVirus += release.tot_amount
-        self.ExtracellularVirus -= c * V
-
-        # Measure amount of extracellular virus field
-        self.ExtracellularVirus_Field = 0
-        for cell in self.cell_list:
-            uptake_probability = 0.0000001
-            uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-            V = abs(uptake.tot_amount) / uptake_probability
-            self.ExtracellularVirus_Field += V
-            secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
