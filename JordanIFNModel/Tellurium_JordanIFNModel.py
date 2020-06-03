@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 
 model_string = '''
     //Equations
-    E2: -> IFN   ; P*(k11*RIGI*V+k12*V^n/(k13+V^n)+k14*IRF7P)-k21*IFN ;
-    E3: -> IFNe  ; k21*IFN-t2*IFNe                                    ;
-    E4: -> STATP ; P*k31*IFNe/(k32+k33*IFNe)-t3*STATP                 ;
-    E5: -> IRF7  ; P*(k41*STATP+k42*IRF7P)-t4*IRF7                    ; //Why?
-    E6: -> IRF7P ; P*k51*IRF7-t5*IRF7P                                ;
-    E7: -> P     ; - k61*P*V                                          ; 
-    E8: -> V     ; k71*V/(1+k72*IFNe)-k73*V                           ;
+    E2: -> IFN   ; P*(k11*RIGI*V+k12*V^n/(k13+V^n)+k14*IRF7P)-k21*IFN   ;
+    E3: -> IFNe  ; P*k21*IFN-t2*IFNe                                    ;
+    E4: -> STATP ; P*k31*IFNe/(k32+k33*IFNe)-t3*STATP                   ;
+    E5: -> IRF7  ; P*(k41*STATP+k42*IRF7P)-t4*IRF7                      ;
+    E6: -> IRF7P ; P*k51*IRF7-t5*IRF7P                                  ;
+    E7: -> P     ; - k61*P*V                                            ; 
+    E8: -> V     ; k71*V*P/(1.0+k72*IFN)-k73*V                            ;
 
     //Parameters
     k11 = 0.0    ; //Validation data dependent ; zero for most cases
@@ -29,7 +29,7 @@ model_string = '''
     t5  = 0.3    ;
     k61 = 0.635  ;
     k71 = 1.537  ;
-    k72 = 47.883 ;
+    k72 = 0.0    ; //47.883
     k73 = 0.197  ;
     n   = 3.0    ;
 
@@ -70,7 +70,7 @@ plt.title('V')
 
 plt.subplot(3,3,7)
 plt.plot(s['time'],s['[P]'])
-plt.ylim([0,1])
+plt.ylim([0,1.1])
 plt.title('P')
 
 plt.tight_layout()
