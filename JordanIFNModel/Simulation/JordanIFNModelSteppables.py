@@ -15,7 +15,7 @@ Regulating Excessive Cytokine Production'''
 model_string = '''
     //Equations
     E2: -> IFN   ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)-k21*IFN   ; // Intracellular IFN
-    E3: -> IFNe  ; k21*IFN-t2*IFNe                                        ; // Extracellular IFN
+    E3: -> IFNe  ; k21*IFN-t2*IFNe                                          ; // Extracellular IFN
     E4: -> STATP ; P*k31*IFNe/(k32+k33*IFNe)-t3*STATP                       ; // Intracellular STATP
     E5: -> IRF7  ; P*(k41*STATP+k42*IRF7P)-t4*IRF7                          ; // Intracellular IRF7
     E6: -> IRF7P ; P*k51*IRF7-t5*IRF7P                                      ; // Intracellular IRF7P
@@ -23,7 +23,7 @@ model_string = '''
     E8: -> V     ; P*k71*V/(1+k72*IFNe)-k73*V                               ; // Intracellular Virus
 
     //Parameters
-    k11 = 0.0       ;  // 
+    k11 = 0.0       ; 
     k12 = 9.746     ; 
     k13 = 12.511    ; 
     k14 = 13.562    ;
@@ -92,7 +92,7 @@ class CellularModelSteppable(SteppableBasePy):
     def step(self, mcs):
         secretor = self.get_field_secretor("IFNe")
         for cell in self.cell_list_by_type(self.I2):
-            # Rule E6
+            # Rule E7
             p_I2toDead = self.sbml.ODEModel['k61'] * self.sbml.ODEModel['V'] * hours_to_mcs
             if np.random.random() < p_I2toDead:
                 cell.type = self.DEAD
