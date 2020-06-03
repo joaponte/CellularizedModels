@@ -222,7 +222,6 @@ class CellularModelSteppable(SteppableBasePy):
             self.ExtracellularVirusB += release.tot_amount
         self.ExtracellularVirusB -= c * VB
 
-
 class Data_OutputSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
