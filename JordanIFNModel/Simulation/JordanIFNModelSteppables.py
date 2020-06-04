@@ -42,7 +42,7 @@ model_string = '''
     t5  = 0.3       ;
     k61 = 0.635     ;
     k71 = 1.537     ;
-    k72 = 47.883    ;
+    k72 = 0.0 ; //47.883    ;
     k73 = 0.197     ;
     n   = 3.0       ;
 
@@ -99,6 +99,7 @@ class PlotODEModelSteppable(SteppableBasePy):
     def start(self):
         self.initial_infected = len(self.cell_list_by_type(self.I2))
         self.IFNe = self.sbml.ODEModel['IFNe']
+        self.V = self.sbml.ODEModel['V']
 
         # Initialize Graphic Window for Amber Smith ODE model
         if (plot_ODEModel or plot_CellularizedModel):
@@ -128,6 +129,7 @@ class PlotODEModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         pIFNe = 0.0
+        pV = 0.0
         for cell in self.cell_list_by_type(self.I2):
             # Rule 3a
             k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
@@ -136,22 +138,31 @@ class PlotODEModelSteppable(SteppableBasePy):
 
             # Rule 7
             k61 = self.sbml.ODEModel['k61'] * hours_to_mcs * self.initial_infected
-            V = self.sbml.ODEModel['V'] / self.initial_infected #Virus per cell, change to cell.dict[V] once rule 8 is implemented
+            V = self.sbml.ODEModel['V'] / self.initial_infected
             p_I2toDead = k61 * V
             if np.random.random() < p_I2toDead:
                 cell.type = self.DEAD
+
+            # Rule 8a
+            k71 = self.sbml.ODEModel['k71'] * hours_to_mcs
+            V = self.sbml.ODEModel['V'] / self.initial_infected
+            pV += (k71 * V)
 
         # Rule 3b
         t2 = self.sbml.ODEModel['t2'] * hours_to_mcs
         self.IFNe += pIFNe - t2 * self.IFNe
 
+        # Rule 8b
+        k73 = self.sbml.ODEModel['k73'] * hours_to_mcs
+        self.V += pV - k73 * self.V
+
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
-            self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
-            # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
+            # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
+            self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
 
         if plot_CellularizedModel:
             num_I2 = len(self.cell_list_by_type(self.I2))
             self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
-            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFNe)
-            # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.V)
+            # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFNe)
+            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.V)
