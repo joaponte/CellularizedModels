@@ -21,7 +21,7 @@ model_string = '''
     E5: -> IRF7  ; P*(k41*STATP+k42*IRF7P)-t4*IRF7                          ; // Intracellular IRF7
     E6: -> IRF7P ; P*k51*IRF7-t5*IRF7P                                      ; // Intracellular IRF7P
     E7: -> P     ; - k61*P*V                                                ; // Infected Cells
-    E8: -> V     ; P*k71*V/(1+k72*IFNe)-k73*V                               ; // Intracellular Virus
+    E8: -> V     ; (k71*V*P)/(1.0+k72*IFN*7E-5)-k73*V                       ; // Intracellular Virus
 
     //Parameters
     k11 = 0.0       ; 
@@ -41,7 +41,7 @@ model_string = '''
     t5  = 0.3       ;
     k61 = 0.635     ;
     k71 = 1.537     ;
-    k72 = 0.0       ; //47.883
+    k72 = 47.883    ;
     k73 = 0.197     ;
     n   = 3.0       ;
 
@@ -99,12 +99,12 @@ class CellularModelSteppable(SteppableBasePy):
             release = secretor.secreteInsideCellTotalCount(cell, k21 * IFN / cell.volume)
             self.IFNe += release.tot_amount
 
-            # Rule E7
-            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
-            V = self.sbml.ODEModel['V']
-            p_I2toDead = k61 * V
-            if np.random.random() < p_I2toDead:
-                cell.type = self.DEAD
+            # # Rule E7
+            # k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
+            # V = self.sbml.ODEModel['V']
+            # p_I2toDead = k61 * V
+            # if np.random.random() < p_I2toDead:
+            #     cell.type = self.DEAD
 
         self.IFNe -= self.sbml.ODEModel['t2'] * self.IFNe * hours_to_mcs
 
@@ -128,24 +128,27 @@ class PlotODEModelSteppable(SteppableBasePy):
             self.plot_win2 = self.add_new_plot_window(title='Jordan Model IFNe',
                                                       x_axis_title='Hours',
                                                       y_axis_title='Extracellular IFN', x_scale_type='linear',
-                                                      y_scale_type='log',
+                                                      y_scale_type='linear',
                                                       grid=False, config_options={'legend': True})
 
             if plot_ODEModel:
                 self.plot_win.add_plot("JP", style='Dots', color='red', size=5)
-                self.plot_win2.add_plot("JIFNe", style='Dots', color='blue', size=5)
-                self.plot_win2.add_plot("JV", style='Dots', color='purple', size=5)
+                self.plot_win2.add_plot("ODEVariable", style='Dots', color='blue', size=5)
+                # self.plot_win2.add_plot("JIFNe", style='Dots', color='blue', size=5)
+                # self.plot_win2.add_plot("JV", style='Dots', color='purple', size=5)
 
             if plot_CellularizedModel:
                 self.plot_win.add_plot("I2", style='Lines', color='red', size=5)
-                self.plot_win2.add_plot("IFNe", style='Lines', color='blue', size=5)
-                self.plot_win2.add_plot("V", style='Lines', color='purple', size=5)
+                self.plot_win2.add_plot("CC3DVariable", style='Lines', color='blue', size=5)
+                # self.plot_win2.add_plot("IFNe", style='Lines', color='blue', size=5)
+                # self.plot_win2.add_plot("V", style='Lines', color='purple', size=5)
 
     def step(self, mcs):
-
+        # Equation 3
         k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
         IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
 
+        #Equation 7
         k71 = self.sbml.ODEModel['k71'] * hours_to_mcs
         k72 = self.sbml.ODEModel['k72']
         k73 = self.sbml.ODEModel['k73'] * hours_to_mcs
@@ -153,6 +156,18 @@ class PlotODEModelSteppable(SteppableBasePy):
 
         self.total_virus = 0.0
         for cell in self.cell_list_by_type(self.I2):
+            # Rule E7
+            if feedback == False:
+                V = self.sbml.ODEModel['V']
+                k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
+            elif feedback == True:
+                k61 = self.sbml.ODEModel['k61'] * hours_to_mcs * self.initial_infected
+                V = cell.dict['V']
+
+            p_I2toDead = k61 * V
+            if np.random.random() < p_I2toDead:
+                cell.type = self.DEAD
+
             self.IFNe += k21 * IFN
             V = cell.dict['V']
             cell.dict['V'] += k71 * V / (1.0 + k72 * IFNe) - k73 * V
@@ -161,11 +176,11 @@ class PlotODEModelSteppable(SteppableBasePy):
 
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
-            self.plot_win2.add_data_point("JIFNe", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
-            self.plot_win2.add_data_point("JV", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
+            self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
+            #self.plot_win2.add_data_point("Variable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
 
         if plot_CellularizedModel:
             num_I2 = len(self.cell_list_by_type(self.I2))
             self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
-            self.plot_win2.add_data_point("IFNe", mcs * hours_to_mcs, self.IFNe)
-            self.plot_win2.add_data_point("V", mcs * hours_to_mcs, self.total_virus)
+            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFNe)
+            #self.plot_win2.add_data_point("Variable", mcs * hours_to_mcs, self.total_virus)

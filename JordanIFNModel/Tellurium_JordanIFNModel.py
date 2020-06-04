@@ -5,8 +5,8 @@ model_string = '''
     //Equations
     E2: -> IFN   ; P*(k11*RIGI*V+(k12*V^n)/(k13+V^n)+k14*IRF7P)-k21*IFN ;
     E3: -> IFNe  ; k21*IFN-t2*IFNe                                      ;
-    E4: -> STATP ; P*(k31*IFNe)/(k32+k33*IFNe)-0.3*STATP                ;
-    E5: -> IRF7  ; P*(k41*STATP+k42*IRF7P)-0.3*IRF7                     ;
+    E4: -> STATP ; P*(k31*IFNe)/(k32+k33*IFNe)-t4*STATP                ;
+    E5: -> IRF7  ; P*(k41*STATP+k42*IRF7P)-t5*IRF7                     ;
     E6: -> IRF7P ; P*k51*IRF7-t5*IRF7P                                  ;
     E7: -> P     ; -k61*P*V                                             ; 
     E8: -> V     ; (k71*V*P)/(1.0+k72*IFN*7E-5)-k73*V                   ;
