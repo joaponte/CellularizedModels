@@ -2,7 +2,7 @@ from cc3d.core.PySteppables import *
 import numpy as np
 import os
 
-min_to_mcs = 5.0  # min/mcs
+min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0  # hrs/mcs
 hours_to_simulate = 36.0
 
@@ -13,15 +13,16 @@ feedback = False
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
 
+# Modified code to make IFNe production dependent on the number of cells (P)
 model_string = '''
     //Equations
     E2: -> IFN   ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)-k21*IFN   ; // Intracellular IFN
-    E3: -> IFNe  ; k21*IFN-t2*IFNe                                          ; // Extracellular IFN
+    E3: -> IFNe  ; P*k21*IFN-t2*IFNe                                        ; // Extracellular IFN
     E4: -> STATP ; P*k31*IFNe/(k32+k33*IFNe)-t3*STATP                       ; // Intracellular STATP
     E5: -> IRF7  ; P*(k41*STATP+k42*IRF7P)-t4*IRF7                          ; // Intracellular IRF7
     E6: -> IRF7P ; P*k51*IRF7-t5*IRF7P                                      ; // Intracellular IRF7P
-    E7: -> P     ; - k61*P*V                                                ; // Infected Cells
-    E8: -> V     ; (k71*V*P)/(1.0+k72*IFN*7E-5)-k73*V                       ; // Intracellular Virus
+    E7: -> P     ; - P*k61*V                                                ; // Infected Cells
+    E8: -> V     ; P*(k71*V)/(1.0+k72*IFN*7E-5)-k73*V                       ; // Intracellular Virus
 
     //Parameters
     k11 = 0.0       ; 
@@ -83,13 +84,6 @@ class CellularModelSteppable(SteppableBasePy):
         self.V = self.sbml.ODEModel['V']
         self.get_xml_element('IFNe_decay').cdata = self.sbml.ODEModel['t2'] * hours_to_mcs
 
-        for cell in self.cell_list_by_type(self.I2):
-            cell.dict['IFN'] = self.sbml.ODEModel['IFN']
-            cell.dict['STATP'] = self.sbml.ODEModel['STATP']
-            cell.dict['IRF7'] = self.sbml.ODEModel['IRF7']
-            cell.dict['IRF7P'] = self.sbml.ODEModel['IRF7P']
-            cell.dict['V'] = self.sbml.ODEModel['V'] / self.initial_infected
-
     def step(self, mcs):
         secretor = self.get_field_secretor("IFNe")
         for cell in self.cell_list_by_type(self.I2):
@@ -105,7 +99,6 @@ class PlotODEModelSteppable(SteppableBasePy):
     def start(self):
         self.initial_infected = len(self.cell_list_by_type(self.I2))
         self.IFNe = self.sbml.ODEModel['IFNe']
-        self.total_virus = 0.0
 
         # Initialize Graphic Window for Amber Smith ODE model
         if (plot_ODEModel or plot_CellularizedModel):
@@ -134,28 +127,31 @@ class PlotODEModelSteppable(SteppableBasePy):
                 # self.plot_win2.add_plot("V", style='Lines', color='purple', size=5)
 
     def step(self, mcs):
-        self.total_virus = 0.0
+        pIFNe = 0.0
         for cell in self.cell_list_by_type(self.I2):
-            # Rule 3
+            # Rule 3a
             k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
             IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
-            t2  = self.sbml.ODEModel['t2'] * hours_to_mcs / self.initial_infected
-            self.IFNe += k21 * IFN - t2 * self.IFNe
+            pIFNe += k21 * IFN
 
-            # Rule E7
+            # Rule 7
             k61 = self.sbml.ODEModel['k61'] * hours_to_mcs * self.initial_infected
             V = self.sbml.ODEModel['V'] / self.initial_infected #Virus per cell, change to cell.dict[V] once rule 8 is implemented
             p_I2toDead = k61 * V
             if np.random.random() < p_I2toDead:
                 cell.type = self.DEAD
 
+        # Rule 3b
+        t2 = self.sbml.ODEModel['t2'] * hours_to_mcs
+        self.IFNe += pIFNe - t2 * self.IFNe
+
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
             self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
-            #self.plot_win2.add_data_point("Variable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
+            # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
 
         if plot_CellularizedModel:
             num_I2 = len(self.cell_list_by_type(self.I2))
             self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
             self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFNe)
-            #self.plot_win2.add_data_point("Variable", mcs * hours_to_mcs, self.total_virus)
+            # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.V)
