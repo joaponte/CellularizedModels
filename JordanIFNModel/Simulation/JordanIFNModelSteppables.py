@@ -79,9 +79,6 @@ class CellularModelSteppable(SteppableBasePy):
 
     def start(self):
         # set initial model parameters
-        self.initial_infected = len(self.cell_list_by_type(self.I2))
-        self.IFNe = self.sbml.ODEModel['IFNe']
-        self.V = self.sbml.ODEModel['V']
         self.get_xml_element('IFNe_decay').cdata = self.sbml.ODEModel['t2'] * hours_to_mcs
 
     def step(self, mcs):
