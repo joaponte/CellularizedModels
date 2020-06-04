@@ -94,19 +94,9 @@ class CellularModelSteppable(SteppableBasePy):
         secretor = self.get_field_secretor("IFNe")
         for cell in self.cell_list_by_type(self.I2):
             #Rule E3
-            k21 = self.sbml.ODEModel['k21'] * hours_to_mcs / self.initial_infected
+            k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
             IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
             release = secretor.secreteInsideCellTotalCount(cell, k21 * IFN / cell.volume)
-            self.IFNe += release.tot_amount
-
-            # # Rule E7
-            # k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
-            # V = self.sbml.ODEModel['V']
-            # p_I2toDead = k61 * V
-            # if np.random.random() < p_I2toDead:
-            #     cell.type = self.DEAD
-
-        self.IFNe -= self.sbml.ODEModel['t2'] * self.IFNe * hours_to_mcs
 
 class PlotODEModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -144,35 +134,20 @@ class PlotODEModelSteppable(SteppableBasePy):
                 # self.plot_win2.add_plot("V", style='Lines', color='purple', size=5)
 
     def step(self, mcs):
-        # Equation 3
-        k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
-        IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
-
-        #Equation 7
-        k71 = self.sbml.ODEModel['k71'] * hours_to_mcs
-        k72 = self.sbml.ODEModel['k72']
-        k73 = self.sbml.ODEModel['k73'] * hours_to_mcs
-        IFNe = self.sbml.ODEModel['IFNe']
-
         self.total_virus = 0.0
         for cell in self.cell_list_by_type(self.I2):
-            # Rule E7
-            if feedback == False:
-                V = self.sbml.ODEModel['V']
-                k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
-            elif feedback == True:
-                k61 = self.sbml.ODEModel['k61'] * hours_to_mcs * self.initial_infected
-                V = cell.dict['V']
+            # Rule 3
+            k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
+            IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
+            t2  = self.sbml.ODEModel['t2'] * hours_to_mcs / self.initial_infected
+            self.IFNe += k21 * IFN - t2 * self.IFNe
 
+            # Rule E7
+            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs * self.initial_infected
+            V = self.sbml.ODEModel['V'] / self.initial_infected #Virus per cell, change to cell.dict[V] once rule 8 is implemented
             p_I2toDead = k61 * V
             if np.random.random() < p_I2toDead:
                 cell.type = self.DEAD
-
-            self.IFNe += k21 * IFN
-            V = cell.dict['V']
-            cell.dict['V'] += k71 * V / (1.0 + k72 * IFNe) - k73 * V
-            self.total_virus += cell.dict['V']
-        self.IFNe -= self.sbml.ODEModel['t2'] * self.IFNe * hours_to_mcs
 
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
