@@ -13,7 +13,7 @@ feedback = False
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
 
-# Modified code to make IFNe production dependent on the number of cells (P)
+# Modified code to make IFNe production dependent on the number of infected cells (P)
 model_string = '''
     //Equations
     E2: -> IFN   ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)-k21*IFN   ; // Intracellular IFN
@@ -42,7 +42,7 @@ model_string = '''
     t5  = 0.3       ;
     k61 = 0.635     ;
     k71 = 1.537     ;
-    k72 = 0.0 ; //47.883    ;
+    k72 = 47.883    ;
     k73 = 0.197     ;
     n   = 3.0       ;
 
@@ -80,6 +80,7 @@ class CellularModelSteppable(SteppableBasePy):
     def start(self):
         # set initial model parameters
         self.get_xml_element('IFNe_decay').cdata = self.sbml.ODEModel['t2'] * hours_to_mcs
+        self.initial_infected = len(self.cell_list_by_type(self.I2))
 
     def step(self, mcs):
         secretor = self.get_field_secretor("IFNe")
@@ -97,6 +98,7 @@ class PlotODEModelSteppable(SteppableBasePy):
         self.initial_infected = len(self.cell_list_by_type(self.I2))
         self.IFNe = self.sbml.ODEModel['IFNe']
         self.V = self.sbml.ODEModel['V']
+        self.IFN = self.sbml.ODEModel['IFN']
 
         # Initialize Graphic Window for Amber Smith ODE model
         if (plot_ODEModel or plot_CellularizedModel):
@@ -115,14 +117,10 @@ class PlotODEModelSteppable(SteppableBasePy):
             if plot_ODEModel:
                 self.plot_win.add_plot("JP", style='Dots', color='red', size=5)
                 self.plot_win2.add_plot("ODEVariable", style='Dots', color='blue', size=5)
-                # self.plot_win2.add_plot("JIFNe", style='Dots', color='blue', size=5)
-                # self.plot_win2.add_plot("JV", style='Dots', color='purple', size=5)
 
             if plot_CellularizedModel:
                 self.plot_win.add_plot("I2", style='Lines', color='red', size=5)
                 self.plot_win2.add_plot("CC3DVariable", style='Lines', color='blue', size=5)
-                # self.plot_win2.add_plot("IFNe", style='Lines', color='blue', size=5)
-                # self.plot_win2.add_plot("V", style='Lines', color='purple', size=5)
 
     def step(self, mcs):
         pIFNe = 0.0
@@ -134,7 +132,7 @@ class PlotODEModelSteppable(SteppableBasePy):
             pIFNe += k21 * IFN
 
             # Rule 7
-            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs * self.initial_infected
+            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
             V = self.sbml.ODEModel['V'] / self.initial_infected
             p_I2toDead = k61 * V
             if np.random.random() < p_I2toDead:
@@ -143,7 +141,13 @@ class PlotODEModelSteppable(SteppableBasePy):
             # Rule 8a
             k71 = self.sbml.ODEModel['k71'] * hours_to_mcs
             V = self.sbml.ODEModel['V'] / self.initial_infected
-            pV += (k71 * V)
+            k72 = self.sbml.ODEModel['k72']
+            IFN = self.sbml.ODEModel['IFN']
+            pV += (k71 * V) / (1.0 + k72*IFN*7E-5)
+
+        # Rule 2b
+        k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
+        self.IFN = pIFN - k21 * self.IFN
 
         # Rule 3b
         t2 = self.sbml.ODEModel['t2'] * hours_to_mcs
@@ -156,10 +160,12 @@ class PlotODEModelSteppable(SteppableBasePy):
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
             # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
-            self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
+            # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
+            self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFN'])
 
         if plot_CellularizedModel:
             num_I2 = len(self.cell_list_by_type(self.I2))
             self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
             # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFNe)
-            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.V)
+            # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.V)
+            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFN)
