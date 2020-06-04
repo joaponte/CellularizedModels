@@ -7,7 +7,8 @@ hours_to_mcs = min_to_mcs / 60.0  # hrs/mcs
 hours_to_simulate = 36.0
 
 plot_ODEModel = True
-plot_CellularizedModel =  True
+plot_CellularizedModel = True
+feedback = False
 
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
@@ -87,21 +88,24 @@ class CellularModelSteppable(SteppableBasePy):
             cell.dict['STATP'] = self.sbml.ODEModel['STATP']
             cell.dict['IRF7'] = self.sbml.ODEModel['IRF7']
             cell.dict['IRF7P'] = self.sbml.ODEModel['IRF7P']
-            cell.dict['V'] = self.sbml.ODEModel['V']
+            cell.dict['V'] = self.sbml.ODEModel['V'] / self.initial_infected
 
     def step(self, mcs):
         secretor = self.get_field_secretor("IFNe")
         for cell in self.cell_list_by_type(self.I2):
-            # Rule E7
-            p_I2toDead = self.sbml.ODEModel['k61'] * self.sbml.ODEModel['V'] * hours_to_mcs
-            if np.random.random() < p_I2toDead:
-                cell.type = self.DEAD
-
             #Rule E3
-            k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
+            k21 = self.sbml.ODEModel['k21'] * hours_to_mcs / self.initial_infected
             IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
             release = secretor.secreteInsideCellTotalCount(cell, k21 * IFN / cell.volume)
             self.IFNe += release.tot_amount
+
+            # Rule E7
+            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
+            V = self.sbml.ODEModel['V']
+            p_I2toDead = k61 * V
+            if np.random.random() < p_I2toDead:
+                cell.type = self.DEAD
+
         self.IFNe -= self.sbml.ODEModel['t2'] * self.IFNe * hours_to_mcs
 
 class PlotODEModelSteppable(SteppableBasePy):
@@ -111,6 +115,7 @@ class PlotODEModelSteppable(SteppableBasePy):
     def start(self):
         self.initial_infected = len(self.cell_list_by_type(self.I2))
         self.IFNe = self.sbml.ODEModel['IFNe']
+        self.total_virus = 0.0
 
         # Initialize Graphic Window for Amber Smith ODE model
         if (plot_ODEModel or plot_CellularizedModel):
@@ -123,31 +128,44 @@ class PlotODEModelSteppable(SteppableBasePy):
             self.plot_win2 = self.add_new_plot_window(title='Jordan Model IFNe',
                                                       x_axis_title='Hours',
                                                       y_axis_title='Extracellular IFN', x_scale_type='linear',
-                                                      y_scale_type='linear',
+                                                      y_scale_type='log',
                                                       grid=False, config_options={'legend': True})
 
             if plot_ODEModel:
                 self.plot_win.add_plot("JP", style='Dots', color='red', size=5)
                 self.plot_win2.add_plot("JIFNe", style='Dots', color='blue', size=5)
+                self.plot_win2.add_plot("JV", style='Dots', color='purple', size=5)
 
             if plot_CellularizedModel:
                 self.plot_win.add_plot("I2", style='Lines', color='red', size=5)
                 self.plot_win2.add_plot("IFNe", style='Lines', color='blue', size=5)
+                self.plot_win2.add_plot("V", style='Lines', color='purple', size=5)
 
     def step(self, mcs):
+
         k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
         IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
+
+        k71 = self.sbml.ODEModel['k71'] * hours_to_mcs
+        k72 = self.sbml.ODEModel['k72']
+        k73 = self.sbml.ODEModel['k73'] * hours_to_mcs
+        IFNe = self.sbml.ODEModel['IFNe']
+
+        self.total_virus = 0.0
         for cell in self.cell_list_by_type(self.I2):
             self.IFNe += k21 * IFN
+            V = cell.dict['V']
+            cell.dict['V'] += k71 * V / (1.0 + k72 * IFNe) - k73 * V
+            self.total_virus += cell.dict['V']
         self.IFNe -= self.sbml.ODEModel['t2'] * self.IFNe * hours_to_mcs
 
         if plot_ODEModel:
-            self.plot_win.add_data_point("JP", mcs * hours_to_mcs,
-                                     self.sbml.ODEModel['P'])
-            self.plot_win2.add_data_point("JIFNe", mcs * hours_to_mcs,
-                                     self.sbml.ODEModel['IFNe'])
+            self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
+            self.plot_win2.add_data_point("JIFNe", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
+            self.plot_win2.add_data_point("JV", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
 
         if plot_CellularizedModel:
             num_I2 = len(self.cell_list_by_type(self.I2))
-            self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2/self.initial_infected)
+            self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
             self.plot_win2.add_data_point("IFNe", mcs * hours_to_mcs, self.IFNe)
+            self.plot_win2.add_data_point("V", mcs * hours_to_mcs, self.total_virus)
