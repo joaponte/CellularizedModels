@@ -81,14 +81,46 @@ class CellularModelSteppable(SteppableBasePy):
         # set initial model parameters
         self.get_xml_element('IFNe_decay').cdata = self.sbml.ODEModel['t2'] * hours_to_mcs
         self.initial_infected = len(self.cell_list_by_type(self.I2))
+        self.IFNe = self.sbml.ODEModel['IFNe']
+        self.V = self.sbml.ODEModel['V']
+
+        self.shared_steppable_vars['IFNe'] = self.V
+        self.shared_steppable_vars['V'] = self.IFNe
 
     def step(self, mcs):
+        pIFNe = 0.0
+        pV = 0.0
         secretor = self.get_field_secretor("IFNe")
         for cell in self.cell_list_by_type(self.I2):
-            #Rule E3
-            k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
-            IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
+            #Rule 3a
+            k21 = self.sbml.ODEModel['k21'] * hours_to_mcs / self.initial_infected
+            IFN = self.sbml.ODEModel['IFN']
             release = secretor.secreteInsideCellTotalCount(cell, k21 * IFN / cell.volume)
+            pIFNe += abs(release.tot_amount)
+
+            # Rule 7
+            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
+            V = self.sbml.ODEModel['V']
+            p_I2toDead = k61 * V
+            if np.random.random() < p_I2toDead:
+                cell.type = self.DEAD
+
+            # Rule 8a
+            k71 = self.sbml.ODEModel['k71'] * hours_to_mcs / self.initial_infected
+            V = self.sbml.ODEModel['V']
+            k72 = self.sbml.ODEModel['k72']
+            IFN = self.sbml.ODEModel['IFN']
+            pV += (k71 * V) / (1.0 + k72*IFN*7E-5)
+
+        # Rule 3b
+        t2 = self.sbml.ODEModel['t2'] * hours_to_mcs
+        self.IFNe += pIFNe - t2 * self.IFNe
+        self.shared_steppable_vars['IFNe'] = self.IFNe
+
+        # Rule 8b
+        k73 = self.sbml.ODEModel['k73'] * hours_to_mcs
+        self.V += pV - k73 * self.V
+        self.shared_steppable_vars['V'] = self.V
 
 class PlotODEModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -96,9 +128,11 @@ class PlotODEModelSteppable(SteppableBasePy):
 
     def start(self):
         self.initial_infected = len(self.cell_list_by_type(self.I2))
-        self.IFNe = self.sbml.ODEModel['IFNe']
-        self.V = self.sbml.ODEModel['V']
-        self.IFN = self.sbml.ODEModel['IFN']
+        self.IRF7P = self.sbml.ODEModel['IRF7P']
+        self.total_IRF7P = 0.0
+        for cell in self.cell_list_by_type(self.I2):
+            cell.dict['IRF7P'] = self.sbml.ODEModel['IRF7P'] / self.initial_infected
+            self.total_IRF7P += cell.dict['IRF7P']
 
         # Initialize Graphic Window for Amber Smith ODE model
         if (plot_ODEModel or plot_CellularizedModel):
@@ -121,47 +155,39 @@ class PlotODEModelSteppable(SteppableBasePy):
             if plot_CellularizedModel:
                 self.plot_win.add_plot("I2", style='Lines', color='red', size=5)
                 self.plot_win2.add_plot("CC3DVariable", style='Lines', color='blue', size=5)
+                # self.plot_win2.add_plot("CC3DVariable2", style='Lines', color='purple', size=5)
 
     def step(self, mcs):
-        pIFNe = 0.0
-        pV = 0.0
+        pIRF7P = 0.0
+        self.total_IRF7P = 0.0
+        L = len(self.cell_list_by_type(self.I2))
         for cell in self.cell_list_by_type(self.I2):
-            # Rule 3a
-            k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
-            IFN = self.sbml.ODEModel['IFN'] / self.initial_infected
-            pIFNe += k21 * IFN
+            k51 = self.sbml.ODEModel['k51'] * hours_to_mcs / self.initial_infected
+            IRF7 = self.sbml.ODEModel['IRF7']
+            pIRF7P += k51 * IRF7
 
-            # Rule 7
-            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs * self.initial_infected
-            V = self.sbml.ODEModel['V'] / self.initial_infected
-            p_I2toDead = k61 * V
-            if np.random.random() < p_I2toDead:
-                cell.type = self.DEAD
+            k51 = self.sbml.ODEModel['k51'] * hours_to_mcs / self.initial_infected
+            IRF7 = self.sbml.ODEModel['IRF7']
+            t5 = self.sbml.ODEModel['t5'] * hours_to_mcs
+            cell.dict['IRF7P'] = k51 * IRF7 - t5 * cell.dict['IRF7P']
+            self.total_IRF7P += cell.dict['IRF7P']
 
-            # Rule 8a
-            k71 = self.sbml.ODEModel['k71'] * hours_to_mcs
-            V = self.sbml.ODEModel['V'] / self.initial_infected
-            k72 = self.sbml.ODEModel['k72']
-            IFN = self.sbml.ODEModel['IFN']
-            pV += (k71 * V) / (1.0 + k72*IFN*7E-5)
+        t5 = self.sbml.ODEModel['t5'] * hours_to_mcs
+        self.IRF7P += pIRF7P - t5 * self.IRF7P
 
-        # Rule 3b
-        t2 = self.sbml.ODEModel['t2'] * hours_to_mcs
-        self.IFNe += pIFNe - t2 * self.IFNe
-
-        # Rule 8b
-        k73 = self.sbml.ODEModel['k73'] * hours_to_mcs
-        self.V += pV - k73 * self.V
+        self.IFNe = self.shared_steppable_vars['IFNe']
+        self.V = self.shared_steppable_vars['V']
 
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
             self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
             # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
-            # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFN'])
+            # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IRF7P'])
 
         if plot_CellularizedModel:
             num_I2 = len(self.cell_list_by_type(self.I2))
             self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
             self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFNe)
             # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.V)
-            # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFN)
+            # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IRF7P)
+            # self.plot_win2.add_data_point("CC3DVariable2", mcs * hours_to_mcs, self.total_IRF7P)
