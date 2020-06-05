@@ -132,7 +132,7 @@ class PlotODEModelSteppable(SteppableBasePy):
             pIFNe += k21 * IFN
 
             # Rule 7
-            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
+            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs * self.initial_infected
             V = self.sbml.ODEModel['V'] / self.initial_infected
             p_I2toDead = k61 * V
             if np.random.random() < p_I2toDead:
@@ -145,10 +145,6 @@ class PlotODEModelSteppable(SteppableBasePy):
             IFN = self.sbml.ODEModel['IFN']
             pV += (k71 * V) / (1.0 + k72*IFN*7E-5)
 
-        # Rule 2b
-        k21 = self.sbml.ODEModel['k21'] * hours_to_mcs
-        self.IFN = pIFN - k21 * self.IFN
-
         # Rule 3b
         t2 = self.sbml.ODEModel['t2'] * hours_to_mcs
         self.IFNe += pIFNe - t2 * self.IFNe
@@ -159,13 +155,13 @@ class PlotODEModelSteppable(SteppableBasePy):
 
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
-            # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
+            self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
             # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
-            self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFN'])
+            # self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['IFN'])
 
         if plot_CellularizedModel:
             num_I2 = len(self.cell_list_by_type(self.I2))
             self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
-            # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFNe)
+            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFNe)
             # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.V)
-            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFN)
+            # self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, self.IFN)
