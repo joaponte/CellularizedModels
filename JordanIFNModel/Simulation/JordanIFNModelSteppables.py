@@ -92,7 +92,7 @@ submodel_string = '''
     n   = 3.0       ;
     
     IFNe = 0.0      ;
-    P = 0.0         ;
+    P = 1.0         ;
 
     //Initial Conditions
     IRF7 = 0.72205  ;
@@ -195,11 +195,14 @@ class PlotODEModelSteppable(SteppableBasePy):
                 self.plot_win2.add_plot("CC3DVariable", style='Lines', color='blue', size=5)
 
     def step(self, mcs):
-        L = len(self.cell_list_by_type(self.I2))
         for cell in self.cell_list_by_type(self.I2):
-            cell.sbml.submodel['P'] = L / self.initial_infected
             cell.sbml.submodel['IFNe'] = self.sbml.ODEModel['IFNe']
         self.timestep_sbml()
+
+        self.V = 0.0
+        for cell in self.cell_list_by_type(self.I2):
+            self.V += cell.sbml.submodel['V']
+        self.V /= self.initial_infected
 
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
@@ -208,4 +211,4 @@ class PlotODEModelSteppable(SteppableBasePy):
         if plot_CellularizedModel:
             num_I2 = len(self.cell_list_by_type(self.I2))
             self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
-            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs, cell.sbml.submodel['V'])
+            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs,self.V)
