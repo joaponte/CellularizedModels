@@ -128,6 +128,7 @@ class CellularModelSteppable(SteppableBasePy):
         # Transition rule from U to I1
         secretor = self.get_field_secretor("Virus")
         secretorB = self.get_field_secretor("VirusB")
+
         for cell in self.cell_list_by_type(self.U):
             # Determine V from scalar virus from the ODE
             if how_to_determine_V == -1:
@@ -217,6 +218,8 @@ class CellularModelSteppable(SteppableBasePy):
             self.ExtracellularVirusB += release.tot_amount
         self.ExtracellularVirusB -= c * VB
 
+        self.shared_steppable_vars['ScalarVirus'] = self.ExtracellularVirus
+        self.shared_steppable_vars['ScalarVirusB'] = self.ExtracellularVirusB
 
 class Data_OutputSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -271,26 +274,12 @@ class Data_OutputSteppable(SteppableBasePy):
             CI2B = len(self.cell_list_by_type(self.I2B))
             CDB = len(self.cell_list_by_type(self.DEADB))
 
-            self.Virus_Field = 0
-            secretor = self.get_field_secretor("Virus")
-            for cell in self.cell_list:
-                uptake_probability = 0.0000001
-                uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                V = abs(uptake.tot_amount) / uptake_probability
-                self.Virus_Field += V
-                secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
-
-            self.Virus_FieldB = 0
-            secretor = self.get_field_secretor("VirusB")
-            for cell in self.cell_list:
-                uptake_probability = 0.0000001
-                uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                V = abs(uptake.tot_amount) / uptake_probability
-                self.Virus_FieldB += V
-                secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+            if how_to_determine_V == 1:
+                Virus_Field = self.shared_steppable_vars['FieldVirus']
+                Virus_FieldB = self.shared_steppable_vars['FieldVirusB']
 
             self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
-                d, CU, CI1A, CI2A, CDA, self.Virus_Field, CI1B, CI2B, CDB, self.Virus_FieldB))
+                d, CU, CI1A, CI2A, CDA, Virus_Field, CI1B, CI2B, CDB, Virus_FieldB))
             self.output.flush()
 
     def finish(self):
@@ -337,6 +326,7 @@ class Plot_ODEsSteppable(SteppableBasePy):
                                                       grid=False, config_options={'legend': True})
 
             self.plot_win6.add_plot("T", style='Lines', color='blue', size=5)
+
             if plot_CoinfectionODEtandAlone == 1 or plot_CoinfectionODEtandAlone == 3:
                 self.plot_win6.add_plot("I1A", style='Lines', color='yellow', size=5)
                 self.plot_win6.add_plot("I2A", style='Lines', color='red', size=5)
@@ -408,8 +398,6 @@ class Plot_CellularModelSteppable(SteppableBasePy):
 
     def start(self):
         self.initial_uninfected = len(self.cell_list_by_type(self.U))
-        self.Plot_ExtracellularVirus = self.sbml.coinfection['VA']
-        self.Plot_ExtracellularVirusB = self.sbml.coinfection['VB']
 
         if plot_CellModel:
             self.plot_win3 = self.add_new_plot_window(title='CPM Cells',
@@ -445,18 +433,8 @@ class Plot_CellularModelSteppable(SteppableBasePy):
     def step(self, mcs):
         if plot_CellModel:
             # Calculate Extracellular VirusB tracking production and decay
-            p = self.sbml.coinfection['p'] / self.initial_uninfected * self.sbml.coinfection['T0'] * days_to_mcs
-            c = self.sbml.coinfection['c'] * days_to_mcs
-
-            VA = self.Plot_ExtracellularVirus
-            VA_production = p * len(self.cell_list_by_type(self.I2))
-            VA_decay = c * VA
-            self.Plot_ExtracellularVirus += VA_production - VA_decay
-
-            VB = self.Plot_ExtracellularVirusB
-            VB_production = p * len(self.cell_list_by_type(self.I2B))
-            VB_decay = c * VB
-            self.Plot_ExtracellularVirusB += VB_production - VB_decay
+            self.Plot_ExtracellularVirus = self.shared_steppable_vars['ScalarVirus']
+            self.Plot_ExtracellularVirusB = self.shared_steppable_vars['ScalarVirusB']
 
             # Measure amount of extracellular virus field
             secretor = self.get_field_secretor("Virus")
@@ -477,6 +455,9 @@ class Plot_CellularModelSteppable(SteppableBasePy):
                 V = abs(uptake.tot_amount) / uptake_probability
                 self.Plot_ExtracellularVirus_FieldB += V
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+            self.shared_steppable_vars['FieldVirus'] =  self.Plot_ExtracellularVirus_Field
+            self.shared_steppable_vars['FieldVirusB'] = self.Plot_ExtracellularVirus_FieldB
 
             self.plot_win3.add_data_point("U", mcs * days_to_mcs,
                                           len(self.cell_list_by_type(self.U)) / self.initial_uninfected)
