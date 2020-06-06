@@ -1,0 +1,104 @@
+<CompuCell3D Revision="20190906" Version="4.1.0">
+   
+   <Metadata>
+      
+      <!-- Basic properties simulation -->
+      <NumberOfProcessors>1</NumberOfProcessors>
+      <DebugOutputFrequency>10</DebugOutputFrequency>
+      <!-- <NonParallelModule Name="Potts"/> -->
+   </Metadata>
+   
+   <Potts>
+      
+      <!-- Basic properties of CPM (GGH) algorithm -->
+      <Dimensions x="256" y="256" z="1"/>
+      <Steps id="simulation_steps">100000</Steps>
+      <Temperature>10.0</Temperature>
+      <NeighborOrder>1</NeighborOrder>
+      <Boundary_x>Periodic</Boundary_x>
+      <Boundary_y>Periodic</Boundary_y>
+   </Potts>
+   
+   <Plugin Name="CellType">
+      
+      <!-- Listing all cell types in the simulation -->
+      <CellType TypeId="0" TypeName="Medium"/>
+      <CellType Freeze="" TypeId="1" TypeName="U"/>
+      <CellType Freeze="" TypeId="2" TypeName="EP1"/>
+      <CellType Freeze="" TypeId="3" TypeName="EP2"/>
+      <CellType Freeze="" TypeId="4" TypeName="W"/>
+      <CellType Freeze="" TypeId="5" TypeName="R"/>
+      <CellType Freeze="" TypeId="6" TypeName="I"/>
+      <CellType Freeze="" TypeId="7" TypeName="D"/>
+
+   </Plugin>
+   
+   <Plugin Name="Volume">
+      <VolumeEnergyParameters CellType="U" LambdaVolume="2.0" TargetVolume="50"/>
+      <VolumeEnergyParameters CellType="EP1" LambdaVolume="2.0" TargetVolume="50"/>
+      <VolumeEnergyParameters CellType="EP2" LambdaVolume="2.0" TargetVolume="50"/>
+      <VolumeEnergyParameters CellType="W" LambdaVolume="2.0" TargetVolume="50"/>
+      <VolumeEnergyParameters CellType="R" LambdaVolume="2.0" TargetVolume="50"/>
+      <VolumeEnergyParameters CellType="I" LambdaVolume="2.0" TargetVolume="50"/>
+      <VolumeEnergyParameters CellType="D" LambdaVolume="2.0" TargetVolume="50"/>
+
+   </Plugin>
+   
+   <Plugin Name="CenterOfMass">
+      
+      <!-- Module tracking center of mass of each cell -->
+   </Plugin>
+   
+<Plugin Name="Contact">
+   <!-- Specification of adhesion energies -->
+   <Energy Type1="Medium" Type2="Medium">10.0</Energy>
+   <Energy Type1="Medium" Type2="U">10.0</Energy>
+   <Energy Type1="Medium" Type2="EP1">10.0</Energy>
+   <Energy Type1="Medium" Type2="EP2">10.0</Energy>
+   <Energy Type1="Medium" Type2="W">10.0</Energy>
+   <Energy Type1="Medium" Type2="R">10.0</Energy>
+   <Energy Type1="Medium" Type2="I">10.0</Energy>
+   <Energy Type1="Medium" Type2="D">10.0</Energy>
+   <Energy Type1="U" Type2="U">10.0</Energy>
+   <Energy Type1="U" Type2="EP1">10.0</Energy>
+   <Energy Type1="U" Type2="EP2">10.0</Energy>
+   <Energy Type1="U" Type2="W">10.0</Energy>
+   <Energy Type1="U" Type2="R">10.0</Energy>
+   <Energy Type1="U" Type2="I">10.0</Energy>
+   <Energy Type1="U" Type2="D">10.0</Energy>
+   <Energy Type1="EP1" Type2="EP1">10.0</Energy>
+   <Energy Type1="EP1" Type2="EP2">10.0</Energy>
+   <Energy Type1="EP1" Type2="W">10.0</Energy>
+   <Energy Type1="EP1" Type2="R">10.0</Energy>
+   <Energy Type1="EP1" Type2="I">10.0</Energy>
+   <Energy Type1="EP1" Type2="D">10.0</Energy>
+   <Energy Type1="EP2" Type2="EP2">10.0</Energy>
+   <Energy Type1="EP2" Type2="W">10.0</Energy>
+   <Energy Type1="EP2" Type2="R">10.0</Energy>
+   <Energy Type1="EP2" Type2="I">10.0</Energy>
+   <Energy Type1="EP2" Type2="D">10.0</Energy>
+   <Energy Type1="W" Type2="W">10.0</Energy>
+   <Energy Type1="W" Type2="R">10.0</Energy>
+   <Energy Type1="W" Type2="I">10.0</Energy>
+   <Energy Type1="W" Type2="D">10.0</Energy>
+   <Energy Type1="R" Type2="R">10.0</Energy>
+   <Energy Type1="R" Type2="I">10.0</Energy>
+   <Energy Type1="R" Type2="D">10.0</Energy>
+   <Energy Type1="I" Type2="I">10.0</Energy>
+   <Energy Type1="I" Type2="D">10.0</Energy>
+   <Energy Type1="D" Type2="D">10.0</Energy>
+   <NeighborOrder>4</NeighborOrder>
+</Plugin>
+   
+   <Steppable Type="UniformInitializer">
+      
+      <!-- Initial layout of cells in the form of rectangular slab -->
+      <Region>
+         <BoxMin x="0" y="0" z="0"/>
+         <BoxMax x="256" y="256" z="1"/>
+         <Gap>0</Gap>
+         <Width>3</Width>
+         <Types>U</Types>
+      </Region>
+   </Steppable>
+</CompuCell3D>
