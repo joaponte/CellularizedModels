@@ -16,6 +16,7 @@ Regulating Excessive Cytokine Production'''
 # Modified code to make IFNe production dependent on the number of infected cells (P)
 model_string = '''
     //Equations
+    // Amount of IFN per live cell times probability cell is alive
     E2a: -> IFN         ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)            ; // Intracellular IFN
     E2b: IFN -> IFNe    ; k21*IFN                                                 ;
     E3: IFNe ->         ; t2*IFNe                                                   ; // Extracellular IFN
@@ -45,7 +46,7 @@ model_string = '''
     t4  = 0.3       ;
     k51 = 0.202     ;
     t5  = 0.3       ;
-    k61 = 0.635     ;
+    k61 = 0.0 //  0.635     ;
     k71 = 1.537     ;
     k72 = 47.883    ;
     k73 = 0.197     ;
@@ -60,23 +61,25 @@ model_string = '''
 
 submodel_string = '''
     //Equations
-    E2a: -> IFN         ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)    ;
-    E2b: IFN -> IFNe    ; k21*IFN                                           ;
-    E4: -> STATP        ; P*k31*IFNe/(k32+k33*IFNe)                         ;
-    E4b: STATP ->       ; t3*STATP                                          ;
-    E5a: -> IRF7        ; P*k41*STATP+k42*IRF7P                             ;
-    E5b: IRF7 ->        ; t4*IRF7                                           ; 
-    E6a: -> IRF7P       ; P*k51*IRF7                                        ; 
-    E6b: IRF7P ->       ; t5*IRF7P                                          ;
-    E8a: -> V           ; P*(k71*V)/(1.0+k72*IFN*7E-5)                      ;
-    E8b: V ->           ; k73*V                                             ;
-
+    E2a: -> IFN         ; (k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)              ; // Intracellular IFN
+    E2b: IFN -> IFNe    ; k21*IFN                                                   ;
+    E3: IFNe ->         ; t2*IFNe                                                   ; // Extracellular IFN
+    E4: -> STATP        ; k31*IFNe/(k32+k33*IFNe)                                   ; // Intracellular STATP
+    E4b: STATP ->       ; t3*STATP                                                  ;
+    E5a: -> IRF7        ; (k41*STATP+k42*IRF7P)                                     ; // Intracellular IRF7
+    E5b: IRF7 ->        ; t4*IRF7
+    E6a: -> IRF7P       ; k51*IRF7                                                  ; // Intracellular IRF7P
+    E6b: IRF7P ->       ; t5*IRF7P                                                  ; // Infected Cells
+    E8a: -> V           ; (k71*V)/(1.0+k72*IFN*7E-5)                                ; // Intracellular Virus
+    E8b: V ->           ; k73*V                                                     ;
+    
     //Parameters
-    k11 = 0.0       ;
+    k11 = 0.0       ; 
     k12 = 9.746     ; 
     k13 = 12.511    ; 
     k14 = 13.562    ;
     k21 = 10.385    ;
+    t2  = 3.481     ;
     k31 = 45.922    ;
     k32 = 5.464     ;
     k33 = 0.068     ;
@@ -86,18 +89,17 @@ submodel_string = '''
     t4  = 0.3       ;
     k51 = 0.202     ;
     t5  = 0.3       ;
+    k61 = 0.0 //0.635     ;
     k71 = 1.537     ;
     k72 = 47.883    ;
     k73 = 0.197     ;
     n   = 3.0       ;
-    
-    IFNe = 0.0      ;
-    P = 1.0         ;
 
     //Initial Conditions
-    IRF7 = 0.72205  ;
-    V = 6.9e-8      ;
-    RIGI = 1.0      ;
+    P    = 1.0     ;   
+    RIGI = 1.0     ;
+    IRF7 = 0.72205 ;
+    V    = 6.9e-8  ;
 '''
 
 class ODEModelSteppable(SteppableBasePy):
@@ -180,35 +182,47 @@ class PlotODEModelSteppable(SteppableBasePy):
                                                      y_scale_type='linear',
                                                      grid=False, config_options={'legend': True})
 
-            self.plot_win2 = self.add_new_plot_window(title='Jordan Model IFNe',
+            self.plot_win2 = self.add_new_plot_window(title='Jordan Model Variable',
                                                       x_axis_title='Hours',
                                                       y_axis_title='Extracellular IFN', x_scale_type='linear',
                                                       y_scale_type='linear',
                                                       grid=False, config_options={'legend': True})
 
+            self.plot_win3 = self.add_new_plot_window(title='IFNe',
+                                                      x_axis_title='Hours',
+                                                      y_axis_title='Extracellular IFN', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False, config_options={'legend': True})
             if plot_ODEModel:
                 self.plot_win.add_plot("JP", style='Dots', color='red', size=5)
                 self.plot_win2.add_plot("ODEVariable", style='Dots', color='blue', size=5)
+                self.plot_win3.add_plot("ODEIFNe", style='Dots', color='purple', size=5)
 
             if plot_CellularizedModel:
                 self.plot_win.add_plot("I2", style='Lines', color='red', size=5)
                 self.plot_win2.add_plot("CC3DVariable", style='Lines', color='blue', size=5)
+                self.plot_win3.add_plot("CC3DIFNe", style='Lines', color='purple', size=5)
 
     def step(self, mcs):
-        for cell in self.cell_list_by_type(self.I2):
-            cell.sbml.submodel['IFNe'] = self.sbml.ODEModel['IFNe']
+        # for cell in self.cell_list_by_type(self.I2):
+        #     cell.sbml.submodel['IFNe'] = self.sbml.ODEModel['IFNe']
         self.timestep_sbml()
 
-        self.V = 0.0
+        # self.V = 0.0
+        # for cell in self.cell_list_by_type(self.I2):
+        #     self.V += cell.sbml.submodel['V']
+        # self.V /= self.initial_infected
+
         for cell in self.cell_list_by_type(self.I2):
-            self.V += cell.sbml.submodel['V']
-        self.V /= self.initial_infected
+            pass
 
         if plot_ODEModel:
             self.plot_win.add_data_point("JP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
             self.plot_win2.add_data_point("ODEVariable", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
+            self.plot_win3.add_data_point("ODEIFNe", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
 
         if plot_CellularizedModel:
-            num_I2 = len(self.cell_list_by_type(self.I2))
-            self.plot_win.add_data_point("I2", mcs * hours_to_mcs, num_I2 / self.initial_infected)
-            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs,self.V)
+            P = len(self.cell_list_by_type(self.I2))/self.initial_infected
+            self.plot_win.add_data_point("I2", mcs * hours_to_mcs, P)
+            self.plot_win2.add_data_point("CC3DVariable", mcs * hours_to_mcs,cell.sbml.submodel['V']*P)
+            self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs, self.shared_steppable_vars['IFNe'])
