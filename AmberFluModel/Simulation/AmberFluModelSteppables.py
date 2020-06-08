@@ -303,4 +303,5 @@ class Data_OutputSteppable(SteppableBasePy):
 
     def finish(self):
         if Data_writeout:
-            self.output.close()
+            self.output1.close()
+            self.output2.close()
