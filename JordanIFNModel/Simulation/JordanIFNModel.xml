@@ -72,7 +72,6 @@
             <FieldName>Virus</FieldName>
             <GlobalDiffusionConstant id = "IFNe_dc">1.0</GlobalDiffusionConstant>
             <GlobalDecayConstant id = "IFNe_decay">0.0</GlobalDecayConstant>
-<!--            <InitialConcentrationExpression>75.0/(256*256)</InitialConcentrationExpression>-->
          </DiffusionData>
          <BoundaryConditions>
             <Plane Axis="X">
