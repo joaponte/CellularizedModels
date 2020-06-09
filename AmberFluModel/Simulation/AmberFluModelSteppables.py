@@ -2,8 +2,8 @@ from cc3d.core.PySteppables import *
 import numpy as np
 import os
 
-plot_ODEModel = False
-plot_CellModel = False
+plot_ODEModel = True
+plot_CellModel = True
 plot_Residuals = False
 Data_writeout = False
 
@@ -11,7 +11,7 @@ Data_writeout = False
 # 1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
 # 2 pulls from the scalar virus from the cellular model (feedback in the cellular model but no field)
 # 3 pulls from the virus field
-how_to_determine_V = 3
+how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
@@ -57,8 +57,8 @@ class AmberFluModelSteppable(SteppableBasePy):
                                         step_size=days_to_mcs)
 
         # Changing initial values according to discussions with Amber Smith
-        self.smbl.FluModel['I1'] = 0.0
-        self.smbl.FluModel['V'] = 75.0
+        self.sbml.FluModel['I1'] = 0.0
+        self.sbml.FluModel['V'] = 75.0
 
     def step(self, mcs):
         self.timestep_sbml()
@@ -144,6 +144,7 @@ class PlotSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+        self.initial_uninfected = len(self.cell_list_by_type(self.U))
         if (plot_ODEModel == True) or (plot_CellModel == True):
             self.plot_win = self.add_new_plot_window(title='Flu Model Cells',
                                                      x_axis_title='Days',
@@ -231,7 +232,7 @@ class StatisticsSteppable(SteppableBasePy):
                 self.cellular_infection = True
 
         if self.Ambersmodel_infection == False:
-            if self.sbml.ambersmithsimple['I1'] / self.sbml.FluModel['T0'] >= self.infection_threshold:
+            if self.sbml.FluModel['I1'] / self.sbml.FluModel['T0'] >= self.infection_threshold:
                 self.Ambersmodel_infection_time = mcs
                 self.Ambersmodel_infection = True
 

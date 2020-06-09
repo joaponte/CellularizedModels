@@ -1,8 +1,8 @@
 
 from cc3d import CompuCellSetup
         
-from AmberFluModelSteppables import AmberFluModelSteppable
-CompuCellSetup.register_steppable(steppable=AmberFluModelSteppable(frequency=1))
+from CoinfectionModelSteppables  import ODEModelSteppable
+CompuCellSetup.register_steppable(steppable=ODEModelSteppable(frequency=1))
 
 from CoinfectionModelSteppables import CellularModelSteppable
 CompuCellSetup.register_steppable(steppable=CellularModelSteppable(frequency=1))

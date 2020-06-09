@@ -20,9 +20,7 @@ days_to_simulate = 4.0  # 10 in the original model
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
 
-FluModelString = '''        
-        model ambersmithsimple()
-        
+FluModelString = '''
         //State Variables and Transitions
         V1: -> T  ; -beta * V * T ;                             // Susceptible Cells
         V2: -> I1 ;  beta * V * T - k * I1 ;                    // Early Infected Cells
@@ -42,11 +40,10 @@ FluModelString = '''
         T0 = 1.0*10^7;
         T = T0  ;                                               // Initial Number of Uninfected Cells
         I1 = 75.0 ;                                             // Initial Number of Infected Cells
-end'''
+'''
 
 CoinfectionModelString = '''
-        model coinfection()
-         //State Variables and Transitions for Virus A
+        //State Variables and Transitions for Virus A
         V1: -> T   ; -beta * VA * T ;                               // Susceptible Cells
         V2: -> I1A ;  beta * VA * T - k * I1A ;                     // Early Infected Cells
         V3: -> I2A ;  k * I1A - delta_d * I2A / (K_delta + I2A) ;   // Late Infected Cells
@@ -72,9 +69,9 @@ CoinfectionModelString = '''
         T0 = 1.0*10^7;
         T = T0  ;                                                   // Initial Number of Uninfected Cells
         I1 = 75.0 ;                                                 // Initial Number of Infected Cells
-end'''
+'''
 
-class AmberFluModelSteppable(SteppableBasePy):
+class ODEModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
 
@@ -109,9 +106,11 @@ class CellularModelSteppable(SteppableBasePy):
     def start(self):
         # set initial model parameters
         self.initial_uninfected = len(self.cell_list_by_type(self.U))
+
         self.ExtracellularVirusA = self.sbml.CoinfectionModel['VA']
         self.get_xml_element('virusA_decay').cdata = self.sbml.CoinfectionModel['c'] * days_to_mcs
-        self.ExtracellularVirusB = self.sbml.coinfection['VB']
+
+        self.ExtracellularVirusB =  self.sbml.CoinfectionModel['VB']
         self.get_xml_element('virusB_decay').cdata = self.sbml.CoinfectionModel['c'] * days_to_mcs
 
     def step(self, mcs):
@@ -120,19 +119,19 @@ class CellularModelSteppable(SteppableBasePy):
         secretorB = self.get_field_secretor("VirusB")
         for cell in self.cell_list_by_type(self.U):
             # Determine V from scalar virus from the ODE
-            if how_to_determine_V == -1:
+            if how_to_determine_V == 1:
                 b = self.sbml.CoinfectionModel['beta'] * self.sbml.CoinfectionModel['T0'] * days_to_mcs
                 VA = self.sbml.CoinfectionModel['VA'] / self.sbml.CoinfectionModel['T0']
                 VB = self.sbml.CoinfectionModel['VB'] / self.sbml.CoinfectionModel['T0']
 
             # Determine V from scalar virus from the cellular model
-            if how_to_determine_V == 0:
+            if how_to_determine_V == 2:
                 b = self.sbml.CoinfectionModel['beta'] * self.initial_uninfected * days_to_mcs
                 VA = self.ExtracellularVirusA / self.initial_uninfected
                 VB = self.ExtracellularVirusB / self.initial_uninfected
 
             # Determine V from the virus field
-            if how_to_determine_V == 1:
+            if how_to_determine_V == 3:
                 b = self.sbml.CoinfectionModel['beta'] * self.initial_uninfected * days_to_mcs
                 uptake_probability = 0.0000001
 
@@ -212,12 +211,12 @@ class CellularModelSteppable(SteppableBasePy):
         self.shared_steppable_vars['ScalarVirusB'] = self.ExtracellularVirusB
 
         # Measure extracellular virus field A
-        self.Plot_ExtracellularVirus_Field = 0
+        self.Plot_ExtracellularVirus_FieldA = 0
         for cell in self.cell_list:
             uptake_probability = 0.0000001
             uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
             V = abs(uptake.tot_amount) / uptake_probability
-            self.Plot_ExtracellularVirus_Field += V
+            self.Plot_ExtracellularVirus_FieldA += V
             secretorA.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
         self.shared_steppable_vars['FieldVirusA'] = self.Plot_ExtracellularVirus_FieldA
 
@@ -257,15 +256,15 @@ class Data_OutputSteppable(SteppableBasePy):
         if Data_writeout:
             # Record variables from ODE model
             d = mcs * days_to_mcs
-            AT = self.sbml.coinfection['T']
-            AI1A = self.sbml.coinfection['I1A']
-            AI2A = self.sbml.coinfection['I2A']
-            ADA = self.sbml.coinfection['DA']
-            AVA = self.sbml.coinfection['VA']
-            AI1B = self.sbml.coinfection['I1B']
-            AI2B = self.sbml.coinfection['I2B']
-            ADB = self.sbml.coinfection['DB']
-            AVB = self.sbml.coinfection['VB']
+            AT = self.sbml.CoinfectionModel['T']
+            AI1A = self.sbml.CoinfectionModel['I1A']
+            AI2A = self.sbml.CoinfectionModel['I2A']
+            ADA = self.sbml.CoinfectionModel['DA']
+            AVA = self.sbml.CoinfectionModel['VA']
+            AI1B = self.sbml.CoinfectionModel['I1B']
+            AI2B = self.sbml.CoinfectionModel['I2B']
+            ADB = self.sbml.CoinfectionModel['DB']
+            AVB = self.sbml.CoinfectionModel['VB']
 
             self.output.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
                 d, AT, AI1A, AI2A, ADA, AVA, AI1B, AI2B, ADB, AVB))
@@ -371,11 +370,11 @@ class PlotSteppable(SteppableBasePy):
             self.plot_win2.add_data_point("CoODEVA", mcs * days_to_mcs,
                                           np.log10(self.sbml.CoinfectionModel['VA']))
             self.plot_win.add_data_point("CoODEI1B", mcs * days_to_mcs,
-                                          self.sbml.coinfection['I1B'] / self.sbml.CoinfectionModel['T0'])
+                                          self.sbml.CoinfectionModel['I1B'] / self.sbml.CoinfectionModel['T0'])
             self.plot_win.add_data_point("CoODEI2B", mcs * days_to_mcs,
-                                          self.sbml.coinfection['I2B'] / self.sbml.CoinfectionModel['T0'])
+                                          self.sbml.CoinfectionModel['I2B'] / self.sbml.CoinfectionModel['T0'])
             self.plot_win.add_data_point("CoODEDB", mcs * days_to_mcs,
-                                          self.sbml.coinfection['DB'] / self.sbml.CoinfectionModel['T0'])
+                                          self.sbml.CoinfectionModel['DB'] / self.sbml.CoinfectionModel['T0'])
             self.plot_win2.add_data_point("CoODEVB", mcs * days_to_mcs, np.log10(self.sbml.CoinfectionModel['VB']))
 
         if plot_CoinfectionCellModel == True:
