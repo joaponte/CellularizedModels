@@ -248,5 +248,5 @@ class PlotODEModelSteppable(SteppableBasePy):
                 pass
             self.plot_win.add_data_point("CC3DP", mcs * hours_to_mcs, P)
             self.plot_win2.add_data_point("CC3DIFN", mcs * hours_to_mcs, cell.sbml.IFNsignaling['IFN'])
-            self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs, self.shared_steppable_vars['IFNe'])
+            self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs, cell.sbml.IFNsignaling['IFNe'])
             self.plot_win4.add_data_point("CC3DV", mcs * hours_to_mcs, cell.sbml.IFNsignaling['V'])
