@@ -8,11 +8,12 @@ hours_to_simulate = 36.0
 
 plot_ODEModel = True
 plot_CellularizedModel = True
+
 ## How_to_determine_IFNe
 # 1 determines IFNe from ODE model
 # 2 determines IFNe from scalar from CC3D
 # 3 determines IFNe from field from CC3D
-How_to_determine_IFNe = 3
+How_to_determine_IFNe = 2
 
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
@@ -21,7 +22,7 @@ Regulating Excessive Cytokine Production'''
 model_string = '''
     //Equations
     E2a: -> IFN         ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)            ;
-    E2b: IFN -> IFNe    ; P*k21*IFN                                                 ;
+    E2b: IFN -> IFNe    ; k21*IFN                                                   ;
     E3a: IFNe ->        ; t2*IFNe                                                   ;
     E4a: -> STATP       ; P*k31*IFNe/(k32+k33*IFNe)                                 ;
     E4b: STATP ->       ; t3*STATP                                                  ;
@@ -65,7 +66,7 @@ model_string = '''
 IFNsignaling_string = '''
     //Equations
     E2a: -> IFN         ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)            ;
-    E2b: IFN ->         ; P*k21*IFN                                                 ;
+    E2b: IFN ->         ; k21*IFN                                                   ;
     E4a: -> STATP       ; P*k31*IFNe/(k32+k33*IFNe)                                 ;
     E4b: STATP ->       ; t3*STATP                                                  ;
     E5a: -> IRF7        ; P*(k41*STATP+k42*IRF7P)                                   ;
@@ -133,7 +134,6 @@ class ODEModelSteppable(SteppableBasePy):
     def step(self,mcs):
         self.timestep_sbml()
 
-
 class CellularModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -159,14 +159,17 @@ class CellularModelSteppable(SteppableBasePy):
             # Update IFN signaling submodel
             cell.sbml.IFNsignaling['P'] = P
             cell.sbml.IFNsignaling['V'] = cell.sbml.Virusproduction['V']
+
             if How_to_determine_IFNe == 1:
                 cell.sbml.IFNsignaling['IFNe'] = self.sbml.ODEModel['IFNe']
+
             if How_to_determine_IFNe == 2:
-                cell.sbml.IFNsignaling['IFNe'] = self.shared_steppable_vars['IFNe']
+                cell.sbml.IFNsignaling['IFNe'] = self.shared_steppable_vars['IFNe'] / self.initial_infected
+
             if How_to_determine_IFNe == 3:
                 uptake_probability = 0.0000001
                 uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                cell.sbml.IFNsignaling['IFNe'] = abs(uptake.tot_amount) / uptake_probability * self.initial_infected
+                cell.sbml.IFNsignaling['IFNe'] = abs(uptake.tot_amount) / uptake_probability
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
             # Update Virus production submodel
@@ -175,7 +178,7 @@ class CellularModelSteppable(SteppableBasePy):
 
             #Rule 3a
             k21 = cell.sbml.IFNsignaling['k21'] * hours_to_mcs
-            IFN = cell.sbml.IFNsignaling['IFN'] / self.initial_infected
+            IFN = cell.sbml.IFNsignaling['IFN']
             release = secretor.secreteInsideCellTotalCount(cell, k21 * IFN / cell.volume)
             pIFNe += abs(release.tot_amount)
 
@@ -248,5 +251,5 @@ class PlotODEModelSteppable(SteppableBasePy):
                 pass
             self.plot_win.add_data_point("CC3DP", mcs * hours_to_mcs, P)
             self.plot_win2.add_data_point("CC3DIFN", mcs * hours_to_mcs, cell.sbml.IFNsignaling['IFN'])
-            self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs, cell.sbml.IFNsignaling['IFNe'])
+            self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs, self.shared_steppable_vars['IFNe'] / self.initial_infected)
             self.plot_win4.add_data_point("CC3DV", mcs * hours_to_mcs, cell.sbml.IFNsignaling['V'])
