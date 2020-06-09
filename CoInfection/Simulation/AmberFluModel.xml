@@ -93,11 +93,11 @@
    </Plugin>
 
    <Steppable Type="DiffusionSolverFE">
-      <DiffusionField Name="Virus">
+      <DiffusionField Name="VirusA">
          <DiffusionData>
-            <FieldName>Virus</FieldName>
-            <GlobalDiffusionConstant id = "virus_dc">1.0</GlobalDiffusionConstant>
-            <GlobalDecayConstant id = "virus_decay">0.0</GlobalDecayConstant>
+            <FieldName>VirusA</FieldName>
+            <GlobalDiffusionConstant id = "virusA_dc">1.0</GlobalDiffusionConstant>
+            <GlobalDecayConstant id = "virusA_decay">0.0</GlobalDecayConstant>
             <InitialConcentrationExpression>75.0/(256*256)</InitialConcentrationExpression>
          </DiffusionData>
          <BoundaryConditions>
@@ -111,7 +111,7 @@
       </DiffusionField>
             <DiffusionField Name="VirusB">
          <DiffusionData>
-            <FieldName>Virus</FieldName>
+            <FieldName>VirusB</FieldName>
             <GlobalDiffusionConstant id = "virusB_dc">1.0</GlobalDiffusionConstant>
             <GlobalDecayConstant id = "virusB_decay">0.0</GlobalDecayConstant>
             <InitialConcentrationExpression>75.0/(256*256)</InitialConcentrationExpression>
