@@ -3,7 +3,7 @@ import numpy as np
 
 min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 4.0 #10 in the original model
+days_to_simulate = 5.0
 
 model_string = '''
 #reactions
@@ -63,11 +63,10 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def step(self,mcs):
         self.timestep_sbml()
-
         for cell in self.cell_list_by_type(self.D):
             ## Transition from D to E
             # J1: -> E; dE*E0;
-            dE = self.sbml.FullModel['dE'] * days_to_mcs
+            dE = self.sbml.FullModel['dE'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
             p_DtoE = dE
             if p_DtoE > np.random.random():
                 cell.type = self.E
@@ -82,14 +81,14 @@ class TarunsModelSteppable(SteppableBasePy):
 
             ## Transition from E to Ev
             # J3: E -> Ev; bE*V*E;
-            bE = self.sbml.FullModel['bE'] * days_to_mcs
-            #V = self.sbml.FullModel['V']
-            V = self.scalar_virus / self.initial_uninfected * self.sbml.FullModel['E0']
+            bE = self.sbml.FullModel['bE'] * days_to_mcs * self.sbml.FullModel['E0']
+            #V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0']
+            V = self.scalar_virus / self.initial_uninfected
             p_EtoEv = bE * V
             if p_EtoEv > np.random.random():
                 cell.type = self.EV
 
-        total_production = 0.0
+        virus_production = 0.0
         secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.EV):
             ## Transition from Ev to E
@@ -106,13 +105,26 @@ class TarunsModelSteppable(SteppableBasePy):
             if p_EvtoD > np.random.random():
                 cell.type = self.D
 
+            ## Transition from Ev to D
+            # J6: Ev ->; kE*g*Ev*Tc;
+            dE = self.sbml.FullModel['dE'] * days_to_mcs * self.sbml.FullModel['E0']
+            g = self.sbml.FullModel['g']
+            Tc = self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0']
+            p_EvtoD = dE * g * Tc
+            if p_EvtoD > np.random.random():
+                cell.type = self.D
+
             ## Virus Production
             # J7: -> V; pV*Ev;
             pV = self.sbml.FullModel['pV'] * days_to_mcs
             release = secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
-            total_production += abs(release.tot_amount)
+            virus_production += abs(release.tot_amount)
 
-        self.scalar_virus += total_production - self.scalar_virus * days_to_mcs * self.sbml.FullModel['cV']
+        ## Virus Decay
+        # J8: V ->; cV*V;
+        cV = self.sbml.FullModel['cV'] * days_to_mcs
+        virus_decay = cV * self.scalar_virus
+        self.scalar_virus += virus_production - virus_decay
         self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
 
 class PlotsSteppable(SteppableBasePy):
@@ -122,7 +134,7 @@ class PlotsSteppable(SteppableBasePy):
     def start(self):
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
 
-        self.plot_win = self.add_new_plot_window(title='Fraction of Uninfected Cells',
+        self.plot_win = self.add_new_plot_window(title='Fraction of Cells',
                                                  x_axis_title='MonteCarlo Step (MCS)',
                                                  y_axis_title='Fraction of Uninfected Cells', x_scale_type='linear',
                                                  y_scale_type='linear',
