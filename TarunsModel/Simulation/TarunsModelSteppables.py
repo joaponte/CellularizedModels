@@ -7,17 +7,17 @@ days_to_simulate = 5.0
 
 ## virus_infection_feedback: determines how virus is determine for infection of epithelial cells
 # virus_infection_feedback = 1  # Virus per cell is determined from the ODEs
-# virus_infection_feedback = 2  # Virus per cell is determined from a scalar quantity from CC3D cells
-# virus_infection_feedback = 3  # Virus per cell is determined from the virus field from CC3D
+virus_infection_feedback = 2  # Virus per cell is determined from a scalar quantity from CC3D cells
+# virus_infection_feedback = 3  # Virus per cell is determined from the virus field from CC3D NOT WORKING
 
 model_string = '''
 #reactions
-J1: -> E; dE*E0;
-J2: E ->; dE*E;
+J1: D -> E; dE*D;
+J2: E -> D; dE*E;
 J3: E -> Ev; bE*V*E;
 J4: Ev -> E; aE*Ev;
-J5: Ev ->; dE*Ev;
-J6: Ev ->; kE*g*Ev*Tc;
+J5: Ev -> D; dE*Ev;
+J6: Ev -> D; kE*g*Ev*Tc;
 J7: -> V; pV*Ev;
 J8: V ->; cV*V;
 J9: -> Da; bD*V*(D0-Da);
