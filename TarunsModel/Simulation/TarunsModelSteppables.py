@@ -5,6 +5,11 @@ min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 5.0
 
+## virus_infection_feedback: determines how virus is determine for infection of epithelial cells
+# virus_infection_feedback = 1  # Virus per cell is determined from the ODEs
+virus_infection_feedback = 2  # Virus per cell is determined from a scalar quantity from CC3D cells
+# virus_infection_feedback = 3  # Virus per cell is determined from the virus field from CC3D
+
 model_string = '''
 #reactions
 J1: -> E; dE*E0;
@@ -102,8 +107,11 @@ class TarunsModelSteppable(SteppableBasePy):
             ## Transition from E to Ev
             # J3: E -> Ev; bE*V*E;
             bE = self.sbml.FullModel['bE'] * days_to_mcs * self.sbml.FullModel['E0']
-            #V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0']
-            V = self.scalar_virus / self.initial_uninfected
+            if virus_infection_feedback == 1:
+                V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0']
+            elif virus_infection_feedback == 2:
+                V = self.scalar_virus / self.initial_uninfected
+            elif virus_infection_feedback == 3:
             p_EtoEv = bE * V
             if p_EtoEv > np.random.random():
                 cell.type = self.EV
