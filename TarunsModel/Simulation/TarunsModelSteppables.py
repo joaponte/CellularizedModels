@@ -7,7 +7,7 @@ days_to_simulate = 5.0
 
 ## virus_infection_feedback: determines how virus is determine for infection of epithelial cells
 # virus_infection_feedback = 1  # Virus per cell is determined from the ODEs
-virus_infection_feedback = 2  # Virus per cell is determined from a scalar quantity from CC3D cells
+# virus_infection_feedback = 2  # Virus per cell is determined from a scalar quantity from CC3D cells
 # virus_infection_feedback = 3  # Virus per cell is determined from the virus field from CC3D
 
 model_string = '''
@@ -79,15 +79,15 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def start(self):
         # Uptading max simulation steps using scaling factor to simulate 10 days
-        self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
-
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
-
+        self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
+        self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
         self.scalar_virus = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
 
     def step(self,mcs):
         self.timestep_sbml()
+        secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.D):
             ## Transition from D to E
             # J1: -> E; dE*E0;
@@ -112,12 +112,15 @@ class TarunsModelSteppable(SteppableBasePy):
             elif virus_infection_feedback == 2:
                 V = self.scalar_virus / self.initial_uninfected
             elif virus_infection_feedback == 3:
+                uptake_probability = 0.0000001
+                uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+                V = abs(uptake.tot_amount) / uptake_probability
+                secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
             p_EtoEv = bE * V
             if p_EtoEv > np.random.random():
                 cell.type = self.EV
 
         virus_production = 0.0
-        secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.EV):
             ## Transition from Ev to E
             # J4: Ev -> E; aE*Ev;
