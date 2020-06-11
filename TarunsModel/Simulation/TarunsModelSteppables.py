@@ -3,12 +3,12 @@ import numpy as np
 
 min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 5.0
+days_to_simulate = 10.0
 
 ## virus_infection_feedback: determines how virus is determine for infection of epithelial cells
 # virus_infection_feedback = 1  # Virus per cell is determined from the ODEs
-virus_infection_feedback = 2  # Virus per cell is determined from a scalar quantity from CC3D cells
-# virus_infection_feedback = 3  # Virus per cell is determined from the virus field from CC3D NOT WORKING
+# virus_infection_feedback = 2  # Virus per cell is determined from a scalar quantity from CC3D cells
+virus_infection_feedback = 3  # Virus per cell is determined from the virus field from CC3D NOT WORKING
 
 model_string = '''
 #reactions
@@ -86,7 +86,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.scalar_virus = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
 
     def step(self,mcs):
-        self.timestep_sbml()
+
         secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.D):
             ## Transition from D to E
@@ -109,12 +109,12 @@ class TarunsModelSteppable(SteppableBasePy):
             bE = self.sbml.FullModel['bE'] * days_to_mcs * self.sbml.FullModel['E0']
             if virus_infection_feedback == 1:
                 V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0']
-            elif virus_infection_feedback == 2:
+            if virus_infection_feedback == 2:
                 V = self.scalar_virus / self.initial_uninfected
-            elif virus_infection_feedback == 3:
+            if virus_infection_feedback == 3:
                 uptake_probability = 0.0000001
                 uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                V = abs(uptake.tot_amount) / uptake_probability
+                V = abs(uptake.tot_amount) / uptake_probability * 1.5
                 secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
             p_EtoEv = bE * V
             if p_EtoEv > np.random.random():
@@ -155,8 +155,20 @@ class TarunsModelSteppable(SteppableBasePy):
         # J8: V ->; cV*V;
         cV = self.sbml.FullModel['cV'] * days_to_mcs
         virus_decay = cV * self.scalar_virus
+        print('cV = ', cV )
+        print('Initial = ',self.initial_uninfected)
         self.scalar_virus += virus_production - virus_decay
         self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
+
+        ## Measure field virus
+        self.field_virus = 0.0
+        for cell in self.cell_list:
+            uptake_probability = 0.0000001
+            uptake = secretor.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            V = abs(uptake.tot_amount) / uptake_probability
+            self.field_virus += V
+            secretor.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+        self.shared_steppable_vars['field_virus'] = self.scalar_virus
 
 class PlotsSteppable(SteppableBasePy):
     def __init__(self,frequency=1):
@@ -186,17 +198,23 @@ class PlotsSteppable(SteppableBasePy):
 
     def step(self, mcs):
         self.scalar_virus = self.shared_steppable_vars['scalar_virus']
+        self.field_virus = self.shared_steppable_vars['field_virus']
+        self.timestep_sbml()
 
         self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,
                                      self.sbml.FullModel['E']/self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs,
                                      self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
         self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,
-                                      self.sbml.FullModel['V']/self.sbml.FullModel['E0'])
+                                      self.sbml.FullModel['V'] / self.sbml.FullModel['E0'])
 
         self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
                                      len(self.cell_list_by_type(self.E))/self.initial_uninfected)
         self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs,
                                      len(self.cell_list_by_type(self.EV)) / self.initial_uninfected)
-        self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs,
-                                      self.scalar_virus/self.initial_uninfected)
+        if virus_infection_feedback == 3:
+            self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs,
+                                      self.field_virus / self.initial_uninfected)
+        else:
+            self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs,
+                                      self.scalar_virus / self.initial_uninfected)
