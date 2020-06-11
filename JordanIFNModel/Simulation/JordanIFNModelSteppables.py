@@ -2,7 +2,7 @@ from cc3d.core.PySteppables import *
 import numpy as np
 import os
 
-min_to_mcs = 20.0  # min/mcs
+min_to_mcs = 60.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0  # hrs/mcs
 hours_to_simulate = 36.0
 
@@ -13,7 +13,7 @@ plot_CellularizedModel = True
 # 1 determines IFNe from ODE model
 # 2 determines IFNe from scalar from CC3D
 # 3 determines IFNe from field from CC3D
-How_to_determine_IFNe = 2
+How_to_determine_IFNe = 1
 
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
@@ -65,13 +65,13 @@ model_string = '''
 
 IFNsignaling_string = '''
     //Equations
-    E2a: -> IFN         ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)            ;
+    E2a: -> IFN         ; k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P                ;
     E2b: IFN ->         ; k21*IFN                                                   ;
-    E4a: -> STATP       ; P*k31*IFNe/(k32+k33*IFNe)                                 ;
+    E4a: -> STATP       ; k31*IFNe/(k32+k33*IFNe)                                   ;
     E4b: STATP ->       ; t3*STATP                                                  ;
-    E5a: -> IRF7        ; P*(k41*STATP+k42*IRF7P)                                   ;
+    E5a: -> IRF7        ; k41*STATP+k42*IRF7P                                       ;
     E5b: IRF7 ->        ; t4*IRF7                                                   ;
-    E6a: -> IRF7P       ; P*k51*IRF7                                                ;
+    E6a: -> IRF7P       ; k51*IRF7                                                  ;
     E6b: IRF7P ->       ; t5*IRF7P                                                  ;
     
     //Parameters
@@ -251,5 +251,5 @@ class PlotODEModelSteppable(SteppableBasePy):
                 pass
             self.plot_win.add_data_point("CC3DP", mcs * hours_to_mcs, P)
             self.plot_win2.add_data_point("CC3DIFN", mcs * hours_to_mcs, cell.sbml.IFNsignaling['IFN'])
-            self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs, self.shared_steppable_vars['IFNe'] / self.initial_infected)
+            self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs, self.shared_steppable_vars['IFNe']/self.initial_infected)
             self.plot_win4.add_data_point("CC3DV", mcs * hours_to_mcs, cell.sbml.IFNsignaling['V'])
