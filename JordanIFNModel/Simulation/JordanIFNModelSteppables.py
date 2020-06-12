@@ -62,6 +62,7 @@ model_string = '''
     IRF7 = 0.72205  ;
     V    = 6.9e-8   ;
 '''
+
 class ODEModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
