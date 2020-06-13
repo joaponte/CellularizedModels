@@ -16,6 +16,7 @@ how_to_determine_V = 3
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 4.0  # 10 in the original model
+second_virus_inoculation_time = 0.1
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -148,9 +149,17 @@ class ODEModelSteppable(SteppableBasePy):
         self.sbml.CoinfectionModel['I1'] = 0.0
         self.sbml.CoinfectionModel['I1B'] = 0.0
         self.sbml.CoinfectionModel['VA'] = 75.0
+        # self.sbml.CoinfectionModel['VB'] = 75.0
         self.sbml.CoinfectionModel['VB'] = 0.0
 
     def step(self, mcs):
+        start_time = second_virus_inoculation_time / days_to_mcs
+        if mcs == int(start_time):
+            amount = 75.0 / (self.dim.x * self.dim.y)
+            self.sbml.coinfection['VB'] = 75.0
+            for x in range(0,self.dim.x):
+                for y in range(0,self.dim.y):
+                    self.field.VirusB[x, y, 0] = amount
         self.timestep_sbml()
 
 class CellularModelSteppable(SteppableBasePy):
