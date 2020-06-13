@@ -93,7 +93,7 @@ class CellularModelSteppable(SteppableBasePy):
         # Transition rule from I2 to D
         K_delta = K_delta_ode / T0_ode * self.initial_uninfected
         delta_d = delta_d_ode / T0_ode * self.initial_uninfected
-        # p_T2toD = delta_d / (K_delta + I2) * days_to_mcs
+        p_T2toD = delta_d / (K_delta + I2) * days_to_mcs
         # p_T2toD = delta_d / (K_delta + I2 + I2B) * days_to_mcs
         # p_T2toD = delta_d / (K_delta + I2B) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2):
@@ -103,7 +103,7 @@ class CellularModelSteppable(SteppableBasePy):
         # Transition rule from I2B to DB
         K_delta = K_delta_ode / T0_ode * self.initial_uninfected
         delta_d = delta_d_ode / T0_ode * self.initial_uninfected
-        # p_T2BtoDB = delta_d / (K_delta + I2B) * days_to_mcs
+        p_T2BtoDB = delta_d / (K_delta + I2B) * days_to_mcs
         # p_T2BtoDB = delta_d / (K_delta + I2 + I2B) * days_to_mcs
         # p_T2BtoDB = delta_d / (K_delta + I2) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2B):
@@ -175,4 +175,4 @@ class Data_OutputSteppable(SteppableBasePy):
 
     def finish(self):
         if Data_writeout_CellularModel:
-            self.output.close()
+            self.output2.close()
