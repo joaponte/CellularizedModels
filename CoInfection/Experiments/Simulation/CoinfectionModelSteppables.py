@@ -146,8 +146,9 @@ class ODEModelSteppable(SteppableBasePy):
 
         # Changing initial values according to discussions with Amber Smith
         self.sbml.CoinfectionModel['I1'] = 0.0
+        self.sbml.CoinfectionModel['I1B'] = 0.0
         self.sbml.CoinfectionModel['VA'] = 75.0
-        self.sbml.CoinfectionModel['VB'] = 75.0
+        self.sbml.CoinfectionModel['VB'] = 0.0
 
     def step(self, mcs):
         self.timestep_sbml()
