@@ -16,8 +16,8 @@ min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0 #10 in the original model
 
-production_multiplier = Parameters.P
-diffusion_multiplier = Parameters.D
+# production_multiplier = Parameters.P
+# diffusion_multiplier = Parameters.D
 replicate = Parameters.R
 
 beta_ode = 2.4 * 10**(-4)
@@ -39,7 +39,7 @@ class CellularModelSteppable(SteppableBasePy):
         # set initial model parameters
         self.initial_uninfected = len(self.cell_list_by_type(self.U))
 
-        self.get_xml_element('virus_dc').cdata = 1.0 * diffusion_multiplier
+        self.get_xml_element('virus_dc').cdata = 1.0 #* diffusion_multiplier
         self.get_xml_element('virus_decay').cdata = c_ode * days_to_mcs
 
         self.get_xml_element('virusB_dc').cdata = 1.0
@@ -88,11 +88,14 @@ class CellularModelSteppable(SteppableBasePy):
             if np.random.random() < p_T1BoI2B:
                 cell.type = self.I2B
 
+        I2 = len(self.cell_list_by_type(self.I2))
+        I2B = len(self.cell_list_by_type(self.I2B))
         # Transition rule from I2 to D
         K_delta = K_delta_ode / T0_ode * self.initial_uninfected
         delta_d = delta_d_ode / T0_ode * self.initial_uninfected
-        I2 = len(self.cell_list_by_type(self.I2))
-        p_T2toD = delta_d / (K_delta + I2) * days_to_mcs
+        # p_T2toD = delta_d / (K_delta + I2) * days_to_mcs
+        # p_T2toD = delta_d / (K_delta + I2 + I2B) * days_to_mcs
+        # p_T2toD = delta_d / (K_delta + I2B) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             if np.random.random() < p_T2toD:
                 cell.type = self.DEAD
@@ -100,15 +103,16 @@ class CellularModelSteppable(SteppableBasePy):
         # Transition rule from I2B to DB
         K_delta = K_delta_ode / T0_ode * self.initial_uninfected
         delta_d = delta_d_ode / T0_ode * self.initial_uninfected
-        I2B = len(self.cell_list_by_type(self.I2B))
-        p_T2BtoDB = delta_d / (K_delta + I2B) * days_to_mcs
+        # p_T2BtoDB = delta_d / (K_delta + I2B) * days_to_mcs
+        # p_T2BtoDB = delta_d / (K_delta + I2 + I2B) * days_to_mcs
+        # p_T2BtoDB = delta_d / (K_delta + I2) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2B):
             if np.random.random() < p_T2BtoDB:
                 cell.type = self.DEADB
 
         # Production of extracellular virus A
         p = p_ode / self.initial_uninfected * T0_ode * days_to_mcs
-        p *= production_multiplier
+        #p *= production_multiplier
         for cell in self.cell_list_by_type(self.I2):
             secretorA.secreteInsideCellTotalCount(cell, p / cell.volume)
 
@@ -128,8 +132,8 @@ class Data_OutputSteppable(SteppableBasePy):
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
-            file_name2 = 'cellularizedmodel_%.5d_%.5d_%i.txt' % (
-                production_multiplier*100,diffusion_multiplier*100,replicate)
+            version = 1
+            file_name2 = 'cellularizedmodel_v%i_%i.txt' % (version, replicate)
             self.output2 = open(folder_path + file_name2, 'w')
             self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (
                 'Time', 'U', 'AI1', 'AI2', 'AD', 'BI1', 'BI2', 'BD', 'VA', 'VB'))

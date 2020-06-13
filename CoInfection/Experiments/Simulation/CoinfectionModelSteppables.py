@@ -55,9 +55,13 @@ CoinfectionModelString = '''
         V6: -> T   ; -beta * VB * T ;                               // Susceptible Cells
         V7: -> I1B ;  beta * VB * T - k * I1B ;                     // Early Infected Cells
         V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2B) ;   // Late Infected Cells
+        // V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + IAB + I2B) ;// Late Infected Cells
+        // V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + IAB + I2B) ;// Late Infected Cells
         V9: -> VB  ;  p * I2B - c * VB;                             // Extracellular Virus B
-        V10: -> DB  ;  delta_d * I2B / (K_delta + I2B) ;             // Dead Cells
-
+        V10: -> DB  ;  delta_d * I2B / (K_delta + I2B) ;            // Dead Cells
+        // V10: -> DB  ;  delta_d * I2B / (K_delta + I2A + I2B) ;   // Dead Cells
+        // V10: -> DB  ;  delta_d * I2B / (K_delta + I2A) ;         // Dead Cells
+        
         //Parameters
         beta = 2.4* 10^(-4) ;                                       // Virus Infective
         p = 1.6 ;                                                   // Virus Production
