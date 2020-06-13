@@ -71,6 +71,59 @@ CoinfectionModelString = '''
         I1 = 75.0 ;                                                 // Initial Number of Infected Cells
 '''
 
+superinfection_ModelString = '''
+        model superinfection()
+         //State Variables and Transitions for Virus A
+        V1: -> T   ; -beta * VA * T ;                               // Susceptible Cells
+        V2: -> I1A ;  beta * VA * T - k * I1A ;                     // Early Infected Cells
+        V3: -> I2A ;  k * I1A - delta_d * hdecrease * I2A / (K_delta + I2A) ;   // Late Infected Cells 
+        //V3: -> I2A ;  k * I1A - delta_d * I2A / (K_delta + I2B + I2A) ;   // Late Infected Cells 
+        V4: -> VA  ;  p * I2A - c * VA;                             // Extracellular Virus A
+        V5: -> DA  ;  delta_d * hdecrease * I2A / (K_delta + I2A) 
+        //V5: -> DA  ;  delta_d * I2A / (K_delta + I2B + I2A) ;             // Dead Cells
+        //  k * I1A - delta_d * hdecrease * I2A / (K_delta + I2A + I2B)
+        //  k * I1A - delta_d * hdecrease * I2A / (K_delta + I2B)
+
+         //State Variables and Transitions for Virus B
+        V6: -> T   ; -beta * VB * T ;                               // Susceptible Cells
+        V7: -> I1B ;  beta * VB * T - k * I1B ;                     // Early Infected Cells
+        V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2B) ;   // Late Infected Cells
+        //V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2A + I2B) ;   // Late Infected Cells
+        V9: -> VB  ;  p * I2B - c * VB;                             // Extracellular Virus B
+        V10: -> DB  ;  delta_d * I2B / (K_delta + I2B) ;             // Dead Cells
+        //V10: -> DB  ;  delta_d * I2B / (K_delta + I2A + I2B) ; 
+        //  k * I1B - delta_d * I2B / (K_delta + I2B + I2A)
+        //  k * I1B - delta_d * I2B / (K_delta + I2A)
+        hdecrease := K_Vb^n / (K_Vb^n + VB^n)
+        // Set K_Vb^n to be the amount of virusB at which the inhibition of CD8 for virus A is half
+
+        //Superinfection Model
+        V2: -> I1A ;  beta * VA * T - k * I1A ;                     // Early Infected Cells
+        V3: -> I2A ;  k * I1A - delta_d * hdecrease * I2A / (K_delta + I2A) ;   // Late Infected Cells 
+        //V3: -> I2A ;  k * I1A - delta_d * I2A / (K_delta + I2B + I2A) ;   // Late Infected Cells 
+        V4: -> VA  ;  p * I2A - c * VA;                             // Extracellular Virus A
+        V5: -> DA  ;  delta_d * hdecrease * I2A / (K_delta + I2A) 
+        //V5: -> DA  ;  delta_d * I2A / (K_delta + I2B + I2A) ;             // Dead Cells
+        //  k * I1A - delta_d * hdecrease * I2A / (K_delta + I2A + I2B)
+        //  k * I1A - delta_d * hdecrease * I2A / (K_delta + I2B)
+
+        //Parameters
+        beta = 2.4* 10^(-4) ;                                       // Virus Infective
+        p = 1.6 ;                                                   // Virus Production
+        c = 13.0 ;                                                  // Virus Clearance
+        k = 4.0 ;                                                   // Eclipse phase
+        delta_d = 1.6 * 10^6 ;                                      // Infected Cell Clearance
+        K_delta = 4.5 * 10^5 ;                                      // Half Saturation Constant   
+
+        K_Vb = 1000.0
+        n = 6
+
+        // Initial Conditions ;
+        T0 = 1.0*10^7;
+        T = T0  ;                                                   // Initial Number of Uninfected Cells
+        I1 = 75.0 ;                                                 // Initial Number of Infected Cells
+end'''
+
 class ODEModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
