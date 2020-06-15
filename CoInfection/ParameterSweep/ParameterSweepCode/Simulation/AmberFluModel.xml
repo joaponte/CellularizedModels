@@ -114,7 +114,8 @@
             <FieldName>Virus</FieldName>
             <GlobalDiffusionConstant id = "virusB_dc">1.0</GlobalDiffusionConstant>
             <GlobalDecayConstant id = "virusB_decay">0.0</GlobalDecayConstant>
-            <InitialConcentrationExpression>75.0/(256*256)</InitialConcentrationExpression>
+            <InitialConcentrationExpression>0.0</InitialConcentrationExpression>
+<!--            <InitialConcentrationExpression>75.0/(256*256)</InitialConcentrationExpression>-->
          </DiffusionData>
          <BoundaryConditions>
             <Plane Axis="X">
