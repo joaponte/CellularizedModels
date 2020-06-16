@@ -20,7 +20,7 @@ days_to_simulate = 10.0 #10 in the original model
 # diffusion_multiplier = Parameters.D
 replicate = Parameters.R
 infection_time = Parameters.T
-immune_infection_effect = Parameters.M
+immune_infection_effect = Parameters.E
 
 beta_ode = 2.4 * 10**(-4)
 p_ode = 1.6
@@ -47,6 +47,7 @@ class CellularModelSteppable(SteppableBasePy):
         self.get_xml_element('virusB_dc').cdata = 1.0
         self.get_xml_element('virusB_decay').cdata = c_ode * days_to_mcs
 
+
     def step(self, mcs):
         start_time = infection_time / days_to_mcs
         if mcs == int(start_time):
@@ -55,9 +56,27 @@ class CellularModelSteppable(SteppableBasePy):
                 for y in range(0,self.dim.y):
                     self.field.VirusB[x, y, 0] = virus_field_amount
 
-        # Transition rule from U to I1
+        # Measure total extracellular VirusA
         secretorA = self.get_field_secretor("Virus")
         secretorB = self.get_field_secretor("VirusB")
+        self.Virus_Field = 0
+        for cell in self.cell_list:
+            uptake_probability = 0.0000001
+            uptake = secretorA.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            V = abs(uptake.tot_amount) / uptake_probability
+            self.Virus_Field += V
+            secretorA.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+            
+        # Measure total extracellular VirusB
+        self.Virus_FieldB = 0
+        for cell in self.cell_list:
+            uptake_probability = 0.0000001
+            uptake = secretorB.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            V = abs(uptake.tot_amount) / uptake_probability
+            self.Virus_FieldB += V
+            secretorB.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+        # Transition rule from U to I1
         for cell in self.cell_list_by_type(self.U):
             # Determine V from the virus field
             if how_to_determine_V == 1:
@@ -103,9 +122,10 @@ class CellularModelSteppable(SteppableBasePy):
         K_delta = K_delta_ode / T0_ode * self.initial_uninfected
         delta_d = delta_d_ode / T0_ode * self.initial_uninfected
         # VirusB infects CD8 for VirusA
-        K_i = p_ode * self.initial_uninfected / c_ode
-        tVB = self.shared_steppable_vars['FieldVirusB']
-        effect = (K_i * immune_infection_effect) / (K_i * immune_infection_effect + tVB) # 1.0
+        p = p_ode / self.initial_uninfected * T0_ode * days_to_mcs
+        c = c_ode * days_to_mcs
+        max_VB = p * self.initial_uninfected / c
+        effect = (max_VB * immune_infection_effect) / (max_VB * immune_infection_effect + self.Virus_FieldB)
         p_T2toD = effect * delta_d / (K_delta + I2) * days_to_mcs
         # p_T2toD = delta_d / (K_delta + I2 + I2B) * days_to_mcs
         # p_T2toD = delta_d / (K_delta + I2B) * days_to_mcs
@@ -125,7 +145,6 @@ class CellularModelSteppable(SteppableBasePy):
 
         # Production of extracellular virus A
         p = p_ode / self.initial_uninfected * T0_ode * days_to_mcs
-        #p *= production_multiplier
         for cell in self.cell_list_by_type(self.I2):
             secretorA.secreteInsideCellTotalCount(cell, p / cell.volume)
 
@@ -152,6 +171,7 @@ class Data_OutputSteppable(SteppableBasePy):
             self.output2.flush()
 
     def step(self, mcs):
+
         if Data_writeout_CellularModel:
             # Record variables from Cellularized Model
             d = mcs * days_to_mcs
@@ -163,25 +183,24 @@ class Data_OutputSteppable(SteppableBasePy):
             I2B = len(self.cell_list_by_type(self.I2B))
             DB = len(self.cell_list_by_type(self.DEADB))
 
-            self.Virus_Field = 0
             secretorA = self.get_field_secretor("Virus")
+            secretorB = self.get_field_secretor("VirusB")
+
+            self.Virus_Field = 0
             for cell in self.cell_list:
                 uptake_probability = 0.0000001
                 uptake = secretorA.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
                 V = abs(uptake.tot_amount) / uptake_probability
                 self.Virus_Field += V
                 secretorA.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
-            self.shared_steppable_vars['FieldVirusA'] = self.Virus_Field
 
             self.Virus_FieldB = 0
-            secretorB = self.get_field_secretor("VirusB")
             for cell in self.cell_list:
                 uptake_probability = 0.0000001
                 uptake = secretorB.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
                 V = abs(uptake.tot_amount) / uptake_probability
                 self.Virus_FieldB += V
                 secretorB.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
-            self.shared_steppable_vars['FieldVirusB'] = self.Virus_FieldB
 
             self.output2.write("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n" % (
             d, U, I1, I2, DA, I1B, I2B, DB, self.Virus_Field, self.Virus_FieldB))
