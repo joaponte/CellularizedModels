@@ -100,8 +100,9 @@
                <Periodic/>
             </Plane>
             <Plane Axis="Z">
-               <ConstantDerivative PlanePosition="Min" Value="0.0"/>
-               <ConstantDerivative PlanePosition="Max" Value="0.0"/>
+               <Periodic/>
+<!--               <ConstantDerivative PlanePosition="Min" Value="0.0"/>-->
+<!--               <ConstantDerivative PlanePosition="Max" Value="0.0"/>-->
             </Plane>
          </BoundaryConditions>
       </DiffusionField>
@@ -260,7 +261,6 @@
    </Steppable>
 
 <Steppable Type="UniformInitializer">
-   
    <!-- Initial layout of cells in the form of rectangular slab -->
    <Region>
       <BoxMin x="0" y="0" z="1"/>

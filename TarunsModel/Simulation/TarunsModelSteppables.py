@@ -5,6 +5,8 @@ min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0
 
+virus_infection_feedback = 3
+
 model_string = '''
 #reactions
 J1: D -> E; dE*D;
@@ -77,7 +79,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
-        self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
+        self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * self.initial_uninfected / self.sbml.FullModel['E0']
         self.scalar_virus = self.sbml.FullModel['V']
 
     def step(self,mcs):
@@ -85,9 +87,16 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.E):
             ## Transition from E to Ev
             # J3: E -> Ev; bE*V*E;
-            bE = self.sbml.FullModel['bE'] * days_to_mcs
-            #V = self.sbml.FullModel['V']
-            V = self.scalar_virus
+            if virus_infection_feedback == 1:
+                bE = self.sbml.FullModel['bE'] * days_to_mcs
+                V = self.sbml.FullModel['V']
+            if virus_infection_feedback == 2:
+                bE = self.sbml.FullModel['bE'] * days_to_mcs
+                V = self.scalar_virus
+                # V = secretor.totalFieldIntegral()
+            if virus_infection_feedback == 3:
+                bE = self.sbml.FullModel['bE'] * days_to_mcs
+                V = secretor.amountSeenByCell(cell) * self.initial_uninfected
             p_EtoEv = bE * V
             if p_EtoEv > np.random.random():
                 cell.type = self.EV
