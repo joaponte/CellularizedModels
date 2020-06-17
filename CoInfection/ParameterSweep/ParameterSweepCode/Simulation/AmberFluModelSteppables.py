@@ -20,7 +20,7 @@ days_to_simulate = 10.0 #10 in the original model
 # diffusion_multiplier = Parameters.D
 replicate = Parameters.R
 infection_time = Parameters.T
-immune_infection_effect = Parameters.E
+K_VB = Parameters.K
 
 beta_ode = 2.4 * 10**(-4)
 p_ode = 1.6
@@ -122,10 +122,7 @@ class CellularModelSteppable(SteppableBasePy):
         K_delta = K_delta_ode / T0_ode * self.initial_uninfected
         delta_d = delta_d_ode / T0_ode * self.initial_uninfected
         # VirusB infects CD8 for VirusA
-        p = p_ode / self.initial_uninfected * T0_ode * days_to_mcs
-        c = c_ode * days_to_mcs
-        max_VB = p * self.initial_uninfected / c
-        effect = (max_VB * immune_infection_effect) / (max_VB * immune_infection_effect + self.Virus_FieldB)
+        effect = K_VB / (K_VB + self.Virus_FieldB)
         p_T2toD = effect * delta_d / (K_delta + I2) * days_to_mcs
         # p_T2toD = delta_d / (K_delta + I2 + I2B) * days_to_mcs
         # p_T2toD = delta_d / (K_delta + I2B) * days_to_mcs
@@ -164,7 +161,7 @@ class Data_OutputSteppable(SteppableBasePy):
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
-            file_name2 = 'cellularizedmodel_%.2f_%.2f_%i.txt' % (infection_time, immune_infection_effect, replicate)
+            file_name2 = 'cellularizedmodel_%.2f_%i_%i.txt' % (infection_time, K_VB, replicate)
             self.output2 = open(folder_path + file_name2, 'w')
             self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (
                 'Time', 'U', 'AI1', 'AI2', 'AD', 'BI1', 'BI2', 'BD', 'VA', 'VB'))
