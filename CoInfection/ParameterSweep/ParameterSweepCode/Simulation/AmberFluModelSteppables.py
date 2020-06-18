@@ -6,12 +6,6 @@ import Parameters
 Data_writeout_ODEs = False
 Data_writeout_CellularModel = True
 
-## How to determine V
-# -1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
-#  0 pulls from the scalar virus from the cellular model (feedback in the cellular model but no field)
-#  1 pulls from the virus field
-how_to_determine_V = 1
-
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0 #10 in the original model
@@ -20,7 +14,7 @@ days_to_simulate = 10.0 #10 in the original model
 # diffusion_multiplier = Parameters.D
 replicate = Parameters.R
 infection_time = Parameters.T
-K_VB = Parameters.K
+K_V = Parameters.K
 
 beta_ode = 2.4 * 10**(-4)
 p_ode = 1.6
@@ -47,7 +41,6 @@ class CellularModelSteppable(SteppableBasePy):
         self.get_xml_element('virusB_dc').cdata = 1.0
         self.get_xml_element('virusB_decay').cdata = c_ode * days_to_mcs
 
-
     def step(self, mcs):
         start_time = infection_time / days_to_mcs
         if mcs == int(start_time):
@@ -58,7 +51,6 @@ class CellularModelSteppable(SteppableBasePy):
 
         # Measure total extracellular VirusA
         secretorA = self.get_field_secretor("Virus")
-        secretorB = self.get_field_secretor("VirusB")
         self.Virus_Field = 0
         for cell in self.cell_list:
             uptake_probability = 0.0000001
@@ -68,6 +60,7 @@ class CellularModelSteppable(SteppableBasePy):
             secretorA.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
             
         # Measure total extracellular VirusB
+        secretorB = self.get_field_secretor("VirusB")
         self.Virus_FieldB = 0
         for cell in self.cell_list:
             uptake_probability = 0.0000001
@@ -79,17 +72,16 @@ class CellularModelSteppable(SteppableBasePy):
         # Transition rule from U to I1
         for cell in self.cell_list_by_type(self.U):
             # Determine V from the virus field
-            if how_to_determine_V == 1:
-                b = beta_ode * self.initial_uninfected * days_to_mcs
-                uptake_probability = 0.0000001
+            b = beta_ode * self.initial_uninfected * days_to_mcs
+            uptake_probability = 0.0000001
 
-                uptake = secretorA.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                VA = abs(uptake.tot_amount) / uptake_probability
-                secretorA.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+            uptake = secretorA.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            VA = abs(uptake.tot_amount) / uptake_probability
+            secretorA.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
-                uptakeB = secretorB.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
-                VB = abs(uptakeB.tot_amount) / uptake_probability
-                secretorB.secreteInsideCellTotalCount(cell, abs(uptakeB.tot_amount) / cell.volume)
+            uptakeB = secretorB.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            VB = abs(uptakeB.tot_amount) / uptake_probability
+            secretorB.secreteInsideCellTotalCount(cell, abs(uptakeB.tot_amount) / cell.volume)
 
             # Calculate the probability of infection of individual cells based on the amount of virus PER cell
             # Transition rule from T to I2
@@ -122,10 +114,9 @@ class CellularModelSteppable(SteppableBasePy):
         K_delta = K_delta_ode / T0_ode * self.initial_uninfected
         delta_d = delta_d_ode / T0_ode * self.initial_uninfected
         # VirusB infects CD8 for VirusA
-        effect = K_VB / (K_VB + self.Virus_FieldB)
+        # effect = K_V / (K_V + self.Virus_FieldB)
+        effect = 1.0
         p_T2toD = effect * delta_d / (K_delta + I2) * days_to_mcs
-        # p_T2toD = delta_d / (K_delta + I2 + I2B) * days_to_mcs
-        # p_T2toD = delta_d / (K_delta + I2B) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             if np.random.random() < p_T2toD:
                 cell.type = self.DEAD
@@ -133,9 +124,9 @@ class CellularModelSteppable(SteppableBasePy):
         # Transition rule from I2B to DB
         K_delta = K_delta_ode / T0_ode * self.initial_uninfected
         delta_d = delta_d_ode / T0_ode * self.initial_uninfected
-        p_T2BtoDB = delta_d / (K_delta + I2B) * days_to_mcs
-        # p_T2BtoDB = delta_d / (K_delta + I2 + I2B) * days_to_mcs
-        # p_T2BtoDB = delta_d / (K_delta + I2) * days_to_mcs
+        # VirusA infects CD8 for VirusB
+        effect = K_V / (K_V + self.Virus_Field)
+        p_T2BtoDB = effect * delta_d / (K_delta + I2B) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2B):
             if np.random.random() < p_T2BtoDB:
                 cell.type = self.DEADB
@@ -161,7 +152,7 @@ class Data_OutputSteppable(SteppableBasePy):
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
-            file_name2 = 'cellularizedmodel_%.2f_%i_%i.txt' % (infection_time, K_VB, replicate)
+            file_name2 = 'cellularizedmodel_%.2f_%i_%i.txt' % (infection_time, K_V, replicate)
             self.output2 = open(folder_path + file_name2, 'w')
             self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (
                 'Time', 'U', 'AI1', 'AI2', 'AD', 'BI1', 'BI2', 'BD', 'VA', 'VB'))
