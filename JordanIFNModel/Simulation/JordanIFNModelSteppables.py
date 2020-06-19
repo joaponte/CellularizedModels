@@ -65,8 +65,8 @@ model_string = '''
 
 # Viral Replication Model
 viral_model_string = '''
-    E8a: -> V           ; k71*V/(1.0+k72*IFN*7E-5)                          ;
-    E8b: V ->           ; k73*V                                             ;
+    E8a: -> V           ; k71*V/(1.0+k72*IFN*7E-5) ;
+    E8b: V ->           ; k73*V                    ;
 
     //Parameters
     k71 = 1.537     ;
@@ -77,6 +77,22 @@ viral_model_string = '''
     IFN =  0.0      ;
     V    = 6.9e-8   ;
 '''
+
+# IFN Signaling Model
+IFN_model_string = '''
+    E4a: -> STATP   ; k31*IFNe/(k32+k33*IFNe) ;
+    E4b: STATP ->   ; t3*STATP                ;
+
+    //Parameters
+    k31 = 45.922    ;
+    k32 = 5.464     ;
+    k33 = 0.068     ;
+    t3  = 0.3       ;
+
+    //Initial Conditions
+    IFNe =  0.0     ;
+'''
+
 class ODEModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -92,9 +108,18 @@ class ODEModelSteppable(SteppableBasePy):
 
         self.add_antimony_to_cell_types(model_string=viral_model_string, model_name='VModel',
                                         cell_types=[self.I2], step_size=hours_to_mcs)
-    
+
+        self.add_antimony_to_cell_types(model_string=IFN_model_string, model_name='IFNModel',
+                                        cell_types=[self.I2], step_size=hours_to_mcs)
+
     def step(self,mcs):
+        secretor = self.get_field_secretor("IFNe")
         for cell in self.cell_list_by_type(self.I2):
+            # Rule 4a
+            IFNe = secretor.amountSeenByCell(cell)
+            # cell.sbml.IFNModel['IFNe'] = self.shared_steppable_vars['IFNe']
+            cell.sbml.IFNModel['IFNe'] = IFNe * self.initial_infected
+
             # Rule 7a
             k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
             V = cell.sbml.VModel['V']
@@ -104,6 +129,7 @@ class ODEModelSteppable(SteppableBasePy):
 
             # Rule 8a
             cell.sbml.VModel['IFN'] = self.shared_steppable_vars['IFN']
+
         self.timestep_sbml()
 
 class CellularModelSteppable(SteppableBasePy):
@@ -212,12 +238,12 @@ class PlotODEModelSteppable(SteppableBasePy):
                                                      y_scale_type='linear',
                                                      grid=False, config_options={'legend': True})
 
-            # self.plot_win2 = self.add_new_plot_window(title='STATP',
-            #                                           x_axis_title='Hours',
-            #                                           y_axis_title='Variable', x_scale_type='linear',
-            #                                           y_scale_type='linear',
-            #                                           grid=False, config_options={'legend': True})
-            #
+            self.plot_win2 = self.add_new_plot_window(title='STATP',
+                                                      x_axis_title='Hours',
+                                                      y_axis_title='Variable', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False, config_options={'legend': True})
+
             # self.plot_win3 = self.add_new_plot_window(title='IFNe',
             #                                           x_axis_title='Hours',
             #                                           y_axis_title='Extracellular IFN', x_scale_type='linear',
@@ -251,7 +277,7 @@ class PlotODEModelSteppable(SteppableBasePy):
 
             if plot_ODEModel:
                 self.plot_win.add_plot("ODEP", style='Dots', color='red', size=5)
-                # self.plot_win2.add_plot("ODESTATP", style='Dots', color='blue', size=5)
+                self.plot_win2.add_plot("ODESTATP", style='Dots', color='blue', size=5)
                 # self.plot_win3.add_plot("ODEIFNe", style='Dots', color='purple', size=5)
                 # self.plot_win4.add_plot("ODEIRF7", style='Dots', color='orange', size=5)
                 # self.plot_win5.add_plot("ODEIRF7P", style='Dots', color='green', size=5)
@@ -260,7 +286,7 @@ class PlotODEModelSteppable(SteppableBasePy):
 
             if plot_CellularizedModel:
                 self.plot_win.add_plot("CC3DP", style='Lines', color='red', size=5)
-                # self.plot_win2.add_plot("CC3DSTATP", style='Lines', color='blue', size=5)
+                self.plot_win2.add_plot("CC3DSTATP", style='Lines', color='blue', size=5)
                 # self.plot_win3.add_plot("CC3DIFNe", style='Lines', color='purple', size=5)
                 # self.plot_win4.add_plot("CC3DIRF7", style='Lines', color='orange', size=5)
                 # self.plot_win5.add_plot("CC3DIRF7P", style='Lines', color='green', size=5)
@@ -270,7 +296,7 @@ class PlotODEModelSteppable(SteppableBasePy):
     def step(self, mcs):
         if plot_ODEModel:
             self.plot_win.add_data_point("ODEP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
-            # self.plot_win2.add_data_point("ODESTATP", mcs * hours_to_mcs, self.sbml.ODEModel['STATP'])
+            self.plot_win2.add_data_point("ODESTATP", mcs * hours_to_mcs, self.sbml.ODEModel['STATP'])
             # self.plot_win3.add_data_point("ODEIFNe", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
             # self.plot_win4.add_data_point("ODEIRF7", mcs * hours_to_mcs, self.sbml.ODEModel['IRF7'])
             # self.plot_win5.add_data_point("ODEIRF7P", mcs * hours_to_mcs, self.sbml.ODEModel['IRF7P'])
@@ -278,15 +304,17 @@ class PlotODEModelSteppable(SteppableBasePy):
             # self.plot_win7.add_data_point("ODEIFN", mcs * hours_to_mcs, self.sbml.ODEModel['IFN'])
 
         if plot_CellularizedModel:
-            L = len(self.cell_list_by_type(self.I2))
-            P = L /self.initial_infected
+            P = len(self.cell_list_by_type(self.I2))/self.initial_infected
             self.AV = 0.0
+            self.ASTATP = 0.0
+
             for cell in self.cell_list_by_type(self.I2):
                 self.AV += cell.sbml.VModel['V']/self.initial_infected
+                self.ASTATP += cell.sbml.IFNModel['STATP']/self.initial_infected
 
             self.plot_win.add_data_point("CC3DP", mcs * hours_to_mcs, P)
-            # self.plot_win2.add_data_point("CC3DSTATP", mcs * hours_to_mcs,
-            #                               self.shared_steppable_vars['STATP'])
+            self.plot_win2.add_data_point("CC3DSTATP", mcs * hours_to_mcs,
+                                          self.ASTATP)
             # self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs,
             #                               self.shared_steppable_vars['IFNe'])
             # self.plot_win4.add_data_point("CC3DIRF7", mcs * hours_to_mcs,
