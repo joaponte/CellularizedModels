@@ -13,7 +13,7 @@ plot_CellularizedModel = True
 # 1 determines IFNe from ODE model
 # 2 determines IFNe from scalar from CC3D
 # 3 determines IFNe from field from CC3D
-How_to_determine_IFNe = 3
+How_to_determine_IFNe = 1
 
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
@@ -116,9 +116,13 @@ class ODEModelSteppable(SteppableBasePy):
         secretor = self.get_field_secretor("IFNe")
         for cell in self.cell_list_by_type(self.I2):
             # Rule 4a
-            IFNe = secretor.amountSeenByCell(cell)
-            # cell.sbml.IFNModel['IFNe'] = self.shared_steppable_vars['IFNe']
-            cell.sbml.IFNModel['IFNe'] = IFNe * self.initial_infected
+            if How_to_determine_IFNe == 1:
+                cell.sbml.IFNModel['IFNe'] = self.sbml.ODEModel['IFNe']
+            if How_to_determine_IFNe == 2:
+                cell.sbml.IFNModel['IFNe'] = self.shared_steppable_vars['IFNe']
+            if How_to_determine_IFNe == 3:
+                IFNe = secretor.amountSeenByCell(cell)
+                cell.sbml.IFNModel['IFNe'] = IFNe * self.initial_infected
 
             # Rule 7a
             k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
