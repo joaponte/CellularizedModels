@@ -13,7 +13,7 @@ plot_CellularizedModel = True
 # 1 determines IFNe from ODE model
 # 2 determines IFNe from scalar from CC3D
 # 3 determines IFNe from field from CC3D
-How_to_determine_IFNe = 1
+How_to_determine_IFNe = 3
 
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
@@ -63,19 +63,47 @@ model_string = '''
     V    = 6.9e-8   ;
 '''
 
+# Viral Replication Model
+viral_model_string = '''
+    E8a: -> V           ; k71*V/(1.0+k72*IFN*7E-5)                          ;
+    E8b: V ->           ; k73*V                                             ;
+
+    //Parameters
+    k71 = 1.537     ;
+    k72 = 47.883    ;
+    k73 = 0.197     ;
+
+    //Initial Conditions
+    IFN =  0.0      ;
+    V    = 6.9e-8   ;
+'''
 class ODEModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+        self.initial_infected = len(self.cell_list_by_type(self.I2))
         # Uptading max simulation steps using scaling factor to simulate 10 days
         self.get_xml_element('simulation_steps').cdata = hours_to_simulate / hours_to_mcs
 
         # Adding free floating antimony model
         self.add_free_floating_antimony(model_string=model_string, model_name='ODEModel',
                                         step_size=hours_to_mcs)
+
+        self.add_antimony_to_cell_types(model_string=viral_model_string, model_name='VModel',
+                                        cell_types=[self.I2], step_size=hours_to_mcs)
     
     def step(self,mcs):
+        for cell in self.cell_list_by_type(self.I2):
+            # Rule 7a
+            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
+            V = cell.sbml.VModel['V']
+            p_I2toDead = k61 * V
+            if np.random.random() < p_I2toDead:
+                cell.type = self.DEAD
+
+            # Rule 8a
+            cell.sbml.VModel['IFN'] = self.shared_steppable_vars['IFN']
         self.timestep_sbml()
 
 class CellularModelSteppable(SteppableBasePy):
@@ -140,13 +168,6 @@ class CellularModelSteppable(SteppableBasePy):
             IRF7 = self.shared_steppable_vars['IRF7']
             pIRF7P += k51 * IRF7
 
-            # Rule 7a
-            k61 = self.sbml.ODEModel['k61'] * hours_to_mcs
-            V = self.shared_steppable_vars['V']
-            p_I2toDead = k61 * V
-            if np.random.random() < p_I2toDead:
-                cell.type = self.DEAD
-
             # Rule 8a
             k71 = self.sbml.ODEModel['k71'] * hours_to_mcs / self.initial_infected * 1.1 # DONT UNDERSTAND WHY
             V = self.shared_steppable_vars['V']
@@ -191,83 +212,88 @@ class PlotODEModelSteppable(SteppableBasePy):
                                                      y_scale_type='linear',
                                                      grid=False, config_options={'legend': True})
 
-            self.plot_win2 = self.add_new_plot_window(title='STATP',
-                                                      x_axis_title='Hours',
-                                                      y_axis_title='Variable', x_scale_type='linear',
-                                                      y_scale_type='linear',
-                                                      grid=False, config_options={'legend': True})
-
-            self.plot_win3 = self.add_new_plot_window(title='IFNe',
-                                                      x_axis_title='Hours',
-                                                      y_axis_title='Extracellular IFN', x_scale_type='linear',
-                                                      y_scale_type='linear',
-                                                      grid=False, config_options={'legend': True})
-
-
-            self.plot_win4 = self.add_new_plot_window(title='IRF7',
-                                                      x_axis_title='Hours',
-                                                      y_axis_title='Variable', x_scale_type='linear',
-                                                      y_scale_type='linear',
-                                                      grid=False, config_options={'legend': True})
-
-            self.plot_win5 = self.add_new_plot_window(title='IRF7P',
-                                                      x_axis_title='Hours',
-                                                      y_axis_title='Variable', x_scale_type='linear',
-                                                      y_scale_type='linear',
-                                                      grid=False, config_options={'legend': True})
+            # self.plot_win2 = self.add_new_plot_window(title='STATP',
+            #                                           x_axis_title='Hours',
+            #                                           y_axis_title='Variable', x_scale_type='linear',
+            #                                           y_scale_type='linear',
+            #                                           grid=False, config_options={'legend': True})
+            #
+            # self.plot_win3 = self.add_new_plot_window(title='IFNe',
+            #                                           x_axis_title='Hours',
+            #                                           y_axis_title='Extracellular IFN', x_scale_type='linear',
+            #                                           y_scale_type='linear',
+            #                                           grid=False, config_options={'legend': True})
+            #
+            #
+            # self.plot_win4 = self.add_new_plot_window(title='IRF7',
+            #                                           x_axis_title='Hours',
+            #                                           y_axis_title='Variable', x_scale_type='linear',
+            #                                           y_scale_type='linear',
+            #                                           grid=False, config_options={'legend': True})
+            #
+            # self.plot_win5 = self.add_new_plot_window(title='IRF7P',
+            #                                           x_axis_title='Hours',
+            #                                           y_axis_title='Variable', x_scale_type='linear',
+            #                                           y_scale_type='linear',
+            #                                           grid=False, config_options={'legend': True})
 
             self.plot_win6 = self.add_new_plot_window(title='V',
                                                       x_axis_title='Hours',
                                                       y_axis_title='Variable', x_scale_type='linear',
                                                       y_scale_type='linear',
                                                       grid=False, config_options={'legend': True})
-
-            self.plot_win7 = self.add_new_plot_window(title='IFN',
-                                                      x_axis_title='Hours',
-                                                      y_axis_title='Variable', x_scale_type='linear',
-                                                      y_scale_type='linear',
-                                                      grid=False, config_options={'legend': True})
+            #
+            # self.plot_win7 = self.add_new_plot_window(title='IFN',
+            #                                           x_axis_title='Hours',
+            #                                           y_axis_title='Variable', x_scale_type='linear',
+            #                                           y_scale_type='linear',
+            #                                           grid=False, config_options={'legend': True})
 
             if plot_ODEModel:
                 self.plot_win.add_plot("ODEP", style='Dots', color='red', size=5)
-                self.plot_win2.add_plot("ODESTATP", style='Dots', color='blue', size=5)
-                self.plot_win3.add_plot("ODEIFNe", style='Dots', color='purple', size=5)
-                self.plot_win4.add_plot("ODEIRF7", style='Dots', color='orange', size=5)
-                self.plot_win5.add_plot("ODEIRF7P", style='Dots', color='green', size=5)
+                # self.plot_win2.add_plot("ODESTATP", style='Dots', color='blue', size=5)
+                # self.plot_win3.add_plot("ODEIFNe", style='Dots', color='purple', size=5)
+                # self.plot_win4.add_plot("ODEIRF7", style='Dots', color='orange', size=5)
+                # self.plot_win5.add_plot("ODEIRF7P", style='Dots', color='green', size=5)
                 self.plot_win6.add_plot("ODEV", style='Dots', color='yellow', size=5)
-                self.plot_win7.add_plot("ODEIFN", style='Dots', color='white', size=5)
+                # self.plot_win7.add_plot("ODEIFN", style='Dots', color='white', size=5)
 
             if plot_CellularizedModel:
                 self.plot_win.add_plot("CC3DP", style='Lines', color='red', size=5)
-                self.plot_win2.add_plot("CC3DSTATP", style='Lines', color='blue', size=5)
-                self.plot_win3.add_plot("CC3DIFNe", style='Lines', color='purple', size=5)
-                self.plot_win4.add_plot("CC3DIRF7", style='Lines', color='orange', size=5)
-                self.plot_win5.add_plot("CC3DIRF7P", style='Lines', color='green', size=5)
+                # self.plot_win2.add_plot("CC3DSTATP", style='Lines', color='blue', size=5)
+                # self.plot_win3.add_plot("CC3DIFNe", style='Lines', color='purple', size=5)
+                # self.plot_win4.add_plot("CC3DIRF7", style='Lines', color='orange', size=5)
+                # self.plot_win5.add_plot("CC3DIRF7P", style='Lines', color='green', size=5)
                 self.plot_win6.add_plot("CC3DV", style='Lines', color='yellow', size=5)
-                self.plot_win7.add_plot("CC3DIFN", style='Lines', color='white', size=5)
+                # self.plot_win7.add_plot("CC3DIFN", style='Lines', color='white', size=5)
 
     def step(self, mcs):
         if plot_ODEModel:
             self.plot_win.add_data_point("ODEP", mcs * hours_to_mcs,self.sbml.ODEModel['P'])
-            self.plot_win2.add_data_point("ODESTATP", mcs * hours_to_mcs, self.sbml.ODEModel['STATP'])
-            self.plot_win3.add_data_point("ODEIFNe", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
-            self.plot_win4.add_data_point("ODEIRF7", mcs * hours_to_mcs, self.sbml.ODEModel['IRF7'])
-            self.plot_win5.add_data_point("ODEIRF7P", mcs * hours_to_mcs, self.sbml.ODEModel['IRF7P'])
+            # self.plot_win2.add_data_point("ODESTATP", mcs * hours_to_mcs, self.sbml.ODEModel['STATP'])
+            # self.plot_win3.add_data_point("ODEIFNe", mcs * hours_to_mcs, self.sbml.ODEModel['IFNe'])
+            # self.plot_win4.add_data_point("ODEIRF7", mcs * hours_to_mcs, self.sbml.ODEModel['IRF7'])
+            # self.plot_win5.add_data_point("ODEIRF7P", mcs * hours_to_mcs, self.sbml.ODEModel['IRF7P'])
             self.plot_win6.add_data_point("ODEV", mcs * hours_to_mcs, self.sbml.ODEModel['V'])
-            self.plot_win7.add_data_point("ODEIFN", mcs * hours_to_mcs, self.sbml.ODEModel['IFN'])
+            # self.plot_win7.add_data_point("ODEIFN", mcs * hours_to_mcs, self.sbml.ODEModel['IFN'])
 
         if plot_CellularizedModel:
-            P = len(self.cell_list_by_type(self.I2))/self.initial_infected
+            L = len(self.cell_list_by_type(self.I2))
+            P = L /self.initial_infected
+            self.AV = 0.0
+            for cell in self.cell_list_by_type(self.I2):
+                self.AV += cell.sbml.VModel['V']/self.initial_infected
+
             self.plot_win.add_data_point("CC3DP", mcs * hours_to_mcs, P)
-            self.plot_win2.add_data_point("CC3DSTATP", mcs * hours_to_mcs,
-                                          self.shared_steppable_vars['STATP'])
-            self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs,
-                                          self.shared_steppable_vars['IFNe'])
-            self.plot_win4.add_data_point("CC3DIRF7", mcs * hours_to_mcs,
-                                          self.shared_steppable_vars['IRF7'])
-            self.plot_win5.add_data_point("CC3DIRF7P", mcs * hours_to_mcs,
-                                          self.shared_steppable_vars['IRF7P'])
+            # self.plot_win2.add_data_point("CC3DSTATP", mcs * hours_to_mcs,
+            #                               self.shared_steppable_vars['STATP'])
+            # self.plot_win3.add_data_point("CC3DIFNe", mcs * hours_to_mcs,
+            #                               self.shared_steppable_vars['IFNe'])
+            # self.plot_win4.add_data_point("CC3DIRF7", mcs * hours_to_mcs,
+            #                               self.shared_steppable_vars['IRF7'])
+            # self.plot_win5.add_data_point("CC3DIRF7P", mcs * hours_to_mcs,
+            #                               self.shared_steppable_vars['IRF7P'])
             self.plot_win6.add_data_point("CC3DV", mcs * hours_to_mcs,
-                                          self.shared_steppable_vars['V'])
-            self.plot_win7.add_data_point("CC3DIFN", mcs * hours_to_mcs,
-                                          self.shared_steppable_vars['IFN'])
+                                          self.AV)
+            # self.plot_win7.add_data_point("CC3DIFN", mcs * hours_to_mcs,
+            #                               self.shared_steppable_vars['IFN'])
