@@ -2,19 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-names1 = ['Time','T', 'I1', 'I2', 'D', 'V']
-f1 = np.genfromtxt('SingleVirus_ODE_output.txt', skip_header=1, delimiter=',', names=names1)
 names2 = ['Time','T','I1A','I2A','DA','VA','I1B', 'I2B', 'DB', 'VB']
-f2 = np.genfromtxt('Coinfection_ODE_output.txt', skip_header=1, delimiter=',', names=names2)
+f2 = np.genfromtxt('V2CoinfectionODE_output.txt', skip_header=1, delimiter=',', names=names2)
 names2 = ['Time','U','I1A','I2A','DA','VA','I1B', 'I2B', 'DB', 'VB']
-f3 = np.genfromtxt('Cellular_output.txt', skip_header=1, delimiter=',', names=names2)
+f3 = np.genfromtxt('V2CoinfectionCellular_output.txt', skip_header=1, delimiter=',', names=names2)
 
 T0 = f2['T'][0]
 U0 = f3['U'][0]
 
 days = 4.0
-if f1['Time'][-1] < days:
-    days = f['Time'][-1]
+if f2['Time'][-1] < days:
+    days = f2['Time'][-1]
 
 plt.figure(figsize=(9.0, 4.5))
 plt.subplot(1, 2, 1)
@@ -43,17 +41,17 @@ plt.legend(custom_lines, ['ODE model', 'Cellular model'], loc=1)
 
 plt.subplot(1, 2, 2)
 plt.plot(f2['Time'], f2['VB'], '--', linewidth=2.0, color='black')
-#plt.plot(f2['Time'], f2['VA'], '--', linewidth=2.0, color='black')
+plt.plot(f2['Time'], f2['VA'], '--', linewidth=2.0, color='black')
 plt.plot(f3['Time'], f3['VA'], linewidth=2.0, color='black')
 plt.plot(f3['Time'], f3['VB'], linewidth=2.0, color='black')
 
 plt.yscale('log')
 plt.xlim([0, days])
-plt.ylim([10 ** 1, 10 ** 6.5])
-plt.legend(['ODE Model', 'Cellular Model'], loc=4)
+plt.ylim([10 ** 1, 10 ** 7])
+plt.legend(['ODE Model', 'Cellular Model'], loc=1)
 plt.ylabel('log TCID')
 plt.xlabel('Days')
 
 plt.tight_layout()
-plt.savefig('TimeSeries.pdf')
+plt.savefig('V2TimeSeries.pdf')
 plt.show()
