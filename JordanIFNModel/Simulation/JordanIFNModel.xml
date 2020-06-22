@@ -82,6 +82,21 @@
             </Plane>
          </BoundaryConditions>
       </DiffusionField>
+      <DiffusionField Name="Virus">
+         <DiffusionData>
+            <FieldName>Virus</FieldName>
+            <GlobalDiffusionConstant id = "Virus_dc">1.0</GlobalDiffusionConstant>
+            <GlobalDecayConstant id = "Virus_decay">0.0</GlobalDecayConstant>
+         </DiffusionData>
+         <BoundaryConditions>
+            <Plane Axis="X">
+               <Periodic/>
+            </Plane>
+            <Plane Axis="Y">
+               <Periodic/>
+            </Plane>
+         </BoundaryConditions>
+      </DiffusionField>
    </Steppable>
 
    <Steppable Type="UniformInitializer">
