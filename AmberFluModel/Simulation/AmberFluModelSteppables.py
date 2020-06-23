@@ -260,7 +260,7 @@ class Data_OutputSteppable(SteppableBasePy):
 
     def start(self):
         if Data_writeout:
-            folder_path = '/Users/Josua/Box Sync/LAB/CellularizedModels/AmberFluModel'
+            folder_path = '/Users/Josua/AmberFluModelData/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
