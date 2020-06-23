@@ -53,9 +53,9 @@ CoinfectionModelString = '''
          //State Variables and Transitions for Virus B
         V6: -> T   ; -beta * VB * T ;                               // Susceptible Cells
         V7: -> I1B ;  beta * VB * T - k * I1B ;                     // Early Infected Cells
-        V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2A + I2B) ;   // Late Infected Cells
+        V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2B) ;   // Late Infected Cells
         V9: -> VB  ;  p * I2B - c * VB;                             // Extracellular Virus B
-        V10: -> DB ;  delta_d * I2B / (K_delta + I2A + I2B) ;             // Dead Cells
+        V10: -> DB ;  delta_d * I2B / (K_delta + I2B) ;             // Dead Cells
         
         // Functions
         effect := K_V^n / (K_V^n + VB^n)
@@ -195,7 +195,7 @@ class CellularModelSteppable(SteppableBasePy):
         delta_d = self.sbml.CoinfectionModel['delta_d'] / self.sbml.CoinfectionModel['T0'] * self.initial_uninfected
         I2B = len(self.cell_list_by_type(self.I2B))
         I2 = len(self.cell_list_by_type(self.I2))
-        p_T2BtoDB = delta_d / (K_delta + I2 + I2B) * days_to_mcs
+        p_T2BtoDB = delta_d / (K_delta + I2B) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2B):
             if np.random.random() < p_T2BtoDB:
                 cell.type = self.DEADB
