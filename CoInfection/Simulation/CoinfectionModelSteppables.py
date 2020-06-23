@@ -46,16 +46,16 @@ CoinfectionModelString = '''
         //State Variables and Transitions for Virus A
         V1: -> T   ; -beta * VA * T ;                               // Susceptible Cells
         V2: -> I1A ;  beta * VA * T - k * I1A ;                     // Early Infected Cells
-        V3: -> I2A ;  k * I1A - effect * delta_d * I2A / (K_delta + I2A) ;   // Late Infected Cells
+        V3: -> I2A ;  k * I1A - delta_d * I2A / (K_delta + I2A) ;   // Late Infected Cells
         V4: -> VA  ;  p * I2A - c * VA;                             // Extracellular Virus A
-        V5: -> DA  ;  effect * delta_d * I2A / (K_delta + I2A) ;             // Dead Cells
+        V5: -> DA  ;  delta_d * I2A / (K_delta + I2A) ;             // Dead Cells
 
          //State Variables and Transitions for Virus B
         V6: -> T   ; -beta * VB * T ;                               // Susceptible Cells
         V7: -> I1B ;  beta * VB * T - k * I1B ;                     // Early Infected Cells
-        V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2B) ;   // Late Infected Cells
+        V8: -> I2B ;  k * I1B - delta_d * I2B / (K_delta + I2A + I2B) ;   // Late Infected Cells
         V9: -> VB  ;  p * I2B - c * VB;                             // Extracellular Virus B
-        V10: -> DB ;  delta_d * I2B / (K_delta + I2B) ;             // Dead Cells
+        V10: -> DB ;  delta_d * I2B / (K_delta + I2A + I2B) ;             // Dead Cells
         
         // Functions
         effect := K_V^n / (K_V^n + VB^n)
@@ -185,7 +185,7 @@ class CellularModelSteppable(SteppableBasePy):
         n = self.sbml.CoinfectionModel['n']
         V = self.shared_steppable_vars['FieldVirusB']
         effect = K_V**n / (K_V**n + V**n)
-        p_T2toD = effect * delta_d / (K_delta + I2) * days_to_mcs
+        p_T2toD = delta_d / (K_delta + I2) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             if np.random.random() < p_T2toD:
                 cell.type = self.DEAD
@@ -194,7 +194,8 @@ class CellularModelSteppable(SteppableBasePy):
         K_delta = self.sbml.CoinfectionModel['K_delta'] / self.sbml.CoinfectionModel['T0'] * self.initial_uninfected
         delta_d = self.sbml.CoinfectionModel['delta_d'] / self.sbml.CoinfectionModel['T0'] * self.initial_uninfected
         I2B = len(self.cell_list_by_type(self.I2B))
-        p_T2BtoDB = delta_d / (K_delta + I2B) * days_to_mcs
+        I2 = len(self.cell_list_by_type(self.I2))
+        p_T2BtoDB = delta_d / (K_delta + I2 + I2B) * days_to_mcs
         for cell in self.cell_list_by_type(self.I2B):
             if np.random.random() < p_T2BtoDB:
                 cell.type = self.DEADB
