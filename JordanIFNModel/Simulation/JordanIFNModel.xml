@@ -70,7 +70,7 @@
       <DiffusionField Name="IFNe">
          <DiffusionData>
             <FieldName>Virus</FieldName>
-            <GlobalDiffusionConstant id = "IFNe_dc">1.0</GlobalDiffusionConstant>
+            <GlobalDiffusionConstant id = "IFNe_dc">0.01</GlobalDiffusionConstant>
             <GlobalDecayConstant id = "IFNe_decay">0.0</GlobalDecayConstant>
          </DiffusionData>
          <BoundaryConditions>
