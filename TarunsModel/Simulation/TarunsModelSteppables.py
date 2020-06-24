@@ -113,6 +113,30 @@ class TarunsModelSteppable(SteppableBasePy):
         if p_EtoEv > np.random.random():
             cell.type = self.EV
 
+    def Ev_2_E_trasition(self, cell):
+        ## Transition from Ev to E
+        # J4: Ev -> E; aE*Ev;
+        if self.sbml.FullModel['aE'] * days_to_mcs > np.random.random():
+            cell.type = self.E
+
+    def Ev_2_D_viral_transition(self, cell):
+        ## Transition from Ev to D
+        # J5: Ev -> D; dE*Ev;
+        dE = self.sbml.FullModel['dE'] * days_to_mcs
+        p_EvtoD = dE
+        if p_EvtoD > np.random.random():
+            cell.type = self.D
+
+    def Ev_2_D_immune_transition(self, cell):
+        ## Transition from Ev to D
+        # J6: Ev -> D; kE * g * Ev * Tc;
+        kE = self.sbml.FullModel['kE'] * days_to_mcs
+        g = self.sbml.FullModel['g']
+        Tc = self.sbml.FullModel['Tc']
+        p_EvtoD = kE * g * Tc
+        if p_EvtoD > np.random.random():
+            cell.type = self.D
+
     def step(self, mcs):
         secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.D):
@@ -125,28 +149,14 @@ class TarunsModelSteppable(SteppableBasePy):
 
         virus_production = 0.0
         for cell in self.cell_list_by_type(self.EV):
-            ## Transition from Ev to E
-            # J4: Ev -> E; aE*Ev;
-            aE = self.sbml.FullModel['aE'] * days_to_mcs
-            p_EvtoE = aE
-            if p_EvtoE > np.random.random():
-                cell.type = self.E
 
-            ## Transition from Ev to D
-            # J5: Ev -> D; dE*Ev;
-            dE = self.sbml.FullModel['dE'] * days_to_mcs
-            p_EvtoD = dE
-            if p_EvtoD > np.random.random():
-                cell.type = self.D
+            self.Ev_2_E_trasition(cell)
 
-            ## Transition from Ev to D
-            # J6: Ev -> D; kE * g * Ev * Tc;
-            kE = self.sbml.FullModel['kE'] * days_to_mcs
-            g = self.sbml.FullModel['g']
-            Tc = self.sbml.FullModel['Tc']
-            p_EvtoD = kE * g * Tc
-            if p_EvtoD > np.random.random():
-                cell.type = self.D
+            if cell.type != self.E:  # in case recovery just happened
+                self.Ev_2_D_viral_transition(cell)
+
+            if cell.type != self.D and cell.type != self.E:  # in case it's died or recovered
+                self.Ev_2_D_immune_transition(cell)
 
             ## Virus Production
             # J7: -> V; pV*Ev;
