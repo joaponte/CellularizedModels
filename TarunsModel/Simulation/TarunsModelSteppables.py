@@ -5,10 +5,10 @@ min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0
 
-virus_infection_feedback = 1
+virus_infection_feedback = 3
 
 model_string = '''
-#reactions
+// Equations
 J1: D -> E; dE*D;
 J2: E -> D; dE*E;
 J3: E -> Ev; bE*V*E;
@@ -33,7 +33,7 @@ J21: -> Th2; s2*Th2/(1+Th2);
 J22: Th1 -> Th2; p2*((ro+Th1)*(Da+Dm)*Th1^2)/((1+Th2)*(1+Th2+Th1)) + Th1;
 J23: Th2 ->; m*Th2;
 
-//parameters
+// Parameters
 E0=5.0*10^5; 
 aE=5.0*10^-2; 
 bE=2*10^-5; 
@@ -84,7 +84,22 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def step(self,mcs):
         secretor = self.get_field_secretor("Virus")
+        for cell in self.cell_list_by_type(self.D):
+            ## Transition from D to E
+            # J1: D -> E; dE*D;
+            dE = self.sbml.FullModel['dE'] * days_to_mcs
+            p_DtoE = dE
+            if p_DtoE > np.random.random():
+                cell.type = self.E
+
         for cell in self.cell_list_by_type(self.E):
+            ## Transition from E to D
+            # J2: E -> D; dE * E;
+            dE = self.sbml.FullModel['dE'] * days_to_mcs
+            p_EtoD = dE
+            if p_EtoD > np.random.random():
+                cell.type = self.D
+
             ## Transition from E to Ev
             # J3: E -> Ev; bE*V*E;
             if virus_infection_feedback == 1:
@@ -102,6 +117,29 @@ class TarunsModelSteppable(SteppableBasePy):
 
         virus_production = 0.0
         for cell in self.cell_list_by_type(self.EV):
+            ## Transition from Ev to E
+            # J4: Ev -> E; aE*Ev;
+            aE = self.sbml.FullModel['aE'] * days_to_mcs
+            p_EvtoE = aE
+            if p_EvtoE > np.random.random():
+                cell.type = self.E
+
+            ## Transition from Ev to D
+            # J5: Ev -> D; dE*Ev;
+            dE = self.sbml.FullModel['dE'] * days_to_mcs
+            p_EvtoD = dE
+            if p_EvtoD > np.random.random():
+                cell.type = self.D
+
+            ## Transition from Ev to D
+            # J6: Ev -> D; kE * g * Ev * Tc;
+            kE = self.sbml.FullModel['kE'] * days_to_mcs
+            g = self.sbml.FullModel['g']
+            Tc = self.sbml.FullModel['Tc']
+            p_EvtoD = kE * g * Tc
+            if p_EvtoD > np.random.random():
+                cell.type = self.D
+
             ## Virus Production
             # J7: -> V; pV*Ev;
             pV = self.sbml.FullModel['pV'] * days_to_mcs / self.initial_uninfected * self.sbml.FullModel['E0']
@@ -132,7 +170,11 @@ class PlotsSteppable(SteppableBasePy):
                                                  grid=False)
 
         self.plot_win.add_plot("ODEE", style='Dots', color='blue', size=5)
+        self.plot_win.add_plot("ODEEv", style='Dots', color='yellow', size=5)
+        self.plot_win.add_plot("ODED", style='Dots', color='red', size=5)
         self.plot_win.add_plot("CC3DE", style='Lines', color='blue', size=5)
+        self.plot_win.add_plot("CC3DEv", style='Lines', color='yellow', size=5)
+        self.plot_win.add_plot("CC3DD", style='Lines', color='red', size=5)
 
         self.plot_win2 = self.add_new_plot_window(title='Virus',
                                                   x_axis_title='MonteCarlo Step (MCS)',
@@ -140,21 +182,26 @@ class PlotsSteppable(SteppableBasePy):
                                                   grid=False)
 
         self.plot_win2.add_plot("ODEV", style='Dots', color='red', size=5)
-        self.plot_win2.add_plot("CC3DVS", style='Lines', color='red', size=5)
-        self.plot_win2.add_plot("CC3DVF", style='Lines', color='orange', size=5)
+        # self.plot_win2.add_plot("CC3DVS", style='Lines', color='red', size=5)
+        self.plot_win2.add_plot("CC3DVF", style='Lines', color='red', size=5)
 
     def step(self, mcs):
-        self.scalar_virus = self.shared_steppable_vars['scalar_virus']
-
-        self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,self.sbml.FullModel['E']/self.sbml.FullModel['E0'])
-        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,self.sbml.FullModel['V'])
-
-        self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
-                                     len(self.cell_list_by_type(self.E))/self.initial_uninfected)
-        self.field_virus = 0.0
         secretor = self.get_field_secretor("Virus")
         self.field_virus = 0.0
         for cell in self.cell_list:
             self.field_virus += secretor.amountSeenByCell(cell)
-        self.plot_win2.add_data_point("CC3DVS", mcs * days_to_mcs, self.scalar_virus)
+        self.scalar_virus = self.shared_steppable_vars['scalar_virus']
+
+        self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,self.sbml.FullModel['E']/self.sbml.FullModel['E0'])
+        self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs, self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
+        self.plot_win.add_data_point("ODED", mcs * days_to_mcs, self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
+        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,self.sbml.FullModel['V'])
+
+        self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
+                                     len(self.cell_list_by_type(self.E))/self.initial_uninfected)
+        self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs,
+                                     len(self.cell_list_by_type(self.EV))/self.initial_uninfected)
+        self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs,
+                                     len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
+        # self.plot_win2.add_data_point("CC3DVS", mcs * days_to_mcs, self.scalar_virus)
         self.plot_win2.add_data_point("CC3DVF", mcs * days_to_mcs, self.field_virus)
