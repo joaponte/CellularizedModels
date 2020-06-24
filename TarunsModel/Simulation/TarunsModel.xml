@@ -9,7 +9,7 @@
    
    <Potts>
       <!-- Basic properties of CPM (GGH) algorithm -->
-      <Dimensions x="300" y="300" z="2"/>
+      <Dimensions x="300" y="300" z="1"/>
       <Steps id="simulation_steps">100000</Steps>
       <Temperature>10.0</Temperature>
       <NeighborOrder>1</NeighborOrder>
@@ -90,7 +90,8 @@
             <FieldName>Virus</FieldName>
             <GlobalDiffusionConstant>1.0</GlobalDiffusionConstant>
             <GlobalDecayConstant id='virus_decay'>0.0</GlobalDecayConstant>
-            <InitialConcentrationExpression>10.0/10000.0</InitialConcentrationExpression>
+            <InitialConcentrationExpression>10/(300*300)</InitialConcentrationExpression>
+            <DoNotDiffuseTo>Medium</DoNotDiffuseTo>
          </DiffusionData>
          <BoundaryConditions>
             <Plane Axis="X">
@@ -101,160 +102,6 @@
             </Plane>
             <Plane Axis="Z">
                <Periodic/>
-<!--               <ConstantDerivative PlanePosition="Min" Value="0.0"/>-->
-<!--               <ConstantDerivative PlanePosition="Max" Value="0.0"/>-->
-            </Plane>
-         </BoundaryConditions>
-      </DiffusionField>
-      <DiffusionField Name="CK0">
-         <DiffusionData>
-            <FieldName>CK0</FieldName>
-            <GlobalDiffusionConstant>0.1</GlobalDiffusionConstant>
-            <GlobalDecayConstant>1e-05</GlobalDecayConstant>
-            <!-- Additional options are: -->
-            <!-- <InitialConcentrationExpression>x*y</InitialConcentrationExpression> -->
-            <!-- <ConcentrationFileName>INITIAL CONCENTRATION FIELD - typically a file with path Simulation/NAME_OF_THE_FILE.txt</ConcentrationFileName> -->
-            <DiffusionCoefficient CellType="E">0.1</DiffusionCoefficient>
-            <DiffusionCoefficient CellType="EV">0.1</DiffusionCoefficient>
-            <DiffusionCoefficient CellType="D">0.1</DiffusionCoefficient>
-            <DiffusionCoefficient CellType="APC">0.1</DiffusionCoefficient>
-            <DiffusionCoefficient CellType="Tcell">0.1</DiffusionCoefficient>
-            <DecayCoefficient CellType="E">0.0001</DecayCoefficient>
-            <DecayCoefficient CellType="EV">0.0001</DecayCoefficient>
-            <DecayCoefficient CellType="D">0.0001</DecayCoefficient>
-            <DecayCoefficient CellType="APC">0.0001</DecayCoefficient>
-            <DecayCoefficient CellType="Tcell">0.0001</DecayCoefficient>
-         </DiffusionData>
-         <SecretionData>
-            <!-- When secretion is defined inside DissufionSolverFE all secretion constants are scaled automaticaly to account for the extra calls to the diffusion step when handling large diffusion constants -->
-            
-            <!-- Uniform secretion Definition -->
-            <Secretion Type="E">0.1</Secretion>
-            <Secretion Type="EV">0.1</Secretion>
-            <Secretion Type="D">0.1</Secretion>
-            <Secretion Type="APC">0.1</Secretion>
-            <Secretion Type="Tcell">0.1</Secretion>
-            <!-- <SecretionOnContact SecreteOnContactWith="E,EV,D,APC,Tcell" Type="Tcell">0.2</SecretionOnContact> -->
-            <!-- <ConstantConcentration Type="Tcell">0.1</ConstantConcentration> -->
-         </SecretionData>
-         <BoundaryConditions>
-            <Plane Axis="X">
-               <ConstantValue PlanePosition="Min" Value="10.0"/>
-               <ConstantValue PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantDerivative PlanePosition="Min" Value="10.0"/> -->
-            </Plane>
-            <Plane Axis="Y">
-               <ConstantDerivative PlanePosition="Min" Value="10.0"/>
-               <ConstantDerivative PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantValue PlanePosition="Min" Value="10.0"/> -->
-            </Plane>
-            <Plane Axis="Z">
-               <ConstantDerivative PlanePosition="Min" Value="10.0"/>
-               <ConstantDerivative PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantValue PlanePosition="Min" Value="10.0"/> -->
-            </Plane>
-         </BoundaryConditions>
-      </DiffusionField>
-      <DiffusionField Name="CK1">
-         <DiffusionData>
-            <FieldName>CK1</FieldName>
-            <GlobalDiffusionConstant>0.1</GlobalDiffusionConstant>
-            <GlobalDecayConstant>1e-05</GlobalDecayConstant>
-            <!-- Additional options are: -->
-            <!-- <InitialConcentrationExpression>x*y</InitialConcentrationExpression> -->
-            <!-- <ConcentrationFileName>INITIAL CONCENTRATION FIELD - typically a file with path Simulation/NAME_OF_THE_FILE.txt</ConcentrationFileName> -->
-            <DiffusionCoefficient CellType="E">0.1</DiffusionCoefficient>
-            <DiffusionCoefficient CellType="EV">0.1</DiffusionCoefficient>
-            <DiffusionCoefficient CellType="D">0.1</DiffusionCoefficient>
-            <DiffusionCoefficient CellType="APC">0.1</DiffusionCoefficient>
-            <DiffusionCoefficient CellType="Tcell">0.1</DiffusionCoefficient>
-            <DecayCoefficient CellType="E">0.0001</DecayCoefficient>
-            <DecayCoefficient CellType="EV">0.0001</DecayCoefficient>
-            <DecayCoefficient CellType="D">0.0001</DecayCoefficient>
-            <DecayCoefficient CellType="APC">0.0001</DecayCoefficient>
-            <DecayCoefficient CellType="Tcell">0.0001</DecayCoefficient>
-         </DiffusionData>
-         <SecretionData>
-            <!-- When secretion is defined inside DissufionSolverFE all secretion constants are scaled automaticaly to account for the extra calls to the diffusion step when handling large diffusion constants -->
-            
-            <!-- Uniform secretion Definition -->
-            <Secretion Type="E">0.1</Secretion>
-            <Secretion Type="EV">0.1</Secretion>
-            <Secretion Type="D">0.1</Secretion>
-            <Secretion Type="APC">0.1</Secretion>
-            <Secretion Type="Tcell">0.1</Secretion>
-            <!-- <SecretionOnContact SecreteOnContactWith="E,EV,D,APC,Tcell" Type="Tcell">0.2</SecretionOnContact> -->
-            <!-- <ConstantConcentration Type="Tcell">0.1</ConstantConcentration> -->
-         </SecretionData>
-         <BoundaryConditions>
-            <Plane Axis="X">
-               <ConstantValue PlanePosition="Min" Value="10.0"/>
-               <ConstantValue PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantDerivative PlanePosition="Min" Value="10.0"/> -->
-            </Plane>
-            <Plane Axis="Y">
-               <ConstantDerivative PlanePosition="Min" Value="10.0"/>
-               <ConstantDerivative PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantValue PlanePosition="Min" Value="10.0"/> -->
-            </Plane>
-            <Plane Axis="Z">
-               <ConstantDerivative PlanePosition="Min" Value="10.0"/>
-               <ConstantDerivative PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantValue PlanePosition="Min" Value="10.0"/> -->
-            </Plane>
-         </BoundaryConditions>
-      </DiffusionField>
-      <DiffusionField Name="CK2">
-         <DiffusionData>
-            <FieldName>CK2</FieldName>
-            <GlobalDiffusionConstant>0.1</GlobalDiffusionConstant>
-            <GlobalDecayConstant>1e-05</GlobalDecayConstant>
-         </DiffusionData>
-         <SecretionData>
-            <!-- When secretion is defined inside DissufionSolverFE all secretion constants are scaled automaticaly to account for the extra calls to the diffusion step when handling large diffusion constants -->
-            
-            <!-- Uniform secretion Definition -->
-            <Secretion Type="E">0.1</Secretion>
-            <Secretion Type="EV">0.1</Secretion>
-            <Secretion Type="D">0.1</Secretion>
-            <Secretion Type="APC">0.1</Secretion>
-            <Secretion Type="Tcell">0.1</Secretion>
-            <!-- <SecretionOnContact SecreteOnContactWith="E,EV,D,APC,Tcell" Type="Tcell">0.2</SecretionOnContact> -->
-            <!-- <ConstantConcentration Type="Tcell">0.1</ConstantConcentration> -->
-         </SecretionData>
-         <BoundaryConditions>
-            <Plane Axis="X">
-               <ConstantValue PlanePosition="Min" Value="10.0"/>
-               <ConstantValue PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantDerivative PlanePosition="Min" Value="10.0"/> -->
-            </Plane>
-            <Plane Axis="Y">
-               <ConstantDerivative PlanePosition="Min" Value="10.0"/>
-               <ConstantDerivative PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantValue PlanePosition="Min" Value="10.0"/> -->
-            </Plane>
-            <Plane Axis="Z">
-               <ConstantDerivative PlanePosition="Min" Value="10.0"/>
-               <ConstantDerivative PlanePosition="Max" Value="5.0"/>
-               <!-- Other options are (examples): -->
-               <!-- <Periodic/> -->
-               <!-- <ConstantValue PlanePosition="Min" Value="10.0"/> -->
             </Plane>
          </BoundaryConditions>
       </DiffusionField>
@@ -263,8 +110,8 @@
 <Steppable Type="UniformInitializer">
    <!-- Initial layout of cells in the form of rectangular slab -->
    <Region>
-      <BoxMin x="0" y="0" z="1"/>
-      <BoxMax x="300" y="300" z="2"/>
+      <BoxMin x="0" y="0" z="0"/>
+      <BoxMax x="300" y="300" z="1"/>
       <Gap>0</Gap>
       <Width>3</Width>
       <Types>E</Types>

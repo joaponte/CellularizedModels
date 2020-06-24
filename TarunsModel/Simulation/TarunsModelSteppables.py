@@ -5,7 +5,7 @@ min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0
 
-virus_infection_feedback = 3
+virus_infection_feedback = 1
 
 model_string = '''
 #reactions
@@ -79,7 +79,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
-        self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * self.initial_uninfected / self.sbml.FullModel['E0']
+        self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
         self.scalar_virus = self.sbml.FullModel['V']
 
     def step(self,mcs):
@@ -93,10 +93,9 @@ class TarunsModelSteppable(SteppableBasePy):
             if virus_infection_feedback == 2:
                 bE = self.sbml.FullModel['bE'] * days_to_mcs
                 V = self.scalar_virus
-                # V = secretor.totalFieldIntegral()
             if virus_infection_feedback == 3:
-                bE = self.sbml.FullModel['bE'] * days_to_mcs
-                V = secretor.amountSeenByCell(cell) * self.initial_uninfected
+                bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
+                V = secretor.amountSeenByCell(cell)
             p_EtoEv = bE * V
             if p_EtoEv > np.random.random():
                 cell.type = self.EV
@@ -105,7 +104,7 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.EV):
             ## Virus Production
             # J7: -> V; pV*Ev;
-            pV = self.sbml.FullModel['pV'] * days_to_mcs /self.initial_uninfected * self.sbml.FullModel['E0']
+            pV = self.sbml.FullModel['pV'] * days_to_mcs / self.initial_uninfected * self.sbml.FullModel['E0']
             release = secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
             virus_production += abs(release.tot_amount)
 
@@ -141,7 +140,8 @@ class PlotsSteppable(SteppableBasePy):
                                                   grid=False)
 
         self.plot_win2.add_plot("ODEV", style='Dots', color='red', size=5)
-        self.plot_win2.add_plot("CC3DV", style='Lines', color='red', size=5)
+        self.plot_win2.add_plot("CC3DVS", style='Lines', color='red', size=5)
+        self.plot_win2.add_plot("CC3DVF", style='Lines', color='orange', size=5)
 
     def step(self, mcs):
         self.scalar_virus = self.shared_steppable_vars['scalar_virus']
@@ -151,5 +151,10 @@ class PlotsSteppable(SteppableBasePy):
 
         self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
                                      len(self.cell_list_by_type(self.E))/self.initial_uninfected)
-        self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs,
-                                      self.scalar_virus)
+        self.field_virus = 0.0
+        secretor = self.get_field_secretor("Virus")
+        self.field_virus = 0.0
+        for cell in self.cell_list:
+            self.field_virus += secretor.amountSeenByCell(cell)
+        self.plot_win2.add_data_point("CC3DVS", mcs * days_to_mcs, self.scalar_virus)
+        self.plot_win2.add_data_point("CC3DVF", mcs * days_to_mcs, self.field_virus)
