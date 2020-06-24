@@ -6,6 +6,7 @@ days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0
 
 virus_infection_feedback = 1
+recovery_feedback = 1
 
 model_string = '''
 #reactions
@@ -70,9 +71,10 @@ Th1=100;
 Th2=100;
 '''
 
+
 class TarunsModelSteppable(SteppableBasePy):
-    def __init__(self,frequency=1):
-        SteppableBasePy.__init__(self,frequency)
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
 
     def start(self):
         # Uptading max simulation steps using scaling factor to simulate 10 days
@@ -82,21 +84,42 @@ class TarunsModelSteppable(SteppableBasePy):
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
         self.scalar_virus = self.sbml.FullModel['V']
 
-    def step(self,mcs):
+    def infection_transition(self):
+        ## Transition from E to Ev
+        # J3: E -> Ev; bE*V*E;
+        if virus_infection_feedback == 1:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs
+            V = self.sbml.FullModel['V']
+        if virus_infection_feedback == 2:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs
+            V = self.scalar_virus
+        if virus_infection_feedback == 3:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
+            V = secretor.amountSeenByCell(cell)
+        p_E2Ev = bE * V
+        return p_E2Ev
+
+    def recovery_transition(self):
+        # transition from Ev to E
+        # J4: Ev -> E; aE*Ev;
+        if recovery_feedback == 1:
+            aE = self.sbml.FullModel['aE'] * days_to_mcs
+            Ev = self.sbml.FullModel['Ev']
+        elif recovery_feedback == 2:
+            aE = self.sbml.FullModel['aE'] * days_to_mcs
+            Ev = len(self.cell_list_by_type(self.EV))
+        elif recovery_feedback == 1:
+            # aE = self.sbml.FullModel['aE'] * days_to_mcs
+            # aE = ?
+            Ev = 1
+        p_Ev_2_E = aE * Ev
+
+        return p_Ev_2_E
+
+    def step(self, mcs):
         secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.E):
-            ## Transition from E to Ev
-            # J3: E -> Ev; bE*V*E;
-            if virus_infection_feedback == 1:
-                bE = self.sbml.FullModel['bE'] * days_to_mcs
-                V = self.sbml.FullModel['V']
-            if virus_infection_feedback == 2:
-                bE = self.sbml.FullModel['bE'] * days_to_mcs
-                V = self.scalar_virus
-            if virus_infection_feedback == 3:
-                bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
-                V = secretor.amountSeenByCell(cell)
-            p_EtoEv = bE * V
+            p_EtoEv = self.infection_transition()  # bE * V
             if p_EtoEv > np.random.random():
                 cell.type = self.EV
 
@@ -108,6 +131,9 @@ class TarunsModelSteppable(SteppableBasePy):
             release = secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
             virus_production += abs(release.tot_amount)
 
+            ## recovery
+            # J4: Ev -> E; aE*Ev;
+
         ## Virus Decay
         # J8: V ->; cV*V;
         cV = self.sbml.FullModel['cV'] * days_to_mcs
@@ -118,9 +144,10 @@ class TarunsModelSteppable(SteppableBasePy):
         ## Step SBML forward
         self.timestep_sbml()
 
+
 class PlotsSteppable(SteppableBasePy):
-    def __init__(self,frequency=1):
-        SteppableBasePy.__init__(self,frequency)
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
 
     def start(self):
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
@@ -146,11 +173,11 @@ class PlotsSteppable(SteppableBasePy):
     def step(self, mcs):
         self.scalar_virus = self.shared_steppable_vars['scalar_virus']
 
-        self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,self.sbml.FullModel['E']/self.sbml.FullModel['E0'])
-        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,self.sbml.FullModel['V'])
+        self.plot_win.add_data_point("ODEE", mcs * days_to_mcs, self.sbml.FullModel['E'] / self.sbml.FullModel['E0'])
+        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs, self.sbml.FullModel['V'])
 
         self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
-                                     len(self.cell_list_by_type(self.E))/self.initial_uninfected)
+                                     len(self.cell_list_by_type(self.E)) / self.initial_uninfected)
         self.field_virus = 0.0
         secretor = self.get_field_secretor("Virus")
         self.field_virus = 0.0
