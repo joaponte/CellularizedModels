@@ -9,7 +9,7 @@
    
    <Potts>
       <!-- Basic properties of CPM (GGH) algorithm -->
-      <Dimensions x="300" y="300" z="1"/>
+      <Dimensions x="300" y="300" z="2"/>
       <Steps id="simulation_steps">100000</Steps>
       <Temperature>10.0</Temperature>
       <NeighborOrder>1</NeighborOrder>
@@ -110,8 +110,8 @@
 <Steppable Type="UniformInitializer">
    <!-- Initial layout of cells in the form of rectangular slab -->
    <Region>
-      <BoxMin x="0" y="0" z="0"/>
-      <BoxMax x="300" y="300" z="1"/>
+      <BoxMin x="0" y="0" z="1"/>
+      <BoxMax x="300" y="300" z="2"/>
       <Gap>0</Gap>
       <Width>3</Width>
       <Types>E</Types>

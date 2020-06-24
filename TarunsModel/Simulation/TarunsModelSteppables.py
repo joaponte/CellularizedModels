@@ -3,9 +3,9 @@ import numpy as np
 
 min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 10.0
+days_to_simulate = 15.0
 
-virus_infection_feedback = 3
+virus_infection_feedback = 1
 
 model_string = '''
 // Equations
@@ -34,7 +34,6 @@ J22: Th1 -> Th2; p2*((ro+Th1)*(Da+Dm)*Th1^2)/((1+Th2)*(1+Th2+Th1)) + Th1;
 J23: Th2 ->; m*Th2;
 
 // Parameters
-E0=5.0*10^5; 
 aE=5.0*10^-2; 
 bE=2*10^-5; 
 dE=10^-3;
@@ -50,7 +49,6 @@ kD=0.5;
 tD=10; 
 dDm=0.5;
 dc=1.5*10^-3; 
-Tc0=1*10^3; 
 pT1=2.7; 
 pT2=600; 
 dT1=2; 
@@ -64,6 +62,8 @@ p2=0.01;
 ro=0.5;
 
 // Initial Conditions
+E0= 5.0*10^5; 
+Tc0 = 1*10^3;
 E = E0;
 V = 10;
 Th1=100;
@@ -163,9 +163,9 @@ class PlotsSteppable(SteppableBasePy):
     def start(self):
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
 
-        self.plot_win = self.add_new_plot_window(title='Fraction of Cells',
-                                                 x_axis_title='MonteCarlo Step (MCS)',
-                                                 y_axis_title='Fraction of Uninfected Cells', x_scale_type='linear',
+        self.plot_win = self.add_new_plot_window(title='Epithelial Cells',
+                                                 x_axis_title='Time (days)',
+                                                 y_axis_title='Fraction of Cells', x_scale_type='linear',
                                                  y_scale_type='linear',
                                                  grid=False)
 
@@ -177,13 +177,20 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win.add_plot("CC3DD", style='Lines', color='red', size=5)
 
         self.plot_win2 = self.add_new_plot_window(title='Virus',
-                                                  x_axis_title='MonteCarlo Step (MCS)',
+                                                  x_axis_title='Time (days)',
                                                   y_axis_title='Virus', x_scale_type='linear', y_scale_type='log',
                                                   grid=False)
 
         self.plot_win2.add_plot("ODEV", style='Dots', color='red', size=5)
-        # self.plot_win2.add_plot("CC3DVS", style='Lines', color='red', size=5)
-        self.plot_win2.add_plot("CC3DVF", style='Lines', color='red', size=5)
+        self.plot_win2.add_plot("CC3DV", style='Lines', color='red', size=5)
+
+        self.plot_win3 = self.add_new_plot_window(title='Tcells',
+                                                  x_axis_title='Time (days)',
+                                                  y_axis_title='Number of Cells', x_scale_type='linear', y_scale_type='linear',
+                                                  grid=False)
+
+        self.plot_win3.add_plot("ODETc", style='Dots', color='red', size=5)
+        self.plot_win3.add_plot("CC3DTc", style='Lines', color='red', size=5)
 
     def step(self, mcs):
         secretor = self.get_field_secretor("Virus")
@@ -196,12 +203,9 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs, self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODED", mcs * days_to_mcs, self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
         self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,self.sbml.FullModel['V'])
+        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'])
 
-        self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
-                                     len(self.cell_list_by_type(self.E))/self.initial_uninfected)
-        self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs,
-                                     len(self.cell_list_by_type(self.EV))/self.initial_uninfected)
-        self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs,
-                                     len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
-        # self.plot_win2.add_data_point("CC3DVS", mcs * days_to_mcs, self.scalar_virus)
-        self.plot_win2.add_data_point("CC3DVF", mcs * days_to_mcs, self.field_virus)
+        self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs, len(self.cell_list_by_type(self.E))/self.initial_uninfected)
+        self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs, len(self.cell_list_by_type(self.EV))/self.initial_uninfected)
+        self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs, len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
+        self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs, self.field_virus)
