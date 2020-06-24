@@ -165,7 +165,7 @@ class ODEModelSteppable(SteppableBasePy):
 
             ## Rule 8a
             # E8a: -> V ; k71 * V / (1.0 + k72 * IFN * 7E-5);
-            cell.sbml.VModel['IFN'] = cell.sbml.IFNModel['IFN']
+            cell.sbml.VModel['IFN'] = cell.sbml.IFNModel['IFN'] # / self.initial_infected
 
             ## Rule 8b
             # E8b: V -> ; k73*V ;
