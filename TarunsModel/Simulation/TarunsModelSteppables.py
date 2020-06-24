@@ -204,7 +204,7 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs, self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODED", mcs * days_to_mcs, self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
         self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,self.sbml.FullModel['V'])
-        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'])
+        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected)
 
         self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs, len(self.cell_list_by_type(self.E))/self.initial_uninfected)
         self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs, len(self.cell_list_by_type(self.EV))/self.initial_uninfected)
