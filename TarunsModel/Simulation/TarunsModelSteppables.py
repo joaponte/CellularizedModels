@@ -1,3 +1,4 @@
+
 from cc3d.core.PySteppables import *
 import numpy as np
 
@@ -209,3 +210,4 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs, len(self.cell_list_by_type(self.EV))/self.initial_uninfected)
         self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs, len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
         self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs, self.field_virus)
+
