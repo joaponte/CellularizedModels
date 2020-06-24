@@ -139,7 +139,7 @@ class ODEModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.I2):
             ## Rule 2a
             # E2a: -> IFN; k12 * (V ^ n) / (k13 + (V ^ n)) + k14 * IRF7P;
-            cell.sbml.IFNModel['V'] = cell.sbml.VModel['IFN']
+            cell.sbml.IFNModel['V'] = cell.sbml.VModel['V']
 
             ## Rule 2b
             # IFN -> IFNe; k21*IFN
