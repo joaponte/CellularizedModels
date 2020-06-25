@@ -96,23 +96,19 @@ class TarunsModelSteppable(SteppableBasePy):
                 cell.dict['Activation_State'] = False
                 numberAPC += 1
 
-
-
-    def healing_transition(self, cell):
+    def J1_DtoE(self, cell):
         ## Transition from D to E
         # J1: D -> E; dE*D;
-
         if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
             cell.type = self.E
 
-    def E_2_D_transition(self, cell):
+    def J2_EtoD(self, cell):
         ## Transition from E to D
         # J2: E -> D; dE * E;
-
         if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
             cell.type = self.D
 
-    def E_2_Ev_trasition(self, cell):
+    def J3_EtoEv(self, cell):
         ## Transition from E to Ev
         # J3: E -> Ev; bE*V*E;
         if virus_infection_feedback == 1:
@@ -128,13 +124,13 @@ class TarunsModelSteppable(SteppableBasePy):
         if p_EtoEv > np.random.random():
             cell.type = self.EV
 
-    def Ev_2_E_trasition(self, cell):
+    def J4_EvtoE(self, cell):
         ## Transition from Ev to E
         # J4: Ev -> E; aE*Ev;
         if self.sbml.FullModel['aE'] * days_to_mcs > np.random.random():
             cell.type = self.E
 
-    def Ev_2_D_viral_transition(self, cell):
+    def J5_EvtoD(self, cell):
         ## Transition from Ev to D
         # J5: Ev -> D; dE*Ev;
         dE = self.sbml.FullModel['dE'] * days_to_mcs
@@ -142,7 +138,7 @@ class TarunsModelSteppable(SteppableBasePy):
         if p_EvtoD > np.random.random():
             cell.type = self.D
 
-    def Ev_2_D_immune_transition(self, cell):
+    def J6_EvtoD(self, cell):
         ## Transition from Ev to D
         # J6: Ev -> D; kE * g * Ev * Tc;
         kE = self.sbml.FullModel['kE'] * days_to_mcs
@@ -153,26 +149,22 @@ class TarunsModelSteppable(SteppableBasePy):
             cell.type = self.D
 
     def step(self, mcs):
-
         secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.D):
-            self.healing_transition(cell)
+            self.J1_DtoE(cell)
 
         for cell in self.cell_list_by_type(self.E):
-            self.E_2_D_transition(cell)
+            self.J2_EtoD(cell)
             if cell.type != self.D:  # in case the cell just died
-                self.E_2_Ev_trasition(cell)
+                self.J3_EtoEv(cell)
 
         virus_production = 0.0
         for cell in self.cell_list_by_type(self.EV):
-
-            self.Ev_2_E_trasition(cell)
-
-            if cell.type != self.E:  # in case recovery just happened
-                self.Ev_2_D_viral_transition(cell)
-
-            if cell.type != self.D and cell.type != self.E:  # in case it's died or recovered
-                self.Ev_2_D_immune_transition(cell)
+            self.J4_EvtoE(cell)
+            if cell.type != self.E:
+                self.J5_EvtoD(cell)
+            if cell.type != self.D and cell.type != self.E:
+                self.J6_EvtoD(cell)
 
             ## Virus Production
             # J7: -> V; pV*Ev;
