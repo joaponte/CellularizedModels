@@ -226,7 +226,7 @@ class ChemotaxisSteppable(SteppableBasePy):
             cd.setLambda(0)
             concentration = self.secretor.amountSeenByCell(cell)
             if concentration:
-                print(lambda_chemotaxis / (1 + concentration))
+                # print(lambda_chemotaxis / (1 + concentration))
                 cd.setLambda(lambda_chemotaxis / (1 + concentration))
 
 
