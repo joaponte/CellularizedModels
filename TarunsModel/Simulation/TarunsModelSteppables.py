@@ -70,9 +70,10 @@ Th1=100;
 Th2=100;
 '''
 
+
 class TarunsModelSteppable(SteppableBasePy):
-    def __init__(self,frequency=1):
-        SteppableBasePy.__init__(self,frequency)
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
 
     def start(self):
         # Uptading max simulation steps using scaling factor to simulate 10 days
@@ -81,6 +82,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
         self.scalar_virus = self.sbml.FullModel['V']
+
 
         numberAPC = 0
         while numberAPC < round(self.sbml.FullModel['D0'] / self.sbml.FullModel['E0'] * self.initial_uninfected):
@@ -94,63 +96,83 @@ class TarunsModelSteppable(SteppableBasePy):
                 cell.dict['Activation_State'] = False
                 numberAPC += 1
 
-    def step(self,mcs):
+
+
+    def healing_transition(self, cell):
+        ## Transition from D to E
+        # J1: D -> E; dE*D;
+
+        if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
+            cell.type = self.E
+
+    def E_2_D_transition(self, cell):
+        ## Transition from E to D
+        # J2: E -> D; dE * E;
+
+        if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
+            cell.type = self.D
+
+    def E_2_Ev_trasition(self, cell):
+        ## Transition from E to Ev
+        # J3: E -> Ev; bE*V*E;
+        if virus_infection_feedback == 1:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs
+            V = self.sbml.FullModel['V']
+        if virus_infection_feedback == 2:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs
+            V = self.scalar_virus
+        if virus_infection_feedback == 3:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
+            V = secretor.amountSeenByCell(cell)
+        p_EtoEv = bE * V
+        if p_EtoEv > np.random.random():
+            cell.type = self.EV
+
+    def Ev_2_E_trasition(self, cell):
+        ## Transition from Ev to E
+        # J4: Ev -> E; aE*Ev;
+        if self.sbml.FullModel['aE'] * days_to_mcs > np.random.random():
+            cell.type = self.E
+
+    def Ev_2_D_viral_transition(self, cell):
+        ## Transition from Ev to D
+        # J5: Ev -> D; dE*Ev;
+        dE = self.sbml.FullModel['dE'] * days_to_mcs
+        p_EvtoD = dE
+        if p_EvtoD > np.random.random():
+            cell.type = self.D
+
+    def Ev_2_D_immune_transition(self, cell):
+        ## Transition from Ev to D
+        # J6: Ev -> D; kE * g * Ev * Tc;
+        kE = self.sbml.FullModel['kE'] * days_to_mcs
+        g = self.sbml.FullModel['g']
+        Tc = self.sbml.FullModel['Tc']
+        p_EvtoD = kE * g * Tc
+        if p_EvtoD > np.random.random():
+            cell.type = self.D
+
+    def step(self, mcs):
+
         secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.D):
-            ## Transition from D to E
-            # J1: D -> E; dE*D;
-            dE = self.sbml.FullModel['dE'] * days_to_mcs
-            p_DtoE = dE
-            if p_DtoE > np.random.random():
-                cell.type = self.E
+            self.healing_transition(cell)
 
         for cell in self.cell_list_by_type(self.E):
-            ## Transition from E to D
-            # J2: E -> D; dE * E;
-            dE = self.sbml.FullModel['dE'] * days_to_mcs
-            p_EtoD = dE
-            if p_EtoD > np.random.random():
-                cell.type = self.D
-
-            ## Transition from E to Ev
-            # J3: E -> Ev; bE*V*E;
-            if virus_infection_feedback == 1:
-                bE = self.sbml.FullModel['bE'] * days_to_mcs
-                V = self.sbml.FullModel['V']
-            if virus_infection_feedback == 2:
-                bE = self.sbml.FullModel['bE'] * days_to_mcs
-                V = self.scalar_virus
-            if virus_infection_feedback == 3:
-                bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
-                V = secretor.amountSeenByCell(cell)
-            p_EtoEv = bE * V
-            if p_EtoEv > np.random.random():
-                cell.type = self.EV
+            self.E_2_D_transition(cell)
+            if cell.type != self.D:  # in case the cell just died
+                self.E_2_Ev_trasition(cell)
 
         virus_production = 0.0
         for cell in self.cell_list_by_type(self.EV):
-            ## Transition from Ev to E
-            # J4: Ev -> E; aE*Ev;
-            aE = self.sbml.FullModel['aE'] * days_to_mcs
-            p_EvtoE = aE
-            if p_EvtoE > np.random.random():
-                cell.type = self.E
 
-            ## Transition from Ev to D
-            # J5: Ev -> D; dE*Ev;
-            dE = self.sbml.FullModel['dE'] * days_to_mcs
-            p_EvtoD = dE
-            if p_EvtoD > np.random.random():
-                cell.type = self.D
+            self.Ev_2_E_trasition(cell)
 
-            ## Transition from Ev to D
-            # J6: Ev -> D; kE * g * Ev * Tc;
-            kE = self.sbml.FullModel['kE'] * days_to_mcs
-            g = self.sbml.FullModel['g']
-            Tc = self.sbml.FullModel['Tc']
-            p_EvtoD = kE * g * Tc
-            if p_EvtoD > np.random.random():
-                cell.type = self.D
+            if cell.type != self.E:  # in case recovery just happened
+                self.Ev_2_D_viral_transition(cell)
+
+            if cell.type != self.D and cell.type != self.E:  # in case it's died or recovered
+                self.Ev_2_D_immune_transition(cell)
 
             ## Virus Production
             # J7: -> V; pV*Ev;
@@ -189,9 +211,10 @@ class TarunsModelSteppable(SteppableBasePy):
         ## Step SBML forward
         self.timestep_sbml()
 
+
 class PlotsSteppable(SteppableBasePy):
-    def __init__(self,frequency=1):
-        SteppableBasePy.__init__(self,frequency)
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
 
     def start(self):
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
@@ -219,7 +242,8 @@ class PlotsSteppable(SteppableBasePy):
 
         self.plot_win3 = self.add_new_plot_window(title='Tcells',
                                                   x_axis_title='Time (days)',
-                                                  y_axis_title='Number of Cells', x_scale_type='linear', y_scale_type='linear',
+                                                  y_axis_title='Number of Cells', x_scale_type='linear',
+                                                  y_scale_type='linear',
                                                   grid=False)
 
         self.plot_win3.add_plot("ODETc", style='Dots', color='red', size=5)
@@ -241,9 +265,10 @@ class PlotsSteppable(SteppableBasePy):
             self.field_virus += secretor.amountSeenByCell(cell)
         self.scalar_virus = self.shared_steppable_vars['scalar_virus']
 
-        self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,self.sbml.FullModel['E']/self.sbml.FullModel['E0'])
+        self.plot_win.add_data_point("ODEE", mcs * days_to_mcs, self.sbml.FullModel['E'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs, self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODED", mcs * days_to_mcs, self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
+
         self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,self.sbml.FullModel['V'])
         self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected)
         self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,
@@ -255,9 +280,13 @@ class PlotsSteppable(SteppableBasePy):
                 self.num_activeAPC += 1
 
 
-        self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs, len(self.cell_list_by_type(self.E))/self.initial_uninfected)
-        self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs, len(self.cell_list_by_type(self.EV))/self.initial_uninfected)
-        self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs, len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
+        self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
+                                     len(self.cell_list_by_type(self.E)) / self.initial_uninfected)
+        self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs,
+                                     len(self.cell_list_by_type(self.EV)) / self.initial_uninfected)
+        self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs,
+                                     len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
         self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs, self.field_virus)
+
         self.plot_win4.add_data_point("CC3DAPC", mcs * days_to_mcs, self.num_activeAPC)
 
