@@ -5,7 +5,7 @@ min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 15.0
 
-virus_infection_feedback = 1
+virus_infection_feedback = 3
 
 model_string = '''
 // Equations
@@ -100,6 +100,7 @@ class TarunsModelSteppable(SteppableBasePy):
     def E_2_Ev_trasition(self, cell):
         ## Transition from E to Ev
         # J3: E -> Ev; bE*V*E;
+        secretor = self.get_field_secretor("Virus")
         if virus_infection_feedback == 1:
             bE = self.sbml.FullModel['bE'] * days_to_mcs
             V = self.sbml.FullModel['V']
@@ -116,7 +117,7 @@ class TarunsModelSteppable(SteppableBasePy):
     def Ev_2_E_trasition(self, cell):
         ## Transition from Ev to E
         # J4: Ev -> E; aE*Ev;
-        if self.sbml.FullModel['aE'] * days_to_mcs > np.random.random():
+        if sel.sbml.FullModel['aE'] * days_to_mcs > np.random.random():
             cell.type = self.E
 
     def Ev_2_D_viral_transition(self, cell):
@@ -125,7 +126,7 @@ class TarunsModelSteppable(SteppableBasePy):
         dE = self.sbml.FullModel['dE'] * days_to_mcs
         p_EvtoD = dE
         if p_EvtoD > np.random.random():
-            cell.type = self.D
+            cell.type = self.Df
 
     def Ev_2_D_immune_transition(self, cell):
         ## Transition from Ev to D
@@ -223,7 +224,8 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs, self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODED", mcs * days_to_mcs, self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
         self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs, self.sbml.FullModel['V'])
-        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'])
+        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['Tc'] * self.initial_uninfected /
+                                      self.sbml.FullModel['E0'])
 
         self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
                                      len(self.cell_list_by_type(self.E)) / self.initial_uninfected)
