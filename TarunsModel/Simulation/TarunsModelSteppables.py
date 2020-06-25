@@ -155,7 +155,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
         for cell in self.cell_list_by_type(self.E):
             self.J2_EtoD(cell)
-            if cell.type != self.D:  # in case the cell just died
+            if cell.type != self.D:
                 self.J3_EtoEv(cell)
 
         virus_production = 0.0
