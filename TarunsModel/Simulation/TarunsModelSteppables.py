@@ -14,7 +14,7 @@ J2: E -> D; dE*E;
 J3: E -> Ev; bE*V*E;
 J4: Ev -> E; aE*Ev;
 J5: Ev -> D; dE*Ev;
-J6: Ev -> D; kE/10.0*g*Ev*Tc*10;
+J6: Ev -> D; kE*g*Ev*Tc;
 J7: -> V; pV*Ev;
 J8: V ->; cV*V;
 J9: -> Da; bD*V*(D0-Da);
@@ -82,7 +82,6 @@ class TarunsModelSteppable(SteppableBasePy):
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
         self.scalar_virus = self.sbml.FullModel['V']
-
 
         numberAPC = 0
         while numberAPC < round(self.sbml.FullModel['D0'] / self.sbml.FullModel['E0'] * self.initial_uninfected):
@@ -219,7 +218,7 @@ class ChemotaxisSteppable(SteppableBasePy):
         self.secretor = self.get_field_secretor("Virus")
 
     def step(self,mcs):
-        lambda_chemotaxis = 1000.0
+        lambda_chemotaxis = 250.0
         for cell in self.cell_list_by_type(self.APC):
             cd = self.chemotaxisPlugin.getChemotaxisData(cell, "Virus")
             cd.setLambda(0)
@@ -271,6 +270,7 @@ class PlotsSteppable(SteppableBasePy):
                                                   grid=False)
 
         self.plot_win4.add_plot("ODEAPC", style='Dots', color='red', size=5)
+        self.plot_win4.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
         self.plot_win4.add_plot("CC3DAPC", style='Lines', color='red', size=5)
 
     def step(self, mcs):
@@ -299,5 +299,6 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs,
                                      len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
         self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs, self.field_virus)
+        self.plot_win4.add_data_point("CC3DAPC0", mcs * days_to_mcs, len(self.cell_list_by_type(self.APC)) / self.initial_uninfected)
         self.plot_win4.add_data_point("CC3DAPC", mcs * days_to_mcs, self.num_activeAPC / self.initial_uninfected)
 
