@@ -26,21 +26,8 @@
    </Plugin>
    
    <Plugin Name="Volume">
-<!--      <VolumeEnergyParameters CellType="E" LambdaVolume="2.0" TargetVolume="50"/>-->
-<!--      <VolumeEnergyParameters CellType="EV" LambdaVolume="2.0" TargetVolume="50"/>-->
-<!--      <VolumeEnergyParameters CellType="D" LambdaVolume="2.0" TargetVolume="50"/>-->
-<!--      <VolumeEnergyParameters CellType="APC" LambdaVolume="2.0" TargetVolume="50"/>-->
-<!--      <VolumeEnergyParameters CellType="Tcell" LambdaVolume="2.0" TargetVolume="50"/>-->
    </Plugin>
-   
-   <Plugin Name="Surface">
-      <SurfaceEnergyParameters CellType="E" LambdaSurface="2.0" TargetSurface="50"/>
-      <SurfaceEnergyParameters CellType="EV" LambdaSurface="2.0" TargetSurface="50"/>
-      <SurfaceEnergyParameters CellType="D" LambdaSurface="2.0" TargetSurface="50"/>
-      <SurfaceEnergyParameters CellType="APC" LambdaSurface="2.0" TargetSurface="50"/>
-      <SurfaceEnergyParameters CellType="Tcell" LambdaSurface="2.0" TargetSurface="50"/>
-   </Plugin>
-   
+
    <Plugin Name="CenterOfMass">
    </Plugin>
    
@@ -53,6 +40,12 @@
    <Plugin Name="BoundaryPixelTracker">
       <NeighborOrder>1</NeighborOrder>
    </Plugin>
+
+   <Plugin Name="Chemotaxis">
+        <ChemicalField Name="Virus">
+        </ChemicalField>
+   </Plugin>
+
 
    <Plugin Name="Secretion">
    </Plugin>
