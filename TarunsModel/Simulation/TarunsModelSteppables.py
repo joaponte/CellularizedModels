@@ -3,7 +3,7 @@ import numpy as np
 
 min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 15.0
+days_to_simulate = 150.0
 
 virus_infection_feedback = 3
 
@@ -85,11 +85,11 @@ class TarunsModelSteppable(SteppableBasePy):
 
         numberAPC = 0
         while numberAPC < round(self.sbml.FullModel['D0'] / self.sbml.FullModel['E0'] * self.initial_uninfected):
-            x = np.random.randint(10,self.dim.x-10)
-            y = np.random.randint(10,self.dim.y-10)
+            x = np.random.randint(10, self.dim.x - 10)
+            y = np.random.randint(10, self.dim.y - 10)
             if not self.cell_field[x, y, 0]:
                 cell = self.new_cell(self.APC)
-                self.cell_field[x:x+3,y:y+3,0] = cell
+                self.cell_field[x:x + 3, y:y + 3, 0] = cell
                 cell.targetVolume = cell.volume
                 cell.lambdaVolume = cell.volume
                 cell.dict['Activation_State'] = False
@@ -107,7 +107,7 @@ class TarunsModelSteppable(SteppableBasePy):
         if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
             cell.type = self.D
 
-    def J3_EtoEv(self, cell,secretor):
+    def J3_EtoEv(self, cell, secretor):
         ## Transition from E to Ev
         # J3: E -> Ev; bE*V*E;
         if virus_infection_feedback == 1:
@@ -157,7 +157,7 @@ class TarunsModelSteppable(SteppableBasePy):
             self.J2_EtoD(cell)
 
         for cell in self.cell_list_by_type(self.E):
-            self.J3_EtoEv(cell,secretor)
+            self.J3_EtoEv(cell, secretor)
 
         for cell in self.cell_list_by_type(self.EV):
             self.J4_EvtoE(cell)
@@ -187,7 +187,8 @@ class TarunsModelSteppable(SteppableBasePy):
             if not cell.dict['Activation_State']:
                 ## Infection and Activation of APC
                 # J9: -> Da; bD*V*(D0-Da);
-                bD = self.sbml.FullModel['bD'] * days_to_mcs * self.sbml.FullModel['D0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
+                bD = self.sbml.FullModel['bD'] * days_to_mcs * self.sbml.FullModel['D0'] / self.sbml.FullModel[
+                    'E0'] * self.initial_uninfected
                 # V should be local instead of the total virus
                 V = secretor.amountSeenByCell(cell) * self.initial_uninfected
                 # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
@@ -206,6 +207,7 @@ class TarunsModelSteppable(SteppableBasePy):
         ## Step SBML forward
         self.timestep_sbml()
 
+
 class ChemotaxisSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -217,14 +219,16 @@ class ChemotaxisSteppable(SteppableBasePy):
             cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
         self.secretor = self.get_field_secretor("Virus")
 
-    def step(self,mcs):
+    def step(self, mcs):
         lambda_chemotaxis = 250.0
         for cell in self.cell_list_by_type(self.APC):
             cd = self.chemotaxisPlugin.getChemotaxisData(cell, "Virus")
             cd.setLambda(0)
             concentration = self.secretor.amountSeenByCell(cell)
             if concentration:
-                cd.setLambda(lambda_chemotaxis / concentration)
+                print(lambda_chemotaxis / (1 + concentration))
+                cd.setLambda(lambda_chemotaxis / (1 + concentration))
+
 
 class PlotsSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -263,24 +267,34 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win3.add_plot("ODETc", style='Dots', color='red', size=5)
         self.plot_win3.add_plot("CC3DTc", style='Lines', color='red', size=5)
 
-
         self.plot_win4 = self.add_new_plot_window(title='APC',
                                                   x_axis_title='Time (days)',
-                                                  y_axis_title='Number of Cells', x_scale_type='linear', y_scale_type='linear',
+                                                  y_axis_title='Number of Cells', x_scale_type='linear',
+                                                  y_scale_type='linear',
                                                   grid=False)
 
         self.plot_win4.add_plot("ODEAPC", style='Dots', color='red', size=5)
         self.plot_win4.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
         self.plot_win4.add_plot("CC3DAPC", style='Lines', color='red', size=5)
 
+        self.plot_win5 = self.add_new_plot_window(title='Raw APC population',
+                                                  x_axis_title='Time (days)',
+                                                  y_axis_title='Number of Cells', x_scale_type='linear',
+                                                  y_scale_type='linear',
+                                                  grid=False)
+
+        self.plot_win5.add_plot("N_APC", style='Dots', color='red', size=5)
+
     def step(self, mcs):
         self.plot_win.add_data_point("ODEE", mcs * days_to_mcs, self.sbml.FullModel['E'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs, self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODED", mcs * days_to_mcs, self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
 
-        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,self.sbml.FullModel['V'])
-        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected)
-        self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,self.sbml.FullModel['Da'] / self.sbml.FullModel['E0'])
+        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs, self.sbml.FullModel['V'])
+        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs,
+                                      self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected)
+        self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,
+                                      self.sbml.FullModel['Da'] / self.sbml.FullModel['E0'])
 
         secretor = self.get_field_secretor("Virus")
         self.field_virus = 0.0
@@ -299,6 +313,8 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs,
                                      len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
         self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs, self.field_virus)
-        self.plot_win4.add_data_point("CC3DAPC0", mcs * days_to_mcs, len(self.cell_list_by_type(self.APC)) / self.initial_uninfected)
+        self.plot_win4.add_data_point("CC3DAPC0", mcs * days_to_mcs,
+                                      len(self.cell_list_by_type(self.APC)) / self.initial_uninfected)
         self.plot_win4.add_data_point("CC3DAPC", mcs * days_to_mcs, self.num_activeAPC / self.initial_uninfected)
 
+        self.plot_win5.add_data_point("N_APC", mcs * days_to_mcs, len(self.cell_list_by_type(self.APC)))
