@@ -26,11 +26,11 @@
    </Plugin>
    
    <Plugin Name="Volume">
-      <VolumeEnergyParameters CellType="E" LambdaVolume="2.0" TargetVolume="50"/>
-      <VolumeEnergyParameters CellType="EV" LambdaVolume="2.0" TargetVolume="50"/>
-      <VolumeEnergyParameters CellType="D" LambdaVolume="2.0" TargetVolume="50"/>
-      <VolumeEnergyParameters CellType="APC" LambdaVolume="2.0" TargetVolume="50"/>
-      <VolumeEnergyParameters CellType="Tcell" LambdaVolume="2.0" TargetVolume="50"/>
+<!--      <VolumeEnergyParameters CellType="E" LambdaVolume="2.0" TargetVolume="50"/>-->
+<!--      <VolumeEnergyParameters CellType="EV" LambdaVolume="2.0" TargetVolume="50"/>-->
+<!--      <VolumeEnergyParameters CellType="D" LambdaVolume="2.0" TargetVolume="50"/>-->
+<!--      <VolumeEnergyParameters CellType="APC" LambdaVolume="2.0" TargetVolume="50"/>-->
+<!--      <VolumeEnergyParameters CellType="Tcell" LambdaVolume="2.0" TargetVolume="50"/>-->
    </Plugin>
    
    <Plugin Name="Surface">
