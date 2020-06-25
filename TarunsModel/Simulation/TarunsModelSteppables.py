@@ -17,9 +17,9 @@ J5: Ev -> D; dE*Ev;
 J6: Ev -> D; kE*g*Ev*Tc;
 J7: -> V; pV*Ev;
 J8: V ->; cV*V;
-J9: -> Da; bD*V*(D0-Da);
+J9: -> Da; bD*V*(D0-Da); //D0 and Da are APC in lung
 J10: Da ->; dD*Da;
-J11: -> Dm; kD*Da;
+J11: -> Dm; kD*Da; // Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
