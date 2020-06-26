@@ -24,7 +24,7 @@ J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
 J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm;
-J16: Tc ->; 0.0 * dT1*Tc*Ev/(Ev+dT2);
+J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
 J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
@@ -168,8 +168,8 @@ class TarunsModelSteppable(SteppableBasePy):
 
         # TODO: this rescaling needs to be revised. Is matching close enough
         g = self.sbml.FullModel['g']
-        Tc = self.sbml.FullModel['Tc'] * g
-        # Tc = len(self.cell_list_by_type(self.TCELL))
+        # Tc = self.sbml.FullModel['Tc'] * g
+        Tc = len(self.cell_list_by_type(self.TCELL)) / self.initial_uninfected * self.sbml.FullModel['E0']
         for cell in self.cell_list_by_type(self.EV):
             self.J6_EvtoD(cell, Tc)
 
@@ -287,6 +287,15 @@ class TarunsModelSteppable(SteppableBasePy):
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
                         print('Cell')
+
+        ## Tcell seeding
+        # J16: Tc ->; dT1 * Tc * Ev/(Ev+dT2)
+        Ev = len(self.cell_list_by_type(self.EV))
+        dT1 = self.sbml.FullModel['dT1'] * days_to_mcs
+        dT2 =  self.sbml.FullModel['dT1'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
+        for cell in self.cell_list_by_type(self.TCELL):
+            if dT1 * Ev/(Ev+dT2) > np.random.random():
+                cell.targetVolume = 0.0
 
         ## Step SBML forward
         self.timestep_sbml()
