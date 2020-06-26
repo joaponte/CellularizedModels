@@ -26,7 +26,7 @@ J14: Tc ->; dc*Tc;
 J15: Dm -> Tc; 0.0 * pT1*Dm*Tc/(Dm+pT2) + Dm;
 J16: Tc ->; 0.0 * dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
-J18: Dm -> Th1; 0.0 * p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
+J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
 J20: Th1 ->; m*Th1;
 J21: -> Th2; s2*Th2/(1+Th2);
