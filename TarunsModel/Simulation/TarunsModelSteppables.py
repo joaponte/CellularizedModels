@@ -22,7 +22,7 @@ J10: Da ->; dD*Da;
 J11: -> Dm; kD*Da; // Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
-J14: Tc ->; 0.0 * dc*Tc;
+J14: Tc ->; dc*Tc;
 J15: Dm -> Tc; 0.0 * (pT1*Dm*Tc/(Dm+pT2) + Dm);
 J16: Tc ->; 0.0 * dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
@@ -137,25 +137,23 @@ class TarunsModelSteppable(SteppableBasePy):
         if p_EvtoD > np.random.random():
             cell.type = self.D
 
-    def J6_EvtoD(self, cell):
+    def J6_EvtoD(self, cell, Tc):
         ## Transition from Ev to D
         # J6: Ev -> D; kE * g * Ev * Tc;
         kE = self.sbml.FullModel['kE'] * days_to_mcs
         g = self.sbml.FullModel['g']
-        Tc = self.sbml.FullModel['Tc']
         p_EvtoD = kE * g * Tc
         if p_EvtoD > np.random.random():
             cell.type = self.D
 
     def step(self, mcs):
-        secretor = self.get_field_secretor("Virus")
-
         for cell in self.cell_list_by_type(self.D):
             self.J1_DtoE(cell)
 
         for cell in self.cell_list_by_type(self.E):
             self.J2_EtoD(cell)
 
+        secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.E):
             self.J3_EtoEv(cell, secretor)
 
@@ -165,8 +163,11 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.EV):
             self.J5_EvtoD(cell)
 
+        # TODO: this rescaling needs to be revised. Is matching close enough
+        # Tc = len(self.cell_list_by_type(self.TCELL))
+        Tc = self.sbml.FullModel['Tc']
         for cell in self.cell_list_by_type(self.EV):
-            self.J6_EvtoD(cell)
+            self.J6_EvtoD(cell,Tc)
 
         virus_production = 0.0
         for cell in self.cell_list_by_type(self.EV):
@@ -218,6 +219,16 @@ class TarunsModelSteppable(SteppableBasePy):
                     self.cell_field[x:x + 3, y:y + 3, 0] = cell
                     cell.targetVolume = cell.volume
                     cell.lambdaVolume = cell.volume
+                    cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
+                    cd.setLambda(0)
+                    cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+
+        ## Clearance of Tcells
+        # J14: Tc ->; dc*Tc;
+        for cell in self.cell_list_by_type(self.TCELL):
+            dc = self.sbml.FullModel['dc'] * days_to_mcs
+            if dc > np.random.random():
+                cell.targetVolume = 0.0
 
         ## Step SBML forward
         self.timestep_sbml()
@@ -228,7 +239,7 @@ class ChemotaxisSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
-        for cell in self.cell_list_by_type(self.APC):
+        for cell in self.cell_list_by_type(self.APC,self.TCELL):
             cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
             cd.setLambda(0)
             cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
@@ -236,7 +247,7 @@ class ChemotaxisSteppable(SteppableBasePy):
 
     def step(self, mcs):
         lambda_chemotaxis = 250.0
-        for cell in self.cell_list_by_type(self.APC):
+        for cell in self.cell_list_by_type(self.APC,self.TCELL):
             cd = self.chemotaxisPlugin.getChemotaxisData(cell, "Virus")
             cd.setLambda(0)
             concentration = self.secretor.amountSeenByCell(cell)
