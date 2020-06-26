@@ -70,6 +70,62 @@ Th1=100;
 Th2=100;
 '''
 
+lymph_node_string = '''
+J11: -> Dm; kD*Da; // Dm are apc in lymph
+J12: Dm ->; dDm*Dm;
+J13: -> Tc; dc*Tc0;
+J14: Tc ->; dc*Tc;
+J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm;
+J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
+J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
+J18: Dm -> Th1; ( p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
+J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
+J20: Th1 ->; m*Th1;
+J21: -> Th2; s2*Th2/(1+Th2);
+J22: Th1 -> Th2; p2*((ro+Th1)*(Da+Dm)*Th1^2)/((1+Th2)*(1+Th2+Th1)) + Th1;
+J23: Th2 ->; m*Th2;
+
+// Parameters
+aE=5.0*10^-2; 
+bE=2*10^-5; 
+dE=10^-3;
+kE=1.19*10^-2 / 150.0; 
+g=0.15 * 150.0; 
+tC=0.5;
+pV=1.9; 
+cV=1;
+D0=10^3; 
+bD=10^-2; 
+dD=2.9;
+kD=0.5; 
+tD=10; 
+dDm=0.5;
+dc=1.5*10^-3; 
+pT1=2.7; 
+pT2=600; 
+dT1=2; 
+dT2=1;
+s1=1.1; 
+p1=2; 
+d1=0.1; 
+m=0.25;
+s2=0.1; 
+p2=0.01; 
+ro=0.5;
+// Initial Conditions
+Tc0 = 1*10^3;
+Th1=100;
+Th2=100;
+// inputs
+Da=0.0; 
+Ev = 0.0;
+
+// outputs
+
+// Tc
+
+'''
+
 
 class TarunsModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -78,6 +134,7 @@ class TarunsModelSteppable(SteppableBasePy):
     def start(self):
         # Updating max simulation steps using scaling factor to simulate 10 days
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
+        self.add_free_floating_antimony(model_string=lymph_node_string, model_name='LymphModel', step_size=days_to_mcs)
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
@@ -188,6 +245,15 @@ class TarunsModelSteppable(SteppableBasePy):
         self.scalar_virus += virus_production - virus_decay
         self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
         activated_APC_count = 0
+
+        # bD = (self.sbml.FullModel['bD'] * days_to_mcs) * (self.sbml.FullModel['D0'] * self.initial_uninfected /
+        #                                                   self.sbml.FullModel['E0'])
+        # D0 = self.sbml.FullModel['D0'] * self.initial_uninfected / self.sbml.FullModel['E0']
+        #
+        # p_seed_apc = bD * self.scalar_virus * (D0 - len(self.cell_list_by_type(self.APC)))
+
+
+
         for cell in self.cell_list_by_type(self.APC):
             if not cell.dict['Activation_State']:
                 ## Infection and Activation of APC
@@ -212,9 +278,14 @@ class TarunsModelSteppable(SteppableBasePy):
                     cell.dict['Activation_State'] = False
                     activated_APC_count -= 1
 
+        ## APC "travel" to lymph node
+        # J11: -> Dm; kD * Da; // Dm are apc in lymph
+
+        # self.sbml.FullModel['Dm'] = SCALE *
+
         # for cell in self.cell_list_by_type(self.APC):
-        #     ## APC travel to lymph node
-        #     # J11: -> Dm; kD * Da; // Dm are apc in lymph
+            ## APC travel to lymph node
+            # J11: -> Dm; kD * Da; // Dm are apc in lymph
         #     if cell.dict['Activation_State']:
         #         kD = self.sbml.FullModel['kD'] * days_to_mcs
         #         p_travel_2_lymph = kD
