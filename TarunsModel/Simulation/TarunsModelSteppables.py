@@ -23,10 +23,10 @@ J11: -> Dm; kD*Da; // Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; 0.0 * pT1*Dm*Tc/(Dm+pT2) + Dm;
-J16: Tc ->; 0.0 * dT1*Tc*Ev/(Ev+dT2);
+J15: Dm -> Tc; (pT1*Dm*Tc/(Dm+pT2) + Dm);
+J16: Tc ->;  dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
-J18: Dm -> Th1; 0.0 *( p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
+J18: Dm -> Th1;  (p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
 J20: Th1 ->; m*Th1;
 J21: -> Th2; s2*Th2/(1+Th2);
@@ -75,10 +75,10 @@ J11: -> Dm; kD*Da; // Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm;
+J15: Dm -> Tc; (pT1*Dm*Tc/(Dm+pT2) + Dm);
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
-J18: Dm -> Th1; ( p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
+J18: Dm -> Th1;   ( p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
 J20: Th1 ->; m*Th1;
 J21: -> Th2; s2*Th2/(1+Th2);
@@ -117,13 +117,15 @@ Tc0 = 1*10^3;
 Th1=100;
 Th2=100;
 // inputs
-Da=0.0; 
+Da=0.0; // kD*Da
 Ev = 0.0;
+// ck1
 
 // outputs
 
 // Tc
-
+// ck1
+// ck2
 '''
 
 
@@ -150,7 +152,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 self.cell_field[x:x + 3, y:y + 3, 0] = cell
                 cell.targetVolume = cell.volume
                 cell.lambdaVolume = cell.volume
-                cell.dict['Activation_State'] = False
+                cell.dict['Activation_State'] = 0  # in tissue
                 numberAPC += 1
 
     def J1_DtoE(self, cell):
@@ -207,6 +209,10 @@ class TarunsModelSteppable(SteppableBasePy):
         if p_EvtoD > np.random.random():
             cell.type = self.D
 
+    def lymph_model_input_Ev(self, Ev):
+        Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
+        self.sbml.LymphModel['Ev'] = Ev
+
     def step(self, mcs):
         for cell in self.cell_list_by_type(self.D):
             self.J1_DtoE(cell)
@@ -223,6 +229,8 @@ class TarunsModelSteppable(SteppableBasePy):
 
         for cell in self.cell_list_by_type(self.EV):
             self.J5_EvtoD(cell)
+
+        self.lymph_model_input_Ev(len(self.cell_list_by_type(self.EV)))
 
         # TODO: this rescaling needs to be revised. Is matching close enough
         # Tc = len(self.cell_list_by_type(self.TCELL))
@@ -244,76 +252,62 @@ class TarunsModelSteppable(SteppableBasePy):
         virus_decay = cV * self.scalar_virus
         self.scalar_virus += virus_production - virus_decay
         self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
-        activated_APC_count = 0
+        # activated_APC_count = 0
 
-        # bD = (self.sbml.FullModel['bD'] * days_to_mcs) * (self.sbml.FullModel['D0'] * self.initial_uninfected /
-        #                                                   self.sbml.FullModel['E0'])
-        # D0 = self.sbml.FullModel['D0'] * self.initial_uninfected / self.sbml.FullModel['E0']
-        #
-        # p_seed_apc = bD * self.scalar_virus * (D0 - len(self.cell_list_by_type(self.APC)))
-
-
-
+        tissue_apc = 0
+        lymph_apc = 0
+        node_apc = 0
+        just_moved_in_to_node = 0
         for cell in self.cell_list_by_type(self.APC):
-            if not cell.dict['Activation_State']:
+            # if cell.dict == 0 -> in tissue; keep logic (J9: -> Da; bD*V*(D0-Da);) but replace cell.dict[
+            # 'Activation_State'] = True by cell.dict['Activation_State'] = 1, this cell is now in transit:
+            # tissue_apc -= 1; lymph_apc+=1
+            ########################
+            # add this elif elif cell.dict['Activation_State'] = 1; go from the lymph to the
+            # node by p_transition = 1/delay [rescaled] if p_transition > dice_roll:  cell.dict['Activation_State'] =
+            # 2 this cell is now in the lymph; lymph_apc-=1 node_apc+=1 ## replace the elif cell.dict[
+            # 'Activation_State']: elif cell.dict['Activation_State'] == 2; keep logic replace cell.dict[
+            # 'Activation_State'] = False by cell.dict['Activation_State'] = 0 ## then number of apc in node is
+            # cell.dict['Activation_State'] == 2 * self.sbml.LymphModel['kD'] / delay
+            if cell.dict['Activation_State'] == 0:  # in tissue
                 ## Infection and Activation of APC
                 # J9: -> Da; bD*V*(D0-Da);
+                tissue_apc += 1
                 bD = (self.sbml.FullModel['bD'] * days_to_mcs) * (self.sbml.FullModel['D0'] * self.initial_uninfected /
                                                                   self.sbml.FullModel['E0'])
                 # V should be local instead of the total virus
                 V = secretor.amountSeenByCell(cell) * self.initial_uninfected
                 # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
-                p_DtoAPC = bD * V
-                if p_DtoAPC > np.random.random():
-                    cell.dict['Activation_State'] = True
-                    activated_APC_count += 1
-
-            elif cell.dict['Activation_State']:
-                ## Deactivation of APC
-                # J10: Da -> ; dD*Da;
-                activated_APC_count += 1
+                p_tissue_2_lymph = bD * V
+                if p_tissue_2_lymph > np.random.random():
+                    cell.dict['Activation_State'] = 1
+                    tissue_apc -= 1
+                    lymph_apc += 1
+            elif cell.dict['Activation_State'] == 1:  # in lymph
+                # transport of apc to lymph
+                lymph_apc += 1
+                p_lymph_2_node = 1 / 5  # PLACEHOLDER
+                if p_lymph_2_node > np.random.random():
+                    cell.dict['Activation_State'] = 2
+                    lymph_apc -= 1
+                    node_apc += 1
+                    just_moved_in_to_node += 1
+            elif cell.dict['Activation_State'] == 2:
+                node_apc += 1
                 dD = self.sbml.FullModel['dD'] * days_to_mcs
-                p_APCtoD = dD
-                if p_APCtoD > np.random.random():
-                    cell.dict['Activation_State'] = False
-                    activated_APC_count -= 1
+                p_lymph_2_tissue = dD
+                if p_lymph_2_tissue > np.random.random():
+                    cell.dict['Activation_State'] = 0
+                    node_apc -= 1
+                    tissue_apc += 1
 
         ## APC "travel" to lymph node
+        # we'll implement it as a signal that is proportional to the activated apcs
         # J11: -> Dm; kD * Da; // Dm are apc in lymph
-
-        # self.sbml.FullModel['Dm'] = SCALE *
-
-        # for cell in self.cell_list_by_type(self.APC):
-            ## APC travel to lymph node
-            # J11: -> Dm; kD * Da; // Dm are apc in lymph
-        #     if cell.dict['Activation_State']:
-        #         kD = self.sbml.FullModel['kD'] * days_to_mcs
-        #         p_travel_2_lymph = kD
-        #         if p_travel_2_lymph > np.random.random():
-        #             cell.targetVolume = 0.0
-        #             self.shared_steppable_vars['CC3D_lymph_APC_count'] += 1  # to be replaced by some sort of delay
-        #
-        # ## APC travel from lymph node
-        # # J12: Dm ->; dDm * Dm;
-        # dDm = self.sbml.FullModel['dDm'] * days_to_mcs
-        # Dm = self.sbml.FullModel['Dm'] * self.initial_uninfected / self.sbml.FullModel['E0']
-        # # Dm = self.shared_steppable_vars['CC3D_lymph_APC_count'] * self.sbml.FullModel['E0'] / self.initial_uninfected
-        # if dDm * Dm > np.random.random():
-        #     self.shared_steppable_vars['CC3D_lymph_APC_count'] -= 1
-        #     cell = False
-        #     while not cell:
-        #         x = np.random.randint(10, self.dim.x - 10)
-        #         y = np.random.randint(10, self.dim.y - 10)
-        #         if not self.cell_field[x, y, 0]:
-        #             cell = self.new_cell(self.APC)
-        #             self.cell_field[x:x + 3, y:y + 3, 0] = cell
-        #             cell.targetVolume = cell.volume
-        #             cell.lambdaVolume = cell.volume
-        #             cell.dict['Activation_State'] = False
-        #             cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
-        #             cd.setLambda(0)
-        #             cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
-
+        print(node_apc)
+        self.sbml.LymphModel['Dm'] += (just_moved_in_to_node * self.sbml.FullModel['D0'] * self.initial_uninfected /
+                                      self.sbml.FullModel['E0'])
+        # self.sbml.LymphModel['Dm'] = self.sbml.FullModel['Dm']
 
         ## Tcell seeding
         # J13: -> Tc; dc*g*Tc0;
@@ -344,10 +338,10 @@ class TarunsModelSteppable(SteppableBasePy):
         ## Tcell seeding
         # J15a: Dm -> Tc; Dm ;
         Dm = self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'] * self.initial_uninfected
-        print(Dm)
+        # print(Dm)
         if Dm > np.random.random():
             cells_to_seed = max(1, round(Dm))
-            print('cells_to_seed', cells_to_seed)
+            # print('cells_to_seed', cells_to_seed)
             for i in range(cells_to_seed):
                 cell = False
                 while not cell:
@@ -361,7 +355,7 @@ class TarunsModelSteppable(SteppableBasePy):
                         cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
-                        print('Cell')
+                        # print('Cell')
 
         ## Step SBML forward
         self.timestep_sbml()
@@ -485,4 +479,4 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win3.add_data_point("CC3DTc", mcs * days_to_mcs,
                                       len(self.cell_list_by_type(self.TCELL)))
         self.plot_win5.add_data_point("CC3DAPC", mcs * days_to_mcs,
-                                      self.shared_steppable_vars['CC3D_lymph_APC_count'] / self.initial_uninfected)
+                                      self.sbml.LymphModel['Dm'] / self.sbml.FullModel['E0'])
