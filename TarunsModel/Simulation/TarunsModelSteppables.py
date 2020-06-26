@@ -23,7 +23,7 @@ J11: -> Dm; kD*Da; // Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; 0.0 * (pT1*Dm*Tc/(Dm+pT2) + Dm);
+J15: Dm -> Tc; 0.0 * pT1*Dm*Tc/(Dm+pT2) + Dm;
 J16: Tc ->; 0.0 * dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
 J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
@@ -229,6 +229,28 @@ class TarunsModelSteppable(SteppableBasePy):
             dc = self.sbml.FullModel['dc'] * days_to_mcs
             if dc > np.random.random():
                 cell.targetVolume = 0.0
+
+        ## Tcell seeding
+        # J15a: Dm -> Tc; Dm ;
+        Dm = self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'] * self.initial_uninfected
+        print(Dm)
+        if Dm > np.random.random():
+            cells_to_seed = max(1,round(Dm))
+            print('cells_to_seed',cells_to_seed)
+            for i in range(cells_to_seed):
+                cell = False
+                while not cell:
+                    x = np.random.randint(10, self.dim.x - 10)
+                    y = np.random.randint(10, self.dim.y - 10)
+                    if not self.cell_field[x, y, 0]:
+                        cell = self.new_cell(self.TCELL)
+                        self.cell_field[x:x + 3, y:y + 3, 0] = cell
+                        cell.targetVolume = cell.volume
+                        cell.lambdaVolume = cell.volume
+                        cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
+                        cd.setLambda(0)
+                        cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+                        print('Cell')
 
         ## Step SBML forward
         self.timestep_sbml()
