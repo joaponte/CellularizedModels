@@ -76,7 +76,7 @@ class TarunsModelSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
-        # Uptading max simulation steps using scaling factor to simulate 10 days
+        # Updating max simulation steps using scaling factor to simulate 10 days
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
@@ -113,12 +113,15 @@ class TarunsModelSteppable(SteppableBasePy):
         if virus_infection_feedback == 1:
             bE = self.sbml.FullModel['bE'] * days_to_mcs
             V = self.sbml.FullModel['V']
-        if virus_infection_feedback == 2:
+        elif virus_infection_feedback == 2:
             bE = self.sbml.FullModel['bE'] * days_to_mcs
             V = self.scalar_virus
-        if virus_infection_feedback == 3:
+        elif virus_infection_feedback == 3:
             bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
             V = secretor.amountSeenByCell(cell)
+        else:  # in case of things breaking have a default
+            bE = self.sbml.FullModel['bE'] * days_to_mcs
+            V = self.sbml.FullModel['V']
         p_EtoEv = bE * V
         if p_EtoEv > np.random.random():
             cell.type = self.EV
