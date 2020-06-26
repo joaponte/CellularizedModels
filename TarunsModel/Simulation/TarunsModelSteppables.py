@@ -252,7 +252,6 @@ class ChemotaxisSteppable(SteppableBasePy):
             cd.setLambda(0)
             concentration = self.secretor.amountSeenByCell(cell)
             if concentration:
-                # print(lambda_chemotaxis / (1 + concentration))
                 cd.setLambda(lambda_chemotaxis / (1 + concentration))
 
 
@@ -329,8 +328,11 @@ class PlotsSteppable(SteppableBasePy):
                                      len(self.cell_list_by_type(self.EV)) / self.initial_uninfected)
         self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs,
                                      len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
-        self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs, self.field_virus)
+        self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs,
+                                      self.field_virus)
         self.plot_win4.add_data_point("CC3DAPC0", mcs * days_to_mcs,
                                       len(self.cell_list_by_type(self.APC)) / self.initial_uninfected)
-        self.plot_win4.add_data_point("CC3DAPC", mcs * days_to_mcs, self.num_activeAPC / self.initial_uninfected)
-        self.plot_win3.add_data_point("CC3DTc", mcs * days_to_mcs,len(self.cell_list_by_type(self.TCELL)))
+        self.plot_win4.add_data_point("CC3DAPC", mcs * days_to_mcs,
+                                      self.num_activeAPC / self.initial_uninfected)
+        self.plot_win3.add_data_point("CC3DTc", mcs * days_to_mcs,
+                                      len(self.cell_list_by_type(self.TCELL)))
