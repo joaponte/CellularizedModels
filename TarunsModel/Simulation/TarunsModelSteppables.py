@@ -3,9 +3,9 @@ import numpy as np
 
 min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 150.0
+days_to_simulate = 15.0
 
-virus_infection_feedback = 3
+virus_infection_feedback = 1
 
 model_string = '''
 // Equations
@@ -22,9 +22,9 @@ J10: Da ->; dD*Da;
 J11: -> Dm; kD*Da; // Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
-J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm;
-J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
+J14: Tc ->; 0.0 * dc*Tc;
+J15: Dm -> Tc; 0.0 * (pT1*Dm*Tc/(Dm+pT2) + Dm);
+J16: Tc ->; 0.0 * dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
 J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
@@ -37,8 +37,8 @@ J23: Th2 ->; m*Th2;
 aE=5.0*10^-2; 
 bE=2*10^-5; 
 dE=10^-3;
-kE=1.19*10^-2; 
-g=0.15; 
+kE=1.19*10^-2 / 150.0; 
+g=0.15 * 150.0; 
 tC=0.5;
 pV=1.9; 
 cV=1;
@@ -187,8 +187,7 @@ class TarunsModelSteppable(SteppableBasePy):
             if not cell.dict['Activation_State']:
                 ## Infection and Activation of APC
                 # J9: -> Da; bD*V*(D0-Da);
-                bD = self.sbml.FullModel['bD'] * days_to_mcs * self.sbml.FullModel['D0'] / self.sbml.FullModel[
-                    'E0'] * self.initial_uninfected
+                bD = self.sbml.FullModel['bD'] * days_to_mcs * self.sbml.FullModel['D0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
                 # V should be local instead of the total virus
                 V = secretor.amountSeenByCell(cell) * self.initial_uninfected
                 # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
@@ -203,6 +202,22 @@ class TarunsModelSteppable(SteppableBasePy):
                 p_APCtoD = dD
                 if p_APCtoD > np.random.random():
                     cell.dict['Activation_State'] = False
+
+        ## Tcell seeding
+        # J13: -> Tc; dc*g*Tc0;
+        dc = self.sbml.FullModel['dc'] * days_to_mcs
+        g = self.sbml.FullModel['g']
+        Tc0 = self.sbml.FullModel['Tc0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
+        cell = False
+        if dc * g * Tc0 > np.random.random():
+            while not cell:
+                x = np.random.randint(10, self.dim.x - 10)
+                y = np.random.randint(10, self.dim.y - 10)
+                if not self.cell_field[x, y, 0]:
+                    cell = self.new_cell(self.TCELL)
+                    self.cell_field[x:x + 3, y:y + 3, 0] = cell
+                    cell.targetVolume = cell.volume
+                    cell.lambdaVolume = cell.volume
 
         ## Step SBML forward
         self.timestep_sbml()
@@ -235,6 +250,7 @@ class PlotsSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+        self.seed = 0
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
 
         self.plot_win = self.add_new_plot_window(title='Epithelial Cells',
@@ -277,24 +293,14 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win4.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
         self.plot_win4.add_plot("CC3DAPC", style='Lines', color='red', size=5)
 
-        self.plot_win5 = self.add_new_plot_window(title='Raw APC population',
-                                                  x_axis_title='Time (days)',
-                                                  y_axis_title='Number of Cells', x_scale_type='linear',
-                                                  y_scale_type='linear',
-                                                  grid=False)
-
-        self.plot_win5.add_plot("N_APC", style='Dots', color='red', size=5)
-
     def step(self, mcs):
         self.plot_win.add_data_point("ODEE", mcs * days_to_mcs, self.sbml.FullModel['E'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs, self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
         self.plot_win.add_data_point("ODED", mcs * days_to_mcs, self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
 
-        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs, self.sbml.FullModel['V'])
-        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs,
-                                      self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected)
-        self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,
-                                      self.sbml.FullModel['Da'] / self.sbml.FullModel['E0'])
+        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,self.sbml.FullModel['V'])
+        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['g'] * self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected)
+        self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,self.sbml.FullModel['Da'] / self.sbml.FullModel['E0'])
 
         secretor = self.get_field_secretor("Virus")
         self.field_virus = 0.0
@@ -316,5 +322,4 @@ class PlotsSteppable(SteppableBasePy):
         self.plot_win4.add_data_point("CC3DAPC0", mcs * days_to_mcs,
                                       len(self.cell_list_by_type(self.APC)) / self.initial_uninfected)
         self.plot_win4.add_data_point("CC3DAPC", mcs * days_to_mcs, self.num_activeAPC / self.initial_uninfected)
-
-        self.plot_win5.add_data_point("N_APC", mcs * days_to_mcs, len(self.cell_list_by_type(self.APC)))
+        self.plot_win3.add_data_point("CC3DTc", mcs * days_to_mcs,len(self.cell_list_by_type(self.TCELL)))
