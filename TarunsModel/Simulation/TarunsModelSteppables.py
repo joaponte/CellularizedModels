@@ -17,14 +17,14 @@ J5: Ev -> D; dE*Ev;
 J6: Ev -> D; kE*g*Ev*Tc;
 J7: -> V; pV*Ev;
 J8: V ->; cV*V;
-J9: -> Da; bD*V*(D0-Da); //D0 and Da are APC in lung
+J9: -> Da; bD*V*(D0-Da);
 J10: Da ->; dD*Da;
-J11: -> Dm; kD*Da; // Dm are apc in lymph
+J11: -> Dm; kD*Da;
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
 J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm;
-J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
+J16: Tc ->; 0.0 * dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
 J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
@@ -37,8 +37,8 @@ J23: Th2 ->; m*Th2;
 aE=5.0*10^-2; 
 bE=2*10^-5; 
 dE=10^-3;
-kE=1.19*10^-2 / 150.0; 
-g=0.15 * 150.0; 
+kE=1.19*10^-2 / 500.0; 
+g=0.15 * 500.0;
 tC=0.5;
 pV=1.9; 
 cV=1;
@@ -70,63 +70,6 @@ Th1=100;
 Th2=100;
 '''
 
-lymph_node_string = '''
-J11: -> Dm; kD*Da; // Dm are apc in lymph
-J12: Dm ->; dDm*Dm;
-J13: -> Tc; dc*Tc0;
-J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm;
-J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
-J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
-J18: Dm -> Th1; ( p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
-J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
-J20: Th1 ->; m*Th1;
-J21: -> Th2; s2*Th2/(1+Th2);
-J22: Th1 -> Th2; p2*((ro+Th1)*(Da+Dm)*Th1^2)/((1+Th2)*(1+Th2+Th1)) + Th1;
-J23: Th2 ->; m*Th2;
-
-// Parameters
-aE=5.0*10^-2; 
-bE=2*10^-5; 
-dE=10^-3;
-kE=1.19*10^-2 / 150.0; 
-g=0.15 * 150.0; 
-tC=0.5;
-pV=1.9; 
-cV=1;
-D0=10^3; 
-bD=10^-2; 
-dD=2.9;
-kD=0.5; 
-tD=10; 
-dDm=0.5;
-dc=1.5*10^-3; 
-pT1=2.7; 
-pT2=600; 
-dT1=2; 
-dT2=1;
-s1=1.1; 
-p1=2; 
-d1=0.1; 
-m=0.25;
-s2=0.1; 
-p2=0.01; 
-ro=0.5;
-// Initial Conditions
-Tc0 = 1*10^3;
-Th1=100;
-Th2=100;
-// inputs
-Da=0.0; 
-Ev = 0.0;
-
-// outputs
-
-// Tc
-
-'''
-
-
 class TarunsModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -134,7 +77,6 @@ class TarunsModelSteppable(SteppableBasePy):
     def start(self):
         # Updating max simulation steps using scaling factor to simulate 10 days
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
-        self.add_free_floating_antimony(model_string=lymph_node_string, model_name='LymphModel', step_size=days_to_mcs)
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
@@ -277,6 +219,7 @@ class TarunsModelSteppable(SteppableBasePy):
         g = self.sbml.FullModel['g']
         Tc0 = self.sbml.FullModel['Tc0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
         cell = False
+        print(dc * g * Tc0)
         if dc * g * Tc0 > np.random.random():
             while not cell:
                 x = np.random.randint(10, self.dim.x - 10)
@@ -291,7 +234,7 @@ class TarunsModelSteppable(SteppableBasePy):
                     cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
         ## Clearance of Tcells
-        #J14: Tc ->; dc*Tc;
+        # J14: Tc ->; dc*Tc;
         for cell in self.cell_list_by_type(self.TCELL):
             dc = self.sbml.FullModel['dc'] * days_to_mcs
             if dc > np.random.random():
@@ -299,9 +242,10 @@ class TarunsModelSteppable(SteppableBasePy):
 
         ## Tcell seeding
         # J15a: Dm -> Tc; Dm ;
-        Dm = self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'] * self.initial_uninfected
-        if Dm > np.random.random():
-            cells_to_seed = max(1, round(Dm))
+        g = self.sbml.FullModel['g']
+        Dm = self.sbml.FullModel['Dm'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
+        if Dm * g > np.random.random():
+            cells_to_seed = max(1, round(Dm * g))
             print('cells_to_seed', cells_to_seed)
             for i in range(cells_to_seed):
                 cell = False
@@ -343,15 +287,6 @@ class TarunsModelSteppable(SteppableBasePy):
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
                         print('Cell')
-
-        # ## Clearance of Tcells
-        # #J16: Tc ->; dT1 * Tc * Ev / (Ev + dT2);
-        Ev = len(self.cell_list_by_type(self.EV))
-        for cell in self.cell_list_by_type(self.TCELL):
-            dT1 = self.sbml.FullModel['dT1'] * days_to_mcs
-            dT2 = self.sbml.FullModel['dT2'] / self.sbml.FullModel['E0'] * self.initial_uninfected
-            if dT1 * Ev / (Ev + dT2) > np.random.random():
-                cell.targetVolume = 0.0
 
         ## Step SBML forward
         self.timestep_sbml()
