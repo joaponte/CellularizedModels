@@ -6,7 +6,7 @@ days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 15.0
 
 virus_infection_feedback = 1
-contact_cytotoxicity = False
+contact_cytotoxicity = True
 
 plot_Epithelial_cells = True
 plot_Virus = False
