@@ -26,7 +26,7 @@ J14: Tc ->; dc*Tc;
 J15: Dm -> Tc; (pT1*Dm*Tc/(Dm+pT2) + Dm);
 J16: Tc ->;  dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
-J18: Dm -> Th1;  (p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
+J18: Dm -> Th1; (p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
 J20: Th1 ->; m*Th1;
 J21: -> Th2; s2*Th2/(1+Th2);
@@ -71,14 +71,14 @@ Th2=100;
 '''
 
 lymph_node_string = '''
-J11: -> Dm; kD*Da; // Dm are apc in lymph
+J11: -> Dm; 0.0*kD*Da; // MUST STAY SHUT OFF, DM IS AN INPUT Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
 J15: Dm -> Tc; (pT1*Dm*Tc/(Dm+pT2) + Dm);
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
-J18: Dm -> Th1;   ( p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
+J18: Dm -> Th1; ( p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
 J20: Th1 ->; m*Th1;
 J21: -> Th2; s2*Th2/(1+Th2);
@@ -209,11 +209,22 @@ class TarunsModelSteppable(SteppableBasePy):
         if p_EvtoD > np.random.random():
             cell.type = self.D
 
-    def lymph_model_input_Ev(self, Ev):
+    def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
+        self.sbml.LymphModel['Da'] = Da
+
+    def test_prints(self):
+        print('taruns\tcc3d')
+        print('Tc', self.sbml.FullModel['Tc'], self.sbml.LymphModel['Tc'])
+        print('Th1', self.sbml.FullModel['Th1'], self.sbml.LymphModel['Th1'])
+        print('Th2', self.sbml.FullModel['Th2'], self.sbml.LymphModel['Th2'])
+        # print('Da', self.sbml.FullModel['Da'], self.sbml.LymphModel['Da'])
+        print('Dm', self.sbml.FullModel['Dm'], self.sbml.LymphModel['Dm'])
 
     def step(self, mcs):
+        self.test_prints()
+        self.lymph_model_input_from_full(len(self.cell_list_by_type(self.EV)), self.sbml.FullModel['Da'])
         for cell in self.cell_list_by_type(self.D):
             self.J1_DtoE(cell)
 
@@ -229,8 +240,6 @@ class TarunsModelSteppable(SteppableBasePy):
 
         for cell in self.cell_list_by_type(self.EV):
             self.J5_EvtoD(cell)
-
-        self.lymph_model_input_Ev(len(self.cell_list_by_type(self.EV)))
 
         # TODO: this rescaling needs to be revised. Is matching close enough
         # Tc = len(self.cell_list_by_type(self.TCELL))
@@ -286,7 +295,7 @@ class TarunsModelSteppable(SteppableBasePy):
             elif cell.dict['Activation_State'] == 1:  # in lymph
                 # transport of apc to lymph
                 lymph_apc += 1
-                p_lymph_2_node = 1 / 5  # PLACEHOLDER
+                p_lymph_2_node = 1 / 10  # PLACEHOLDER
                 if p_lymph_2_node > np.random.random():
                     cell.dict['Activation_State'] = 2
                     lymph_apc -= 1
@@ -304,9 +313,9 @@ class TarunsModelSteppable(SteppableBasePy):
         ## APC "travel" to lymph node
         # we'll implement it as a signal that is proportional to the activated apcs
         # J11: -> Dm; kD * Da; // Dm are apc in lymph
-        print(node_apc)
+        # print(node_apc)
         self.sbml.LymphModel['Dm'] += (just_moved_in_to_node * self.sbml.FullModel['D0'] * self.initial_uninfected /
-                                      self.sbml.FullModel['E0'])
+                                       self.sbml.FullModel['E0'])
         # self.sbml.LymphModel['Dm'] = self.sbml.FullModel['Dm']
 
         ## Tcell seeding
