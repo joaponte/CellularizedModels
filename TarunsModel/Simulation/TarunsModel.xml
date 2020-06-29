@@ -12,7 +12,9 @@
       <Dimensions x="300" y="300" z="2"/>
       <Steps id="simulation_steps">100000</Steps>
       <Temperature>10.0</Temperature>
-      <NeighborOrder>3</NeighborOrder>
+
+      <NeighborOrder>2</NeighborOrder>
+
    </Potts>
    
    <Plugin Name="CellType">
@@ -101,7 +103,7 @@
    </Steppable>
 
 <!--<Steppable Type="UniformInitializer">-->
-<!--   &lt;!&ndash; Initial layout of cells in the form of rectangular slab &ndash;&gt;-->
+
 <!--   <Region>-->
 <!--      <BoxMin x="0" y="0" z="1"/>-->
 <!--      <BoxMax x="300" y="300" z="2"/>-->
