@@ -6,6 +6,14 @@ days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 15.0
 
 virus_infection_feedback = 1
+contact_cytotoxicity = True
+
+plot_Epithelial_cells = True
+plot_Virus = False
+plot_Tcells = True
+plot_APC = False
+plot_Dm = False
+plot_Contact_Cytotoxicity = True
 
 model_string = '''
 // Equations
@@ -23,10 +31,10 @@ J11: -> Dm; kD*Da; // Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; (pT1*Dm*Tc/(Dm+pT2) + Dm);
-J16: Tc ->;  dT1*Tc*Ev/(Ev+dT2);
+J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm;
+J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
-J18: Dm -> Th1; (p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
+J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
 J20: Th1 ->; m*Th1;
 J21: -> Th2; s2*Th2/(1+Th2);
@@ -37,8 +45,8 @@ J23: Th2 ->; m*Th2;
 aE=5.0*10^-2; 
 bE=2*10^-5; 
 dE=10^-3;
-kE=1.19*10^-2 / 150.0; 
-g=0.15 * 150.0; 
+kE=1.19*10^-2 / 900.0; 
+g=0.15 * 900.0;
 tC=0.5;
 pV=1.9; 
 cV=1;
@@ -134,6 +142,11 @@ class TarunsModelSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+        for x in range(0, self.dim.x, int(3)):
+            for y in range(0, self.dim.y, int(3)):
+                cell = self.new_cell(self.E)
+                self.cellField[x:x + int(3), y:y + int(3), 0] = cell
+
         # Updating max simulation steps using scaling factor to simulate 10 days
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
         self.add_free_floating_antimony(model_string=lymph_node_string, model_name='LymphModel', step_size=days_to_mcs)
@@ -141,15 +154,18 @@ class TarunsModelSteppable(SteppableBasePy):
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
         self.scalar_virus = self.sbml.FullModel['V']
-        self.shared_steppable_vars['CC3D_lymph_APC_count'] = 0
+        self.shared_steppable_vars['CC3D_lymph_APC_count'] = 0.0
+        self.shared_steppable_vars['Active_APCs'] = 0.0
+        self.shared_steppable_vars['ODE_Killing'] = 0.0
+        self.shared_steppable_vars['Contact_Killing'] = 0.0
 
         numberAPC = 0
         while numberAPC < round(self.sbml.FullModel['D0'] / self.sbml.FullModel['E0'] * self.initial_uninfected):
             x = np.random.randint(10, self.dim.x - 10)
             y = np.random.randint(10, self.dim.y - 10)
-            if not self.cell_field[x, y, 0]:
+            if not self.cell_field[x, y, 1]:
                 cell = self.new_cell(self.APC)
-                self.cell_field[x:x + 3, y:y + 3, 0] = cell
+                self.cell_field[x:x + 3, y:y + 3, 1] = cell
                 cell.targetVolume = cell.volume
                 cell.lambdaVolume = cell.volume
                 cell.dict['Activation_State'] = 0  # in tissue
@@ -204,15 +220,23 @@ class TarunsModelSteppable(SteppableBasePy):
         ## Transition from Ev to D
         # J6: Ev -> D; kE * g * Ev * Tc;
         kE = self.sbml.FullModel['kE'] * days_to_mcs
-        g = self.sbml.FullModel['g']
-        p_EvtoD = kE * g * Tc
+        p_EvtoD = kE * Tc
         if p_EvtoD > np.random.random():
-            cell.type = self.D
+            if not contact_cytotoxicity:
+                cell.type = self.D
+            self.shared_steppable_vars['ODE_Killing'] += 1
 
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
         self.sbml.LymphModel['Da'] = Da
+    def contact_killing(self,cell):
+        for neighbor, common_surface_area in self.get_cell_neighbor_data_list(cell):
+            if neighbor:
+                if neighbor.type == self.EV:
+                    self.shared_steppable_vars['Contact_Killing'] += 1
+                    if contact_cytotoxicity:
+                        neighbor.type = self.D
 
     def test_prints(self):
         print('taruns\tcc3d')
@@ -241,9 +265,9 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.EV):
             self.J5_EvtoD(cell)
 
-        # TODO: this rescaling needs to be revised. Is matching close enough
-        # Tc = len(self.cell_list_by_type(self.TCELL))
-        Tc = self.sbml.FullModel['Tc']
+        g = self.sbml.FullModel['g']
+        # Tc = self.sbml.FullModel['Tc'] * g
+        Tc = len(self.cell_list_by_type(self.TCELL)) / self.initial_uninfected * self.sbml.FullModel['E0']
         for cell in self.cell_list_by_type(self.EV):
             self.J6_EvtoD(cell, Tc)
 
@@ -267,6 +291,7 @@ class TarunsModelSteppable(SteppableBasePy):
         lymph_apc = 0
         node_apc = 0
         just_moved_in_to_node = 0
+        activated_APC_count = 0
         for cell in self.cell_list_by_type(self.APC):
             # if cell.dict == 0 -> in tissue; keep logic (J9: -> Da; bD*V*(D0-Da);) but replace cell.dict[
             # 'Activation_State'] = True by cell.dict['Activation_State'] = 1, this cell is now in transit:
@@ -320,17 +345,18 @@ class TarunsModelSteppable(SteppableBasePy):
 
         ## Tcell seeding
         # J13: -> Tc; dc*g*Tc0;
+        # TODO: replace FullModel with LymphModel where appropriate
         dc = self.sbml.FullModel['dc'] * days_to_mcs
         g = self.sbml.FullModel['g']
         Tc0 = self.sbml.FullModel['Tc0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
         cell = False
         if dc * g * Tc0 > np.random.random():
             while not cell:
-                x = np.random.randint(10, self.dim.x - 10)
-                y = np.random.randint(10, self.dim.y - 10)
-                if not self.cell_field[x, y, 0]:
+                x = np.random.randint(0, self.dim.x - 3)
+                y = np.random.randint(0, self.dim.y - 3)
+                if not self.cell_field[x, y, 1]:
                     cell = self.new_cell(self.TCELL)
-                    self.cell_field[x:x + 3, y:y + 3, 0] = cell
+                    self.cell_field[x:x + 3, y:y + 3, 1] = cell
                     cell.targetVolume = cell.volume
                     cell.lambdaVolume = cell.volume
                     cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
@@ -346,29 +372,65 @@ class TarunsModelSteppable(SteppableBasePy):
 
         ## Tcell seeding
         # J15a: Dm -> Tc; Dm ;
-        Dm = self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'] * self.initial_uninfected
-        # print(Dm)
-        if Dm > np.random.random():
-            cells_to_seed = max(1, round(Dm))
-            # print('cells_to_seed', cells_to_seed)
+        g = self.sbml.FullModel['g']
+        # TODO: replace FullModel with LymphModel where appropriate
+        Dm = self.sbml.FullModel['Dm'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
+        if Dm * g > np.random.random():
+            cells_to_seed = max(1, round(Dm * g))
             for i in range(cells_to_seed):
                 cell = False
                 while not cell:
-                    x = np.random.randint(10, self.dim.x - 10)
-                    y = np.random.randint(10, self.dim.y - 10)
-                    if not self.cell_field[x, y, 0]:
+                    x = np.random.randint(0, self.dim.x - 3)
+                    y = np.random.randint(0, self.dim.y - 3)
+                    if not self.cell_field[x, y, 1]:
                         cell = self.new_cell(self.TCELL)
-                        self.cell_field[x:x + 3, y:y + 3, 0] = cell
+                        self.cell_field[x:x + 3, y:y + 3, 1] = cell
                         cell.targetVolume = cell.volume
                         cell.lambdaVolume = cell.volume
                         cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
-                        # print('Cell')
+
+        ## Tcell seeding
+        # J15b: Dm -> Tc; pT1 * Dm * Tc / (Dm + pT2)
+        # TODO: replace FullModel with LymphModel where appropriate
+        pT1 = self.sbml.FullModel['pT1'] * days_to_mcs
+        Dm = self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'] * self.initial_uninfected
+        Tc = self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected
+        pT2 = self.sbml.FullModel['pT2'] / self.sbml.FullModel['E0'] * self.initial_uninfected
+        g = self.sbml.FullModel['g']
+        if g * pT1 * Dm * Tc / (Dm + pT2) > np.random.random():
+            cells_to_seed = max(1, round(g * pT1 * Dm * Tc / (Dm + pT2)))
+            for i in range(cells_to_seed):
+                cell = False
+                while not cell:
+                    x = np.random.randint(0, self.dim.x - 3)
+                    y = np.random.randint(0, self.dim.y - 3)
+                    if not self.cell_field[x, y, 1]:
+                        cell = self.new_cell(self.TCELL)
+                        self.cell_field[x:x + 3, y:y + 3, 1] = cell
+                        cell.targetVolume = cell.volume
+                        cell.lambdaVolume = cell.volume
+                        cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
+                        cd.setLambda(0)
+                        cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+
+        # TODO: NEEDs RESCALING
+        # Tcell clearance
+        # J16: Tc ->; dT1 * Tc * Ev/(Ev+dT2)
+        Ev = len(self.cell_list_by_type(self.EV))
+        dT1 = self.sbml.FullModel['dT1'] * days_to_mcs * 3
+        dT2 =  self.sbml.FullModel['dT1'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
+        for cell in self.cell_list_by_type(self.TCELL):
+            if dT1 * Ev/(Ev+dT2) > np.random.random():
+                cell.targetVolume = 0.0
+
+        ## Tcell Contact Killing
+        for cell in self.cell_list_by_type(self.TCELL):
+            self.contact_killing(cell)
 
         ## Step SBML forward
         self.timestep_sbml()
-
 
 class ChemotaxisSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -399,93 +461,116 @@ class PlotsSteppable(SteppableBasePy):
         self.seed = 0
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
 
-        self.plot_win = self.add_new_plot_window(title='Epithelial Cells',
-                                                 x_axis_title='Time (days)',
-                                                 y_axis_title='Fraction of Cells', x_scale_type='linear',
-                                                 y_scale_type='linear',
-                                                 grid=False)
+        if plot_Epithelial_cells:
+            self.plot_win = self.add_new_plot_window(title='Epithelial Cells',
+                                                     x_axis_title='Time (days)',
+                                                     y_axis_title='Fraction of Cells', x_scale_type='linear',
+                                                     y_scale_type='linear',
+                                                     grid=False)
 
-        self.plot_win.add_plot("ODEE", style='Dots', color='blue', size=5)
-        self.plot_win.add_plot("ODEEv", style='Dots', color='yellow', size=5)
-        self.plot_win.add_plot("ODED", style='Dots', color='red', size=5)
-        self.plot_win.add_plot("CC3DE", style='Lines', color='blue', size=5)
-        self.plot_win.add_plot("CC3DEv", style='Lines', color='yellow', size=5)
-        self.plot_win.add_plot("CC3DD", style='Lines', color='red', size=5)
+            self.plot_win.add_plot("ODEE", style='Dots', color='blue', size=5)
+            self.plot_win.add_plot("ODEEv", style='Dots', color='yellow', size=5)
+            self.plot_win.add_plot("ODED", style='Dots', color='red', size=5)
+            self.plot_win.add_plot("CC3DE", style='Lines', color='blue', size=5)
+            self.plot_win.add_plot("CC3DEv", style='Lines', color='yellow', size=5)
+            self.plot_win.add_plot("CC3DD", style='Lines', color='red', size=5)
 
-        self.plot_win2 = self.add_new_plot_window(title='Virus',
-                                                  x_axis_title='Time (days)',
-                                                  y_axis_title='Virus', x_scale_type='linear', y_scale_type='log',
-                                                  grid=False)
+        if plot_Virus:
+            self.plot_win2 = self.add_new_plot_window(title='Virus',
+                                                      x_axis_title='Time (days)',
+                                                      y_axis_title='Virus', x_scale_type='linear', y_scale_type='log',
+                                                      grid=False)
 
-        self.plot_win2.add_plot("ODEV", style='Dots', color='red', size=5)
-        self.plot_win2.add_plot("CC3DV", style='Lines', color='red', size=5)
+            self.plot_win2.add_plot("ODEV", style='Dots', color='red', size=5)
+            self.plot_win2.add_plot("CC3DV", style='Lines', color='red', size=5)
 
-        self.plot_win3 = self.add_new_plot_window(title='Epithelial Tcells',
-                                                  x_axis_title='Time (days)',
-                                                  y_axis_title='Number of Cells', x_scale_type='linear',
-                                                  y_scale_type='linear',
-                                                  grid=False)
+        if plot_Tcells:
+            self.plot_win3 = self.add_new_plot_window(title='Epithelial Tcells',
+                                                      x_axis_title='Time (days)',
+                                                      y_axis_title='Number of Cells', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False)
 
-        self.plot_win3.add_plot("ODETc", style='Dots', color='red', size=5)
-        self.plot_win3.add_plot("CC3DTc", style='Lines', color='red', size=5)
+            self.plot_win3.add_plot("ODETc", style='Dots', color='red', size=5)
+            self.plot_win3.add_plot("CC3DTc", style='Lines', color='red', size=5)
 
-        self.plot_win4 = self.add_new_plot_window(title='Epithelial APC',
-                                                  x_axis_title='Time (days)',
-                                                  y_axis_title='Number of Cells', x_scale_type='linear',
-                                                  y_scale_type='linear',
-                                                  grid=False)
+        if plot_APC:
+            self.plot_win4 = self.add_new_plot_window(title='Epithelial APC',
+                                                      x_axis_title='Time (days)',
+                                                      y_axis_title='Number of Cells', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False)
 
-        self.plot_win4.add_plot("ODEAPC", style='Dots', color='red', size=5)
-        self.plot_win4.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
-        self.plot_win4.add_plot("CC3DAPC", style='Lines', color='red', size=5)
+            self.plot_win4.add_plot("ODEAPC", style='Dots', color='red', size=5)
+            self.plot_win4.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
+            self.plot_win4.add_plot("CC3DAPC", style='Lines', color='red', size=5)
 
-        self.plot_win5 = self.add_new_plot_window(title='Lymph node APC',
-                                                  x_axis_title='Time (days)',
-                                                  y_axis_title='Number of Cells', x_scale_type='linear',
-                                                  y_scale_type='linear',
-                                                  grid=False)
+        if plot_Dm:
+            self.plot_win5 = self.add_new_plot_window(title='Lymph node APC',
+                                                      x_axis_title='Time (days)',
+                                                      y_axis_title='Number of Cells', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False)
 
-        self.plot_win5.add_plot("ODEAPC", style='Dots', color='red', size=5)
-        # self.plot_win5.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
-        self.plot_win5.add_plot("CC3DAPC", style='Lines', color='red', size=5)
+            self.plot_win5.add_plot("ODEAPC", style='Dots', color='red', size=5)
+            # self.plot_win5.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
+            self.plot_win5.add_plot("CC3DAPC", style='Lines', color='red', size=5)
+
+        if (contact_cytotoxicity == True) and (plot_Contact_Cytotoxicity == True):
+            self.plot_win6 = self.add_new_plot_window(title='Contact Cytotoxicity',
+                                                      x_axis_title='Time (days)',
+                                                      y_axis_title='Number of Cells', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=False)
+
+            self.plot_win6.add_plot("ODECC", style='Dots', color='red', size=5)
+            self.plot_win6.add_plot("CC3DCC", style='Lines', color='red', size=5)
 
     def step(self, mcs):
-        self.plot_win.add_data_point("ODEE", mcs * days_to_mcs, self.sbml.FullModel['E'] / self.sbml.FullModel['E0'])
-        self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs, self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
-        self.plot_win.add_data_point("ODED", mcs * days_to_mcs, self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
+        if plot_Epithelial_cells:
+            self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,
+                                         self.sbml.FullModel['E'] / self.sbml.FullModel['E0'])
+            self.plot_win.add_data_point("ODEEv", mcs * days_to_mcs,
+                                         self.sbml.FullModel['Ev'] / self.sbml.FullModel['E0'])
+            self.plot_win.add_data_point("ODED", mcs * days_to_mcs,
+                                         self.sbml.FullModel['D'] / self.sbml.FullModel['E0'])
+            self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
+                                         len(self.cell_list_by_type(self.E)) / self.initial_uninfected)
+            self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs,
+                                         len(self.cell_list_by_type(self.EV)) / self.initial_uninfected)
+            self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs,
+                                         len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
+        if plot_Virus:
+            secretor = self.get_field_secretor("Virus")
+            self.field_virus = 0.0
+            for cell in self.cell_list:
+                self.field_virus += secretor.amountSeenByCell(cell)
+            self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,
+                                          self.sbml.FullModel['V'])
+            self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs,
+                                          self.field_virus)
 
-        self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs, self.sbml.FullModel['V'])
-        self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['g'] *
-                                      self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected)
-        self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,
-                                      self.sbml.FullModel['Da'] / self.sbml.FullModel['E0'])
+        if plot_Tcells:
+            self.plot_win3.add_data_point("CC3DTc", mcs * days_to_mcs,
+                                          len(self.cell_list_by_type(self.TCELL)))
+            self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs,
+                                          self.sbml.FullModel['g'] *self.sbml.FullModel['Tc']
+                                          / self.sbml.FullModel['E0'] *  self.initial_uninfected)
 
-        self.plot_win5.add_data_point("ODEAPC", mcs * days_to_mcs,
-                                      self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'])
+        if plot_APC:
+            self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,
+                                          self.sbml.FullModel['Da'] / self.sbml.FullModel['E0'])
+            self.plot_win4.add_data_point("CC3DAPC0", mcs * days_to_mcs,
+                                          len(self.cell_list_by_type(self.APC)) / self.initial_uninfected)
+            self.plot_win4.add_data_point("CC3DAPC", mcs * days_to_mcs,
+                                          self.shared_steppable_vars['Active_APCs'] / self.initial_uninfected)
 
-        secretor = self.get_field_secretor("Virus")
-        self.field_virus = 0.0
-        for cell in self.cell_list:
-            self.field_virus += secretor.amountSeenByCell(cell)
+        if plot_Dm:
+            self.plot_win5.add_data_point("ODEAPC", mcs * days_to_mcs,
+                                          self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'])
+            self.plot_win5.add_data_point("CC3DAPC", mcs * days_to_mcs,
+                                          self.sbml.LymphModel['Dm'] / self.sbml.FullModel['E0'])
 
-        self.num_activeAPC = 0.0
-        for cell in self.cell_list_by_type(self.APC):
-            if cell.dict['Activation_State']:
-                self.num_activeAPC += 1
-
-        self.plot_win.add_data_point("CC3DE", mcs * days_to_mcs,
-                                     len(self.cell_list_by_type(self.E)) / self.initial_uninfected)
-        self.plot_win.add_data_point("CC3DEv", mcs * days_to_mcs,
-                                     len(self.cell_list_by_type(self.EV)) / self.initial_uninfected)
-        self.plot_win.add_data_point("CC3DD", mcs * days_to_mcs,
-                                     len(self.cell_list_by_type(self.D)) / self.initial_uninfected)
-        self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs,
-                                      self.field_virus)
-        self.plot_win4.add_data_point("CC3DAPC0", mcs * days_to_mcs,
-                                      len(self.cell_list_by_type(self.APC)) / self.initial_uninfected)
-        self.plot_win4.add_data_point("CC3DAPC", mcs * days_to_mcs,
-                                      self.num_activeAPC / self.initial_uninfected)
-        self.plot_win3.add_data_point("CC3DTc", mcs * days_to_mcs,
-                                      len(self.cell_list_by_type(self.TCELL)))
-        self.plot_win5.add_data_point("CC3DAPC", mcs * days_to_mcs,
-                                      self.sbml.LymphModel['Dm'] / self.sbml.FullModel['E0'])
+        if (contact_cytotoxicity == True) and (plot_Contact_Cytotoxicity == True):
+            self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.shared_steppable_vars['ODE_Killing'])
+            self.plot_win6.add_data_point("CC3DCC", mcs * days_to_mcs,self.shared_steppable_vars['Contact_Killing'])
