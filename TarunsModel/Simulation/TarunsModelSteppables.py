@@ -9,10 +9,10 @@ virus_infection_feedback = 1
 contact_cytotoxicity = True
 
 plot_Epithelial_cells = True
-plot_Virus = False
+plot_Virus = True
 plot_Tcells = True
-plot_APC = False
-plot_Dm = False
+plot_APC = True
+plot_Dm = True
 plot_Contact_Cytotoxicity = True
 
 model_string = '''
@@ -97,8 +97,8 @@ J23: Th2 ->; m*Th2;
 aE=5.0*10^-2; 
 bE=2*10^-5; 
 dE=10^-3;
-kE=1.19*10^-2 / 150.0; 
-g=0.15 * 150.0; 
+kE=1.19*10^-2 / 900.0; 
+g=0.15 * 900.0;
 tC=0.5;
 pV=1.9; 
 cV=1;
