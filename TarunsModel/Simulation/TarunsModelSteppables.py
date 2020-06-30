@@ -142,12 +142,13 @@ class TarunsModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
 
-    def start(self):
+    def seed_epithelial_sheet(self):
         for x in range(0, self.dim.x, int(3)):
             for y in range(0, self.dim.y, int(3)):
                 cell = self.new_cell(self.E)
                 self.cellField[x:x + int(3), y:y + int(3), 0] = cell
 
+    def init_variables(self):
         # Updating max simulation steps using scaling factor to simulate 10 days
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
         self.add_free_floating_antimony(model_string=lymph_node_string, model_name='LymphModel', step_size=days_to_mcs)
@@ -159,7 +160,9 @@ class TarunsModelSteppable(SteppableBasePy):
         self.shared_steppable_vars['Active_APCs'] = 0.0
         self.shared_steppable_vars['ODE_Killing'] = 0.0
         self.shared_steppable_vars['Contact_Killing'] = 0.0
+        self.virus_secretor = self.get_field_secretor("Virus")
 
+    def seed_APC_cells(self):
         numberAPC = 0.0
         while numberAPC < round(self.sbml.FullModel['D0'] / self.sbml.FullModel['E0'] * self.initial_uninfected):
             x = np.random.randint(10, self.dim.x - 10)
@@ -171,6 +174,13 @@ class TarunsModelSteppable(SteppableBasePy):
                 cell.lambdaVolume = cell.volume
                 cell.dict['Activation_State'] = 0  # in tissue
                 numberAPC += 1
+
+    def start(self):
+        self.seed_epithelial_sheet()
+
+        self.init_variables()
+
+        self.seed_APC_cells()
 
     def J1_DtoE(self, cell):
         ## Transition from D to E
@@ -184,7 +194,7 @@ class TarunsModelSteppable(SteppableBasePy):
         if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
             cell.type = self.D
 
-    def J3_EtoEv(self, cell, secretor):
+    def J3_EtoEv(self, cell):
         ## Transition from E to Ev
         # J3: E -> Ev; bE*V*E;
         if virus_infection_feedback == 1:
@@ -227,63 +237,17 @@ class TarunsModelSteppable(SteppableBasePy):
                 cell.type = self.D
             self.shared_steppable_vars['ODE_Killing'] += 1
 
-    def lymph_model_input_from_full(self, Ev, Da):
-        Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
-        self.sbml.LymphModel['Ev'] = Ev
-        self.sbml.LymphModel['Da'] = Da
-
-    def contact_killing(self, cell):
-
-        for neighbor, common_surface_area in self.get_cell_neighbor_data_list(cell):
-            if neighbor:
-                if neighbor.type == self.EV:
-                    self.shared_steppable_vars['Contact_Killing'] += 1
-                    if contact_cytotoxicity:
-                        neighbor.type = self.D
-
-
-    def test_prints(self):
-        print('taruns\tcc3d')
-        print('Tc', self.sbml.FullModel['Tc'], self.sbml.LymphModel['Tc'])
-        print('Th1', self.sbml.FullModel['Th1'], self.sbml.LymphModel['Th1'])
-        print('Th2', self.sbml.FullModel['Th2'], self.sbml.LymphModel['Th2'])
-        # print('Da', self.sbml.FullModel['Da'], self.sbml.LymphModel['Da'])
-        print('Dm', self.sbml.FullModel['Dm'], self.sbml.LymphModel['Dm'])
-
-
-    def step(self, mcs):
-        #self.test_prints()
-        self.lymph_model_input_from_full(len(self.cell_list_by_type(self.EV)), self.sbml.FullModel['Da'])
-        for cell in self.cell_list_by_type(self.D):
-            self.J1_DtoE(cell)
-
-        for cell in self.cell_list_by_type(self.E):
-            self.J2_EtoD(cell)
-
-        secretor = self.get_field_secretor("Virus")
-        for cell in self.cell_list_by_type(self.E):
-            self.J3_EtoEv(cell, secretor)
-
-        for cell in self.cell_list_by_type(self.EV):
-            self.J4_EvtoE(cell)
-
-        for cell in self.cell_list_by_type(self.EV):
-            self.J5_EvtoD(cell)
-
-        g = self.sbml.FullModel['g']
-        # Tc = self.sbml.FullModel['Tc'] * g
-        Tc = len(self.cell_list_by_type(self.TCELL)) / self.initial_uninfected * self.sbml.FullModel['E0']
-        for cell in self.cell_list_by_type(self.EV):
-            self.J6_EvtoD(cell, Tc)
-
+    def J7_virus_production(self):
         virus_production = 0.0
         for cell in self.cell_list_by_type(self.EV):
             ## Virus Production
             # J7: -> V; pV*Ev;
             pV = self.sbml.FullModel['pV'] * days_to_mcs / self.initial_uninfected * self.sbml.FullModel['E0']
-            release = secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
+            release = self.virus_secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
             virus_production += abs(release.tot_amount)
+        return virus_production
 
+    def J8_virus_decay(self, virus_production):
         ## Virus Decay
         # J8: V ->; cV*V;
         cV = self.sbml.FullModel['cV'] * days_to_mcs
@@ -291,14 +255,12 @@ class TarunsModelSteppable(SteppableBasePy):
         self.scalar_virus += virus_production - virus_decay
         self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
 
-        # activated_APC_count = 0
-
+    def J9_J10_APC_activation_deactivation(self):
         tissue_apc = 0
         lymph_apc = 0
         node_apc = 0
         just_moved_in_to_node = 0
         # activated_APC_count = 0
-
         for cell in self.cell_list_by_type(self.APC):
             # if cell.dict == 0 -> in tissue; keep logic (J9: -> Da; bD*V*(D0-Da);) but replace cell.dict[
             # 'Activation_State'] = True by cell.dict['Activation_State'] = 1, this cell is now in transit:
@@ -317,7 +279,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 bD = (self.sbml.FullModel['bD'] * days_to_mcs) * (self.sbml.FullModel['D0'] * self.initial_uninfected /
                                                                   self.sbml.FullModel['E0'])
                 # V should be local instead of the total virus
-                V = secretor.amountSeenByCell(cell) * self.initial_uninfected
+                V = self.virus_secretor.amountSeenByCell(cell) * self.initial_uninfected
                 # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
 
                 p_tissue_2_lymph = bD * V
@@ -343,15 +305,17 @@ class TarunsModelSteppable(SteppableBasePy):
                     node_apc -= 1
                     tissue_apc += 1
         self.shared_steppable_vars['Active_APCs'] = lymph_apc + node_apc
+        return tissue_apc, lymph_apc, node_apc, just_moved_in_to_node
+
+    def J11_APC_travel_Lymph_Model_input(self, just_moved_in_to_node):
         ## APC "travel" to lymph node
         # we'll implement it as a signal that is proportional to the activated apcs
         # J11: -> Dm; kD * Da; // Dm are apc in lymph
         # print(node_apc)
         self.sbml.LymphModel['Dm'] += max(0, (just_moved_in_to_node * self.sbml.FullModel['D0'] *
                                               self.initial_uninfected / self.sbml.FullModel['E0']))
-        # self.sbml.LymphModel['Dm'] = self.sbml.FullModel['Dm']
 
-
+    def J13_Tcell_stable_population_seeding(self):
         ## Tcell seeding
         # J13: -> Tc; dc*g*Tc0;
         # TODO: replace FullModel with LymphModel where appropriate
@@ -372,6 +336,7 @@ class TarunsModelSteppable(SteppableBasePy):
                     cd.setLambda(0)
                     cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
+    def J14_Tcell_clearance(self):
         ## Clearance of Tcells
         # J14: Tc ->; dc*Tc;
         for cell in self.cell_list_by_type(self.TCELL):
@@ -379,6 +344,7 @@ class TarunsModelSteppable(SteppableBasePy):
             if dc > np.random.random():
                 cell.targetVolume = 0.0
 
+    def J15a_Tcell_inflamatory_seeding(self):
         ## Tcell seeding
         # J15a: Dm -> Tc; Dm ;
         g = self.sbml.FullModel['g']
@@ -401,6 +367,7 @@ class TarunsModelSteppable(SteppableBasePy):
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
+    def J15b_Tcell_inflamatory_seeding(self):
         ## Tcell seeding
         # J15b: Dm -> Tc; pT1 * Dm * Tc / (Dm + pT2)
         # TODO: replace FullModel with LymphModel where appropriate
@@ -426,6 +393,11 @@ class TarunsModelSteppable(SteppableBasePy):
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
+    def J15_Tcell_inflamatory_seeding(self):
+        self.J15a_Tcell_inflamatory_seeding()
+        self.J15b_Tcell_inflamatory_seeding()
+
+    def J16_Tcell_clearance(self):
         # TODO: NEEDs RESCALING
         # Tcell clearance
         # J16: Tc ->; dT1 * Tc * Ev/(Ev+dT2)
@@ -434,8 +406,71 @@ class TarunsModelSteppable(SteppableBasePy):
         dT2 = self.sbml.FullModel['dT1'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
         for cell in self.cell_list_by_type(self.TCELL):
             if dT1 * Ev / (Ev + dT2) > np.random.random():
-
                 cell.targetVolume = 0.0
+
+    def lymph_model_input_from_full(self, Ev, Da):
+        Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
+        self.sbml.LymphModel['Ev'] = Ev
+        self.sbml.LymphModel['Da'] = Da
+
+    def contact_killing(self, cell):
+
+        for neighbor, common_surface_area in self.get_cell_neighbor_data_list(cell):
+            if neighbor:
+                if neighbor.type == self.EV:
+                    self.shared_steppable_vars['Contact_Killing'] += 1
+                    if contact_cytotoxicity:
+                        neighbor.type = self.D
+
+    def test_prints(self):
+        print('taruns\tcc3d')
+        print('Tc', self.sbml.FullModel['Tc'], self.sbml.LymphModel['Tc'])
+        print('Th1', self.sbml.FullModel['Th1'], self.sbml.LymphModel['Th1'])
+        print('Th2', self.sbml.FullModel['Th2'], self.sbml.LymphModel['Th2'])
+        # print('Da', self.sbml.FullModel['Da'], self.sbml.LymphModel['Da'])
+        print('Dm', self.sbml.FullModel['Dm'], self.sbml.LymphModel['Dm'])
+
+    def step(self, mcs):
+        # self.test_prints()
+        self.lymph_model_input_from_full(len(self.cell_list_by_type(self.EV)), self.sbml.FullModel['Da'])
+        for cell in self.cell_list_by_type(self.D):
+            self.J1_DtoE(cell)
+
+        for cell in self.cell_list_by_type(self.E):
+            self.J2_EtoD(cell)
+
+        # self.virus_secretor = self.get_field_secretor("Virus")
+        for cell in self.cell_list_by_type(self.E):
+            self.J3_EtoEv(cell)
+
+        for cell in self.cell_list_by_type(self.EV):
+            self.J4_EvtoE(cell)
+
+        for cell in self.cell_list_by_type(self.EV):
+            self.J5_EvtoD(cell)
+
+        g = self.sbml.FullModel['g']
+        # Tc = self.sbml.FullModel['Tc'] * g
+        Tc = len(self.cell_list_by_type(self.TCELL)) / self.initial_uninfected * self.sbml.FullModel['E0']
+        for cell in self.cell_list_by_type(self.EV):
+            self.J6_EvtoD(cell, Tc)
+
+        virus_production = self.J7_virus_production()
+
+        self.J8_virus_decay(virus_production)
+        # activated_APC_count = 0
+
+        tissue_apc, lymph_apc, node_apc, just_moved_in_to_node = self.J9_J10_APC_activation_deactivation()
+
+        self.J11_APC_travel_Lymph_Model_input(just_moved_in_to_node)
+
+        self.J13_Tcell_stable_population_seeding()
+
+        self.J14_Tcell_clearance()
+
+        self.J15_Tcell_inflamatory_seeding()
+
+        self.J16_Tcell_clearance()
 
         ## Tcell Contact Killing
         for cell in self.cell_list_by_type(self.TCELL):
@@ -443,6 +478,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
         ## Step SBML forward
         self.timestep_sbml()
+
 
 class ChemotaxisSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -570,7 +606,6 @@ class PlotsSteppable(SteppableBasePy):
                                           self.sbml.FullModel['g'] * self.sbml.FullModel['Tc']
                                           / self.sbml.FullModel['E0'] * self.initial_uninfected)
 
-
         if plot_APC:
             self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,
                                           self.sbml.FullModel['Da'] / self.sbml.FullModel['E0'])
@@ -583,7 +618,6 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win5.add_data_point("ODEAPC", mcs * days_to_mcs,
                                           self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'])
 
-
             # self.plot_win5.add_data_point("ODEAPC", mcs * days_to_mcs,
             #                               self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'])
             self.plot_win5.add_data_point("CC3DAPC", mcs * days_to_mcs,
@@ -592,4 +626,3 @@ class PlotsSteppable(SteppableBasePy):
         if contact_cytotoxicity and plot_Contact_Cytotoxicity:
             self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.shared_steppable_vars['ODE_Killing'])
             self.plot_win6.add_data_point("CC3DCC", mcs * days_to_mcs, self.shared_steppable_vars['Contact_Killing'])
-
