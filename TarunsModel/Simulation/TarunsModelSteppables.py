@@ -396,6 +396,17 @@ class TarunsModelSteppable(SteppableBasePy):
         self.J15a_Tcell_inflamatory_seeding()
         self.J15b_Tcell_inflamatory_seeding()
 
+    def J16_Tcell_clearance(self):
+        # TODO: NEEDs RESCALING
+        # Tcell clearance
+        # J16: Tc ->; dT1 * Tc * Ev/(Ev+dT2)
+        Ev = len(self.cell_list_by_type(self.EV))
+        dT1 = self.sbml.FullModel['dT1'] * days_to_mcs * 3
+        dT2 = self.sbml.FullModel['dT1'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
+        for cell in self.cell_list_by_type(self.TCELL):
+            if dT1 * Ev / (Ev + dT2) > np.random.random():
+                cell.targetVolume = 0.0
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
@@ -458,15 +469,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
         self.J15_Tcell_inflamatory_seeding()
 
-        # TODO: NEEDs RESCALING
-        # Tcell clearance
-        # J16: Tc ->; dT1 * Tc * Ev/(Ev+dT2)
-        Ev = len(self.cell_list_by_type(self.EV))
-        dT1 = self.sbml.FullModel['dT1'] * days_to_mcs * 3
-        dT2 = self.sbml.FullModel['dT1'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
-        for cell in self.cell_list_by_type(self.TCELL):
-            if dT1 * Ev / (Ev + dT2) > np.random.random():
-                cell.targetVolume = 0.0
+        self.J16_Tcell_clearance()
 
         ## Tcell Contact Killing
         for cell in self.cell_list_by_type(self.TCELL):
