@@ -314,6 +314,27 @@ class TarunsModelSteppable(SteppableBasePy):
         self.sbml.LymphModel['Dm'] += max(0, (just_moved_in_to_node * self.sbml.FullModel['D0'] *
                                               self.initial_uninfected / self.sbml.FullModel['E0']))
 
+    def J13_Tcell_seeding(self):
+        ## Tcell seeding
+        # J13: -> Tc; dc*g*Tc0;
+        # TODO: replace FullModel with LymphModel where appropriate
+        dc = self.sbml.FullModel['dc'] * days_to_mcs
+        g = self.sbml.FullModel['g']
+        Tc0 = self.sbml.FullModel['Tc0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
+        cell = False
+        if dc * g * Tc0 > np.random.random():
+            while not cell:
+                x = np.random.randint(0, self.dim.x - 3)
+                y = np.random.randint(0, self.dim.y - 3)
+                if not self.cell_field[x, y, 1]:
+                    cell = self.new_cell(self.TCELL)
+                    self.cell_field[x:x + 3, y:y + 3, 1] = cell
+                    cell.targetVolume = cell.volume
+                    cell.lambdaVolume = cell.volume
+                    cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
+                    cd.setLambda(0)
+                    cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
@@ -370,25 +391,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
         self.J11_APC_travel_Lymph_Model_input(just_moved_in_to_node)
 
-        ## Tcell seeding
-        # J13: -> Tc; dc*g*Tc0;
-        # TODO: replace FullModel with LymphModel where appropriate
-        dc = self.sbml.FullModel['dc'] * days_to_mcs
-        g = self.sbml.FullModel['g']
-        Tc0 = self.sbml.FullModel['Tc0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
-        cell = False
-        if dc * g * Tc0 > np.random.random():
-            while not cell:
-                x = np.random.randint(0, self.dim.x - 3)
-                y = np.random.randint(0, self.dim.y - 3)
-                if not self.cell_field[x, y, 1]:
-                    cell = self.new_cell(self.TCELL)
-                    self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                    cell.targetVolume = cell.volume
-                    cell.lambdaVolume = cell.volume
-                    cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
-                    cd.setLambda(0)
-                    cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+        self.J13_Tcell_seeding()
 
         ## Clearance of Tcells
         # J14: Tc ->; dc*Tc;
