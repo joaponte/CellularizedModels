@@ -335,6 +335,14 @@ class TarunsModelSteppable(SteppableBasePy):
                     cd.setLambda(0)
                     cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
+    def J14_Tcell_clearance(self):
+        ## Clearance of Tcells
+        # J14: Tc ->; dc*Tc;
+        for cell in self.cell_list_by_type(self.TCELL):
+            dc = self.sbml.FullModel['dc'] * days_to_mcs
+            if dc > np.random.random():
+                cell.targetVolume = 0.0
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
@@ -393,13 +401,8 @@ class TarunsModelSteppable(SteppableBasePy):
 
         self.J13_Tcell_seeding()
 
-        ## Clearance of Tcells
-        # J14: Tc ->; dc*Tc;
-        for cell in self.cell_list_by_type(self.TCELL):
-            dc = self.sbml.FullModel['dc'] * days_to_mcs
-            if dc > np.random.random():
-                cell.targetVolume = 0.0
-
+        self.J14_Tcell_clearance()
+        
         ## Tcell seeding
         # J15a: Dm -> Tc; Dm ;
         g = self.sbml.FullModel['g']
