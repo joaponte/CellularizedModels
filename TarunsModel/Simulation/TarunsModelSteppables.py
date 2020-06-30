@@ -254,6 +254,58 @@ class TarunsModelSteppable(SteppableBasePy):
         self.scalar_virus += virus_production - virus_decay
         self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
 
+    def J9_J10_APC_activation_deactivation(self, secretor):
+        tissue_apc = 0
+        lymph_apc = 0
+        node_apc = 0
+        just_moved_in_to_node = 0
+        # activated_APC_count = 0
+        for cell in self.cell_list_by_type(self.APC):
+            # if cell.dict == 0 -> in tissue; keep logic (J9: -> Da; bD*V*(D0-Da);) but replace cell.dict[
+            # 'Activation_State'] = True by cell.dict['Activation_State'] = 1, this cell is now in transit:
+            # tissue_apc -= 1; lymph_apc+=1
+            ########################
+            # add this elif elif cell.dict['Activation_State'] = 1; go from the lymph to the
+            # node by p_transition = 1/delay [rescaled] if p_transition > dice_roll:  cell.dict['Activation_State'] =
+            # 2 this cell is now in the lymph; lymph_apc-=1 node_apc+=1 ## replace the elif cell.dict[
+            # 'Activation_State']: elif cell.dict['Activation_State'] == 2; keep logic replace cell.dict[
+            # 'Activation_State'] = False by cell.dict['Activation_State'] = 0 ## then number of apc in node is
+            # cell.dict['Activation_State'] == 2 * self.sbml.LymphModel['kD'] / delay
+            if cell.dict['Activation_State'] == 0:  # in tissue
+                ## Infection and Activation of APC
+                # J9: -> Da; bD*V*(D0-Da);
+                tissue_apc += 1
+                bD = (self.sbml.FullModel['bD'] * days_to_mcs) * (self.sbml.FullModel['D0'] * self.initial_uninfected /
+                                                                  self.sbml.FullModel['E0'])
+                # V should be local instead of the total virus
+                V = secretor.amountSeenByCell(cell) * self.initial_uninfected
+                # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
+
+                p_tissue_2_lymph = bD * V
+                if p_tissue_2_lymph > np.random.random():
+                    cell.dict['Activation_State'] = 1
+                    tissue_apc -= 1
+                    lymph_apc += 1
+            elif cell.dict['Activation_State'] == 1:  # in lymph
+                # transport of apc to lymph
+                lymph_apc += 1
+                p_lymph_2_node = 1 / 10  # PLACEHOLDER
+                if p_lymph_2_node > np.random.random():
+                    cell.dict['Activation_State'] = 2
+                    lymph_apc -= 1
+                    node_apc += 1
+                    just_moved_in_to_node += 1
+            elif cell.dict['Activation_State'] == 2:
+                node_apc += 1
+                dD = self.sbml.FullModel['dD'] * days_to_mcs
+                p_lymph_2_tissue = dD
+                if p_lymph_2_tissue > np.random.random():
+                    cell.dict['Activation_State'] = 0
+                    node_apc -= 1
+                    tissue_apc += 1
+        self.shared_steppable_vars['Active_APCs'] = lymph_apc + node_apc
+        return tissue_apc, lymph_apc, node_apc, just_moved_in_to_node
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
@@ -306,56 +358,8 @@ class TarunsModelSteppable(SteppableBasePy):
         self.J8_virus_decay(virus_production)
         # activated_APC_count = 0
 
-        tissue_apc = 0
-        lymph_apc = 0
-        node_apc = 0
-        just_moved_in_to_node = 0
-        # activated_APC_count = 0
+        tissue_apc, lymph_apc, node_apc, just_moved_in_to_node = self.J9_J10_APC_activation_deactivation(secretor)
 
-        for cell in self.cell_list_by_type(self.APC):
-            # if cell.dict == 0 -> in tissue; keep logic (J9: -> Da; bD*V*(D0-Da);) but replace cell.dict[
-            # 'Activation_State'] = True by cell.dict['Activation_State'] = 1, this cell is now in transit:
-            # tissue_apc -= 1; lymph_apc+=1
-            ########################
-            # add this elif elif cell.dict['Activation_State'] = 1; go from the lymph to the
-            # node by p_transition = 1/delay [rescaled] if p_transition > dice_roll:  cell.dict['Activation_State'] =
-            # 2 this cell is now in the lymph; lymph_apc-=1 node_apc+=1 ## replace the elif cell.dict[
-            # 'Activation_State']: elif cell.dict['Activation_State'] == 2; keep logic replace cell.dict[
-            # 'Activation_State'] = False by cell.dict['Activation_State'] = 0 ## then number of apc in node is
-            # cell.dict['Activation_State'] == 2 * self.sbml.LymphModel['kD'] / delay
-            if cell.dict['Activation_State'] == 0:  # in tissue
-                ## Infection and Activation of APC
-                # J9: -> Da; bD*V*(D0-Da);
-                tissue_apc += 1
-                bD = (self.sbml.FullModel['bD'] * days_to_mcs) * (self.sbml.FullModel['D0'] * self.initial_uninfected /
-                                                                  self.sbml.FullModel['E0'])
-                # V should be local instead of the total virus
-                V = secretor.amountSeenByCell(cell) * self.initial_uninfected
-                # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
-
-                p_tissue_2_lymph = bD * V
-                if p_tissue_2_lymph > np.random.random():
-                    cell.dict['Activation_State'] = 1
-                    tissue_apc -= 1
-                    lymph_apc += 1
-            elif cell.dict['Activation_State'] == 1:  # in lymph
-                # transport of apc to lymph
-                lymph_apc += 1
-                p_lymph_2_node = 1 / 10  # PLACEHOLDER
-                if p_lymph_2_node > np.random.random():
-                    cell.dict['Activation_State'] = 2
-                    lymph_apc -= 1
-                    node_apc += 1
-                    just_moved_in_to_node += 1
-            elif cell.dict['Activation_State'] == 2:
-                node_apc += 1
-                dD = self.sbml.FullModel['dD'] * days_to_mcs
-                p_lymph_2_tissue = dD
-                if p_lymph_2_tissue > np.random.random():
-                    cell.dict['Activation_State'] = 0
-                    node_apc -= 1
-                    tissue_apc += 1
-        self.shared_steppable_vars['Active_APCs'] = lymph_apc + node_apc
         ## APC "travel" to lymph node
         # we'll implement it as a signal that is proportional to the activated apcs
         # J11: -> Dm; kD * Da; // Dm are apc in lymph
