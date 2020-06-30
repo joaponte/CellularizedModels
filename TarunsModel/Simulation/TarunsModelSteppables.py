@@ -236,6 +236,16 @@ class TarunsModelSteppable(SteppableBasePy):
                 cell.type = self.D
             self.shared_steppable_vars['ODE_Killing'] += 1
 
+    def J7_virus_production(self, secretor):
+        virus_production = 0.0
+        for cell in self.cell_list_by_type(self.EV):
+            ## Virus Production
+            # J7: -> V; pV*Ev;
+            pV = self.sbml.FullModel['pV'] * days_to_mcs / self.initial_uninfected * self.sbml.FullModel['E0']
+            release = secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
+            virus_production += abs(release.tot_amount)
+        return virus_production
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
@@ -283,13 +293,7 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.EV):
             self.J6_EvtoD(cell, Tc)
 
-        virus_production = 0.0
-        for cell in self.cell_list_by_type(self.EV):
-            ## Virus Production
-            # J7: -> V; pV*Ev;
-            pV = self.sbml.FullModel['pV'] * days_to_mcs / self.initial_uninfected * self.sbml.FullModel['E0']
-            release = secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
-            virus_production += abs(release.tot_amount)
+        virus_production = self.J7_virus_production(secretor)
 
         ## Virus Decay
         # J8: V ->; cV*V;
