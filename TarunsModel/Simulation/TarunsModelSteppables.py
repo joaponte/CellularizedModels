@@ -246,6 +246,14 @@ class TarunsModelSteppable(SteppableBasePy):
             virus_production += abs(release.tot_amount)
         return virus_production
 
+    def J8_virus_decay(self, virus_production):
+        ## Virus Decay
+        # J8: V ->; cV*V;
+        cV = self.sbml.FullModel['cV'] * days_to_mcs
+        virus_decay = cV * self.scalar_virus
+        self.scalar_virus += virus_production - virus_decay
+        self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
@@ -295,13 +303,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
         virus_production = self.J7_virus_production(secretor)
 
-        ## Virus Decay
-        # J8: V ->; cV*V;
-        cV = self.sbml.FullModel['cV'] * days_to_mcs
-        virus_decay = cV * self.scalar_virus
-        self.scalar_virus += virus_production - virus_decay
-        self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
-
+        self.J8_virus_decay(virus_production)
         # activated_APC_count = 0
 
         tissue_apc = 0
