@@ -314,7 +314,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.sbml.LymphModel['Dm'] += max(0, (just_moved_in_to_node * self.sbml.FullModel['D0'] *
                                               self.initial_uninfected / self.sbml.FullModel['E0']))
 
-    def J13_Tcell_seeding(self):
+    def J13_Tcell_stable_population_seeding(self):
         ## Tcell seeding
         # J13: -> Tc; dc*g*Tc0;
         # TODO: replace FullModel with LymphModel where appropriate
@@ -342,6 +342,29 @@ class TarunsModelSteppable(SteppableBasePy):
             dc = self.sbml.FullModel['dc'] * days_to_mcs
             if dc > np.random.random():
                 cell.targetVolume = 0.0
+
+    def J15a_Tcell_inflamatory_seeding(self):
+        ## Tcell seeding
+        # J15a: Dm -> Tc; Dm ;
+        g = self.sbml.FullModel['g']
+        # TODO: replace FullModel with LymphModel where appropriate
+
+        Dm = self.sbml.FullModel['Dm'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
+        if Dm * g > np.random.random():
+            cells_to_seed = max(1, round(Dm * g))
+            for i in range(cells_to_seed):
+                cell = False
+                while not cell:
+                    x = np.random.randint(0, self.dim.x - 3)
+                    y = np.random.randint(0, self.dim.y - 3)
+                    if not self.cell_field[x, y, 1]:
+                        cell = self.new_cell(self.TCELL)
+                        self.cell_field[x:x + 3, y:y + 3, 1] = cell
+                        cell.targetVolume = cell.volume
+                        cell.lambdaVolume = cell.volume
+                        cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
+                        cd.setLambda(0)
+                        cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
@@ -399,31 +422,33 @@ class TarunsModelSteppable(SteppableBasePy):
 
         self.J11_APC_travel_Lymph_Model_input(just_moved_in_to_node)
 
-        self.J13_Tcell_seeding()
+        self.J13_Tcell_stable_population_seeding()
 
         self.J14_Tcell_clearance()
-        
-        ## Tcell seeding
-        # J15a: Dm -> Tc; Dm ;
-        g = self.sbml.FullModel['g']
-        # TODO: replace FullModel with LymphModel where appropriate
 
-        Dm = self.sbml.FullModel['Dm'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
-        if Dm * g > np.random.random():
-            cells_to_seed = max(1, round(Dm * g))
-            for i in range(cells_to_seed):
-                cell = False
-                while not cell:
-                    x = np.random.randint(0, self.dim.x - 3)
-                    y = np.random.randint(0, self.dim.y - 3)
-                    if not self.cell_field[x, y, 1]:
-                        cell = self.new_cell(self.TCELL)
-                        self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                        cell.targetVolume = cell.volume
-                        cell.lambdaVolume = cell.volume
-                        cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
-                        cd.setLambda(0)
-                        cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+        self.J15a_Tcell_inflamatory_seeding()
+        #
+        # ## Tcell seeding
+        # # J15a: Dm -> Tc; Dm ;
+        # g = self.sbml.FullModel['g']
+        # # TODO: replace FullModel with LymphModel where appropriate
+        #
+        # Dm = self.sbml.FullModel['Dm'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
+        # if Dm * g > np.random.random():
+        #     cells_to_seed = max(1, round(Dm * g))
+        #     for i in range(cells_to_seed):
+        #         cell = False
+        #         while not cell:
+        #             x = np.random.randint(0, self.dim.x - 3)
+        #             y = np.random.randint(0, self.dim.y - 3)
+        #             if not self.cell_field[x, y, 1]:
+        #                 cell = self.new_cell(self.TCELL)
+        #                 self.cell_field[x:x + 3, y:y + 3, 1] = cell
+        #                 cell.targetVolume = cell.volume
+        #                 cell.lambdaVolume = cell.volume
+        #                 cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
+        #                 cd.setLambda(0)
+        #                 cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
         ## Tcell seeding
         # J15b: Dm -> Tc; pT1 * Dm * Tc / (Dm + pT2)
