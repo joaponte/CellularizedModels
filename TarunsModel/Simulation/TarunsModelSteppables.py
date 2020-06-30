@@ -306,6 +306,14 @@ class TarunsModelSteppable(SteppableBasePy):
         self.shared_steppable_vars['Active_APCs'] = lymph_apc + node_apc
         return tissue_apc, lymph_apc, node_apc, just_moved_in_to_node
 
+    def J11_APC_travel_Lymph_Model_input(self, just_moved_in_to_node):
+        ## APC "travel" to lymph node
+        # we'll implement it as a signal that is proportional to the activated apcs
+        # J11: -> Dm; kD * Da; // Dm are apc in lymph
+        # print(node_apc)
+        self.sbml.LymphModel['Dm'] += max(0, (just_moved_in_to_node * self.sbml.FullModel['D0'] *
+                                              self.initial_uninfected / self.sbml.FullModel['E0']))
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
@@ -360,13 +368,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
         tissue_apc, lymph_apc, node_apc, just_moved_in_to_node = self.J9_J10_APC_activation_deactivation(secretor)
 
-        ## APC "travel" to lymph node
-        # we'll implement it as a signal that is proportional to the activated apcs
-        # J11: -> Dm; kD * Da; // Dm are apc in lymph
-        # print(node_apc)
-        self.sbml.LymphModel['Dm'] += max(0, (just_moved_in_to_node * self.sbml.FullModel['D0'] *
-                                              self.initial_uninfected / self.sbml.FullModel['E0']))
-        # self.sbml.LymphModel['Dm'] = self.sbml.FullModel['Dm']
+        self.J11_APC_travel_Lymph_Model_input(just_moved_in_to_node)
 
         ## Tcell seeding
         # J13: -> Tc; dc*g*Tc0;
