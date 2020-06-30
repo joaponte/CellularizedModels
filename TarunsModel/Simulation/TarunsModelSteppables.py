@@ -159,6 +159,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.shared_steppable_vars['ODE_Killing'] = 0.0
         self.shared_steppable_vars['Contact_Killing'] = 0.0
 
+
         numberAPC = 0.0
         while numberAPC < round(self.sbml.FullModel['D0'] / self.sbml.FullModel['E0'] * self.initial_uninfected):
             x = np.random.randint(10, self.dim.x - 10)
@@ -186,6 +187,7 @@ class TarunsModelSteppable(SteppableBasePy):
     def J3_EtoEv(self, cell, secretor):
         ## Transition from E to Ev
         # J3: E -> Ev; bE*V*E;
+        secretor = self.get_field_secretor("Virus")
         if virus_infection_feedback == 1:
             bE = self.sbml.FullModel['bE'] * days_to_mcs
             V = self.sbml.FullModel['V']
@@ -205,7 +207,7 @@ class TarunsModelSteppable(SteppableBasePy):
     def J4_EvtoE(self, cell):
         ## Transition from Ev to E
         # J4: Ev -> E; aE*Ev;
-        if self.sbml.FullModel['aE'] * days_to_mcs > np.random.random():
+        if sel.sbml.FullModel['aE'] * days_to_mcs > np.random.random():
             cell.type = self.E
 
     def J5_EvtoD(self, cell):
@@ -214,7 +216,7 @@ class TarunsModelSteppable(SteppableBasePy):
         dE = self.sbml.FullModel['dE'] * days_to_mcs
         p_EvtoD = dE
         if p_EvtoD > np.random.random():
-            cell.type = self.D
+            cell.type = self.Df
 
     def J6_EvtoD(self, cell, Tc):
         ## Transition from Ev to D
@@ -315,6 +317,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 tissue_apc += 1
                 bD = (self.sbml.FullModel['bD'] * days_to_mcs) * (self.sbml.FullModel['D0'] * self.initial_uninfected /
                                                                   self.sbml.FullModel['E0'])
+
                 # V should be local instead of the total virus
                 V = secretor.amountSeenByCell(cell) * self.initial_uninfected
                 # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
@@ -448,6 +451,7 @@ class ChemotaxisSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+
         for cell in self.cell_list_by_type(self.APC, self.TCELL):
             cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
             cd.setLambda(0)
