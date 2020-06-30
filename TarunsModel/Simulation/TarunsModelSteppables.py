@@ -392,6 +392,10 @@ class TarunsModelSteppable(SteppableBasePy):
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
+    def J15_Tcell_inflamatory_seeding(self):
+        self.J15a_Tcell_inflamatory_seeding()
+        self.J15b_Tcell_inflamatory_seeding()
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
@@ -452,9 +456,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
         self.J14_Tcell_clearance()
 
-        self.J15a_Tcell_inflamatory_seeding()
-
-        self.J15b_Tcell_inflamatory_seeding()
+        self.J15_Tcell_inflamatory_seeding()
 
         # TODO: NEEDs RESCALING
         # Tcell clearance
