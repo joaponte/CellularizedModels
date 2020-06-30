@@ -160,6 +160,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.shared_steppable_vars['Active_APCs'] = 0.0
         self.shared_steppable_vars['ODE_Killing'] = 0.0
         self.shared_steppable_vars['Contact_Killing'] = 0.0
+        self.virus_secretor = self.get_field_secretor("Virus")
 
     def seed_APC_cells(self):
         numberAPC = 0.0
@@ -193,7 +194,7 @@ class TarunsModelSteppable(SteppableBasePy):
         if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
             cell.type = self.D
 
-    def J3_EtoEv(self, cell, secretor):
+    def J3_EtoEv(self, cell):
         ## Transition from E to Ev
         # J3: E -> Ev; bE*V*E;
         if virus_infection_feedback == 1:
@@ -236,13 +237,13 @@ class TarunsModelSteppable(SteppableBasePy):
                 cell.type = self.D
             self.shared_steppable_vars['ODE_Killing'] += 1
 
-    def J7_virus_production(self, secretor):
+    def J7_virus_production(self):
         virus_production = 0.0
         for cell in self.cell_list_by_type(self.EV):
             ## Virus Production
             # J7: -> V; pV*Ev;
             pV = self.sbml.FullModel['pV'] * days_to_mcs / self.initial_uninfected * self.sbml.FullModel['E0']
-            release = secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
+            release = self.virus_secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
             virus_production += abs(release.tot_amount)
         return virus_production
 
@@ -254,7 +255,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.scalar_virus += virus_production - virus_decay
         self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
 
-    def J9_J10_APC_activation_deactivation(self, secretor):
+    def J9_J10_APC_activation_deactivation(self):
         tissue_apc = 0
         lymph_apc = 0
         node_apc = 0
@@ -278,7 +279,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 bD = (self.sbml.FullModel['bD'] * days_to_mcs) * (self.sbml.FullModel['D0'] * self.initial_uninfected /
                                                                   self.sbml.FullModel['E0'])
                 # V should be local instead of the total virus
-                V = secretor.amountSeenByCell(cell) * self.initial_uninfected
+                V = self.virus_secretor.amountSeenByCell(cell) * self.initial_uninfected
                 # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
 
                 p_tissue_2_lymph = bD * V
@@ -438,9 +439,9 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.E):
             self.J2_EtoD(cell)
 
-        secretor = self.get_field_secretor("Virus")
+        # self.virus_secretor = self.get_field_secretor("Virus")
         for cell in self.cell_list_by_type(self.E):
-            self.J3_EtoEv(cell, secretor)
+            self.J3_EtoEv(cell)
 
         for cell in self.cell_list_by_type(self.EV):
             self.J4_EvtoE(cell)
@@ -454,12 +455,12 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.EV):
             self.J6_EvtoD(cell, Tc)
 
-        virus_production = self.J7_virus_production(secretor)
+        virus_production = self.J7_virus_production()
 
         self.J8_virus_decay(virus_production)
         # activated_APC_count = 0
 
-        tissue_apc, lymph_apc, node_apc, just_moved_in_to_node = self.J9_J10_APC_activation_deactivation(secretor)
+        tissue_apc, lymph_apc, node_apc, just_moved_in_to_node = self.J9_J10_APC_activation_deactivation()
 
         self.J11_APC_travel_Lymph_Model_input(just_moved_in_to_node)
 
