@@ -134,12 +134,10 @@ dG=0.04;
 dM=0.2;
 
 // Initial Conditions
-E0= 5.0*10^5; 
-Tc0 = 1*10^3;
 E = E0;
 V = 10;
-Th1=100;
-Th2=100;
+Th1=10;
+Th2=10;
 '''
 
 lymph_node_string = '''
@@ -206,9 +204,10 @@ dG=0.04;
 dM=0.2;
 
 // Initial Conditions
-Tc0 = 1*10^3;
-Th1=100;
-Th2=100;
+E = E0;
+V = 10;
+Th1=10;
+Th2=10;
 // inputs
 Da=0.0; // kD*Da
 Ev = 0.0;
