@@ -36,8 +36,8 @@ J10: Da ->; dD*Da;
 
 J11: -> Dm; kD*Da;
 J12: Dm ->; dDm*Dm;
-J13: -> Tc; dc*Tc0;
-J14: Tc ->; dc*Tc;
+J13: -> Tc; dC*Tc0;
+J14: Tc ->; dC*Tc;
 J15: Dm -> Tc; rT1*Dm*Tc/(Dm+pT2) + Dm; 
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 
@@ -143,8 +143,8 @@ Th2=10;
 lymph_node_string = '''
 J11: -> Dm; 0.0*kD*Da; // MUST STAY SHUT OFF, DM IS AN INPUT Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
-J13: -> Tc; dc*Tc0;
-J14: Tc ->; dc*Tc;
+J13: -> Tc; dC*Tc0;
+J14: Tc ->; dC*Tc;
 J15: Dm -> Tc; (rT1*Dm*Tc/(Dm+pT2) + Dm);
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: -> Th1; sTh1*Th1/(1+Th2)^2;
@@ -435,7 +435,7 @@ class TarunsModelSteppable(SteppableBasePy):
         ## Tcell seeding
         # J13: -> Tc; dc*g*Tc0;
         # TODO: replace FullModel with LymphModel where appropriate
-        dc = self.sbml.FullModel['dc'] * days_to_mcs
+        dc = self.sbml.FullModel['dC'] * days_to_mcs
         g = self.sbml.FullModel['g']
         Tc0 = self.sbml.FullModel['Tc0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
         cell = False
@@ -456,7 +456,7 @@ class TarunsModelSteppable(SteppableBasePy):
         ## Clearance of Tcells
         # J14: Tc ->; dc*Tc;
         for cell in self.cell_list_by_type(self.TCELL):
-            dc = self.sbml.FullModel['dc'] * days_to_mcs
+            dc = self.sbml.FullModel['dC'] * days_to_mcs
             if dc > np.random.random():
                 cell.targetVolume = 0.0
 
