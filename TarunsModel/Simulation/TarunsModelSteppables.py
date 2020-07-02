@@ -56,7 +56,7 @@ J25: B ->; dB*B;
 J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
 
 J27: B -> Pss; pS*B;
-J28: B -> Psn: pS*B;
+J28: B -> Psn; pS*B;
 J29: B -> Pls; pL*B*Th2;
 J30: B -> Pln; pL*B*Th2;
 J31: Pss ->; dS*Pss;
@@ -161,7 +161,7 @@ J25: B ->; dB*B;
 J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
 
 J27: B -> Pss; pS*B;
-J28: B -> Psn: pS*B;
+J28: B -> Psn; pS*B;
 J29: B -> Pls; pL*B*Th2;
 J30: B -> Pln; pL*B*Th2;
 J31: Pss ->; dS*Pss;
