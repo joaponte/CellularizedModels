@@ -154,7 +154,40 @@ J20: Th1 ->; mTh1*Th1;
 J21: -> Th2; sTh2*Th2/(1+Th2);
 J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
 J23: Th2 ->; mTh*Th2;
+// new eqs
 
+J24: -> B; dB*B0;
+J25: B ->; dB*B;
+J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
+
+J27: B -> Pss; pS*B;
+J28: B -> Psn: pS*B;
+J29: B -> Pls; pL*B*Th2;
+J30: B -> Pln; pL*B*Th2;
+J31: Pss ->; dS*Pss;
+J32: Psn ->; dS*Psn;
+J33: Pls ->; dL*Pls;
+J34: Pln ->; dL*Pln;
+J35: Pss -> Pls; d*(1-v)*Pss;
+J36: Psn -> Pln; d*(1-v)*Psn;
+J37: Pss -> Pss; b*v*Pss;
+J38: Psn -> Psn; b*v*Psn;
+J39: Pls -> Pss; d*(1-v)*Pls;
+J40: Pln -> Psn; d*(1-v)*Pln; 
+
+J41: Pss -> sIgM; pAS*Pss;
+J42: Psn -> nIgM; pAS*Psn;
+J43: Pls -> sIgG; pAS*Pls;
+J44: Pln -> nIgG; pAS*Pln;
+J45: sIgM ->; dM*sIgM;
+J46: sIgG ->; dG*sIgG;
+J47: nIgM ->; dM*nIgM;
+J48: nIgG ->; dG*nIgG; 
+// feed back to tissue
+J49: Ev -> D; eE*Ev*nIgM;
+J50: Ev -> D; eE*Ev*nIgG;
+J51: V ->; eV*V*sIgM;
+J52: V ->; eV*V*sIgG;
 // Parameters
 dE=10^-3;
 E0=5*10^5;
