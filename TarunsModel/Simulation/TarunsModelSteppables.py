@@ -38,16 +38,52 @@ J11: -> Dm; kD*Da;
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm; // changed pT1 to rT1 
+J15: Dm -> Tc; rT1*Dm*Tc/(Dm+pT2) + Dm; // changed pT1 to rT1 
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2; // J17: -> Th1; sTh1*Th1/(1+Th2)^2;
-J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
-J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
-J20: Th1 ->; m*Th1;
-J21: -> Th2; s2*Th2/(1+Th2);
-J22: Th1 -> Th2; p2*((ro+Th1)*(Da+Dm)*Th1^2)/((1+Th2)*(1+Th2+Th1)) + Th1;
-J23: Th2 ->; m*Th2;
+J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm; // J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
+J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2); // J19: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
+J20: Th1 ->; m*Th1; // J20: Th1 ->; mTh1*Th1;
+J21: -> Th2; s2*Th2/(1+Th2); // 21: -> Th2; sTh2*Th2/(1+Th2);
+J22: Th1 -> Th2; p2*((ro+Th1)*(Da+Dm)*Th1^2)/((1+Th2)*(1+Th2+Th1)) + Th1; // J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
+J23: Th2 ->; m*Th2; // J23: Th2 ->; mTh*Th2;
+
+// new eqs
+
+J24: -> B; dB*B0;
+J25: B ->; dB*B;
+J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
+
+J27: B -> Pss; pS*B;
+J28: B -> Psn: pS*B;
+J29: B -> Pls; pL*B*Th2;
+J30: B -> Pln; pL*B*Th2;
+J31: Pss ->; dS*Pss;
+J32: Psn ->; dS*Psn;
+J33: Pls ->; dL*Pls;
+J34: Pln ->; dL*Pln;
+J35: Pss -> Pls; d*(1-v)*Pss;
+J36: Psn -> Pln; d*(1-v)*Psn;
+J37: Pss -> Pss; b*v*Pss;
+J38: Psn -> Psn; b*v*Psn;
+J39: Pls -> Pss; d*(1-v)*Pls;
+J40: Pln -> Psn; d*(1-v)*Pln; 
+
+J41: Pss -> sIgM; pAS*Pss;
+J42: Psn -> nIgM; pAS*Psn;
+J43: Pls -> sIgG; pAS*Pls;
+J44: Pln -> nIgG; pAS*Pln;
+J45: sIgM ->; dM*sIgM;
+J46: sIgG ->; dG*sIgG;
+J47: nIgM ->; dM*nIgM;
+J48: nIgG ->; dG*nIgG; 
+// feed back to tissue
+J49: Ev -> D; eE*Ev*nIgM;
+J50: Ev -> D; eE*Ev*nIgG;
+J51: V ->; eV*V*sIgM;
+J52: V ->; eV*V*sIgG;
+
 
 // Parameters
 aE=5.0*10^-2; 
@@ -65,7 +101,7 @@ kD=0.5;
 tD=10; 
 dDm=0.5;
 dc=1.5*10^-3; 
-pT1=2.7; 
+rT1=2.7; 
 pT2=600; 
 dT1=2; 
 dT2=1;
@@ -91,7 +127,7 @@ J11: -> Dm; 0.0*kD*Da; // MUST STAY SHUT OFF, DM IS AN INPUT Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; (pT1*Dm*Tc/(Dm+pT2) + Dm);
+J15: Dm -> Tc; (rT1*Dm*Tc/(Dm+pT2) + Dm);
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
 J18: Dm -> Th1; ( p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm);
@@ -117,7 +153,7 @@ kD=0.5;
 tD=10; 
 dDm=0.5;
 dc=1.5*10^-3; 
-pT1=2.7; 
+rT1=2.7; 
 pT2=600; 
 dT1=2; 
 dT2=1;
@@ -376,16 +412,16 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def J15b_Tcell_inflamatory_seeding(self):
         ## Tcell seeding
-        # J15b: Dm -> Tc; pT1 * Dm * Tc / (Dm + pT2)
+        # J15b: Dm -> Tc; rT1 * Dm * Tc / (Dm + pT2)
         # TODO: replace FullModel with LymphModel where appropriate
 
-        pT1 = self.sbml.FullModel['pT1'] * days_to_mcs
+        rT1 = self.sbml.FullModel['rT1'] * days_to_mcs
         Dm = self.sbml.FullModel['Dm'] / self.sbml.FullModel['E0'] * self.initial_uninfected
         Tc = self.sbml.FullModel['Tc'] / self.sbml.FullModel['E0'] * self.initial_uninfected
         pT2 = self.sbml.FullModel['pT2'] / self.sbml.FullModel['E0'] * self.initial_uninfected
         g = self.sbml.FullModel['g']
-        if g * pT1 * Dm * Tc / (Dm + pT2) > np.random.random():
-            cells_to_seed = max(1, round(g * pT1 * Dm * Tc / (Dm + pT2)))
+        if g * rT1 * Dm * Tc / (Dm + pT2) > np.random.random():
+            cells_to_seed = max(1, round(g * rT1 * Dm * Tc / (Dm + pT2)))
             for i in range(cells_to_seed):
                 cell = False
                 while not cell:
