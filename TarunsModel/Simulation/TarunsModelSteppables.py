@@ -132,6 +132,7 @@ pAS=0.2;
 pAL=0.3;
 dG=0.04;
 dM=0.2;
+pT2=600;
 
 // Initial Conditions
 E = E0;
@@ -235,6 +236,7 @@ pAS=0.2;
 pAL=0.3;
 dG=0.04;
 dM=0.2;
+pT2=600;
 
 // Initial Conditions
 E = E0;
