@@ -1,7 +1,7 @@
 from cc3d.core.PySteppables import *
 import numpy as np
 
-min_to_mcs = 60.0  # min/mcs
+min_to_mcs = 60.0   # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 15.0
 
@@ -16,6 +16,8 @@ plot_Dm = True
 
 plot_Contact_Cytotoxicity = True
 
+# TODO: add graphs for all state variables
+
 model_string = '''
 // Equations
 J1: D -> E; dE*D;
@@ -26,15 +28,20 @@ J5: Ev -> D; dE*Ev;
 J6: Ev -> D; kE*g*Ev*Tc;
 J7: -> V; pV*Ev;
 J8: V ->; cV*V;
+
 J9: -> Da; bD*V*(D0-Da);
 J10: Da ->; dD*Da;
+
+// bellow is lymph
+
 J11: -> Dm; kD*Da;
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dc*Tc0;
 J14: Tc ->; dc*Tc;
-J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm;
+J15: Dm -> Tc; pT1*Dm*Tc/(Dm+pT2) + Dm; // changed pT1 to rT1 
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
-J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2;
+
+J17: Th2 -> Th1; (s1*Th1)/(1+Th2)^2 +Th2; // J17: -> Th1; sTh1*Th1/(1+Th2)^2;
 J18: Dm -> Th1; p1*((Da+Dm)*Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; d1*((Da+Dm)*Th1^3)/(1+Th2);
 J20: Th1 ->; m*Th1;
