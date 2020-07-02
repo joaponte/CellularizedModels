@@ -44,7 +44,7 @@ J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: -> Th1; sTh1*Th1/(1+Th2)^2;
 J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
-J20: Th1 ->; mTh1*Th1;
+J20: Th1 ->; mTh*Th1;
 J21: -> Th2; sTh2*Th2/(1+Th2);
 J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
 J23: Th2 ->; mTh*Th2;
@@ -151,7 +151,7 @@ J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: -> Th1; sTh1*Th1/(1+Th2)^2;
 J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
-J20: Th1 ->; mTh1*Th1;
+J20: Th1 ->; mTh*Th1;
 J21: -> Th2; sTh2*Th2/(1+Th2);
 J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
 J23: Th2 ->; mTh*Th2;
