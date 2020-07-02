@@ -133,9 +133,7 @@ pAL=0.3;
 dG=0.04;
 dM=0.2;
 pT2=600;
-
-// MISSING PARAM PLACEHOLDER 
-v = 0.01
+v = 0.5
 // Initial Conditions
 E = E0;
 V = 10;
@@ -239,8 +237,7 @@ pAL=0.3;
 dG=0.04;
 dM=0.2;
 pT2=600;
-// MISSING PARAM PLACEHOLDER 
-v = 0.01
+v = 0.5;
 
 // Initial Conditions
 E = E0;
