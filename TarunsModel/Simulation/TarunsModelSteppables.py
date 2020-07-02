@@ -45,7 +45,7 @@ J17: -> Th1; sTh1*Th1/(1+Th2)^2;
 J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
 J20: Th1 ->; mTh1*Th1;
-J21: -> Th2; s2*Th2/(1+Th2); // 21: -> Th2; sTh2*Th2/(1+Th2);
+J21: -> Th2; sTh2*Th2/(1+Th2);
 J22: Th1 -> Th2; p2*((ro+Th1)*(Da+Dm)*Th1^2)/((1+Th2)*(1+Th2+Th1)) + Th1; // J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
 J23: Th2 ->; mTh*Th2;
 
@@ -109,7 +109,7 @@ sTh1=1.1;
 pTh1=2; 
 dTh1=0.1; 
 mTh1=0.25;
-s2=0.1; 
+sTh2=0.1; 
 p2=0.01; 
 ro=0.5;
 
@@ -133,7 +133,7 @@ J17: -> Th1; sTh1*Th1/(1+Th2)^2;
 J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
 J19: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
 J20: Th1 ->; mTh1*Th1;
-J21: -> Th2; s2*Th2/(1+Th2);
+J21: -> Th2; sTh2*Th2/(1+Th2);
 J22: Th1 -> Th2; p2*((ro+Th1)*(Da+Dm)*Th1^2)/((1+Th2)*(1+Th2+Th1)) + Th1;
 J23: Th2 ->; mTh*Th2;
 
@@ -161,7 +161,7 @@ sTh1=1.1;
 pTh1=2; 
 dTh1=0.1; 
 mTh1=0.25;
-s2=0.1; 
+sTh2=0.1; 
 p2=0.01; 
 ro=0.5;
 // Initial Conditions
