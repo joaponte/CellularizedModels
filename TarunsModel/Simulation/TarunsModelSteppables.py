@@ -1,9 +1,9 @@
 from cc3d.core.PySteppables import *
 import numpy as np
 
-min_to_mcs = 60.0   # min/mcs
+min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 15.0
+days_to_simulate = 30.0
 
 virus_infection_feedback = 1
 contact_cytotoxicity = True
@@ -76,19 +76,19 @@ J38a:  -> Pln; b*v*Pln;
 J39: Pls -> Pss; d*(1-v)*Pls;
 J40: Pln -> Psn; d*(1-v)*Pln; 
 
-J41: Pss -> sIgM; pAS*Pss;
-J42: Psn -> nIgM; pAS*Psn;
-J43: Pls -> sIgG; pAS*Pls;
-J44: Pln -> nIgG; pAS*Pln;
+J41:  -> sIgM; pAS*Pss;
+J42:  -> nIgM; pAS*Psn;
+J43:  -> sIgG; pAS*Pls;
+J44:  -> nIgG; pAS*Pln;
 J45: sIgM ->; dM*sIgM;
 J46: sIgG ->; dG*sIgG;
 J47: nIgM ->; dM*nIgM;
 J48: nIgG ->; dG*nIgG; 
 // feed back to tissue
-J49: Ev -> D; eE*Ev*nIgM;
+J49: Ev -> D; eE*Ev*nIgM; // reevaluate these set (49-52) due to anti-bodies being consumed 
 J50: Ev -> D; eE*Ev*nIgG;
-J51: V ->; eV*V*sIgM;
-J52: V ->; eV*V*sIgG;
+J51: V + sIgM ->; eV*V*sIgM;
+J52: V + sIgG ->; eV*V*sIgG;
 
 
 // Parameters
@@ -99,8 +99,8 @@ aE=5.0*10^-2;
 V0=10;
 pV=19;
 cV=1;
-kE=1.19*10^-3 / 900; // 900 rescaling for non-0 T cell pop in tissue
-g=0.15 * 900;
+kE=1.19*10^-3 / 9; // 900 rescaling for non-0 T cell pop in tissue
+g=0.15 * 9;
 tC=0.5;// not included in the model
 eE=0.05;
 eV=16;
@@ -263,7 +263,6 @@ Ev = 0.0;
 // ck1
 // ck2
 '''
-
 
 
 class TarunsModelSteppable(SteppableBasePy):
@@ -703,7 +702,25 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win6.add_plot("ODECC", style='Dots', color='red', size=5)
             self.plot_win6.add_plot("CC3DCC", style='Lines', color='red', size=5)
 
+        self.plot_win7 = self.add_new_plot_window(title='Anti-Bodies',
+                                                  x_axis_title='Time (days)',
+                                                  y_axis_title='Conc', x_scale_type='linear',
+                                                  y_scale_type='linear',
+                                                  grid=False)
+
+        self.plot_win7.add_plot("nIgM SBML", style='Dots', color='red', size=5)
+        self.plot_win7.add_plot("nIgG SBML", style='Lines', color='blue', size=5)
+
+        self.plot_win7.add_plot("sIgM SBML", style='Lines', color='yellow', size=5)
+        self.plot_win7.add_plot("sIgG SBML", style='Lines', color='magenta', size=5)
+
     def step(self, mcs):
+
+        # self.plot_win7.add_data_point("nIgM SBML", mcs * days_to_mcs, self.sbml.FullModel['nIgM'])
+        # self.plot_win7.add_data_point("nIgG SBML", mcs * days_to_mcs, self.sbml.FullModel['nIgG'])
+        self.plot_win7.add_data_point("sIgM SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgM'])
+        self.plot_win7.add_data_point("sIgG SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgG'])
+
         if plot_Epithelial_cells:
             self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,
                                          self.sbml.FullModel['E'] / self.sbml.FullModel['E0'])
