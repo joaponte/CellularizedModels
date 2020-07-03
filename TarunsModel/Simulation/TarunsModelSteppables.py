@@ -70,7 +70,9 @@ J34: Pln ->; dL*Pln;
 J35: Pss -> Pls; d*(1-v)*Pss;
 J36: Psn -> Pln; d*(1-v)*Psn;
 J37:  -> Pss; b*v*Pss;
+J37a:  -> Pls; b*v*Pls;
 J38:  -> Psn; b*v*Psn;
+J38a:  -> Pln; b*v*Pln;
 J39: Pls -> Pss; d*(1-v)*Pls;
 J40: Pln -> Psn; d*(1-v)*Pln; 
 
