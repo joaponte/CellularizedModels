@@ -38,22 +38,26 @@ J11: -> Dm; kD*Da;
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dC*Tc0;
 J14: Tc ->; dC*Tc;
-J15: Dm -> Tc; rT1*Dm*Tc/(Dm+pT2) + Dm; 
+//# J15: Dm -> Tc; rT1*Dm*Tc/(Dm+pT2) + Dm; 
+J15:  -> Tc; rT1*Dm*Tc/(Dm+pT2); 
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 
 J17: -> Th1; sTh1*Th1/(1+Th2)^2;
-J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
+//J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
+J18:  -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2;
 J19: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
 J20: Th1 ->; mTh*Th1;
 J21: -> Th2; sTh2*Th2/(1+Th2);
-J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
+# J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
+J22:  -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) 
 J23: Th2 ->; mTh*Th2;
 
 // new eqs
 
 J24: -> B; dB*B0;
 J25: B ->; dB*B;
-J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
+//J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
+J26:  -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
 
 J27: B -> Pss; pS*B;
 J28: B -> Psn; pS*B;
@@ -184,11 +188,13 @@ J45: sIgM ->; dM*sIgM;
 J46: sIgG ->; dG*sIgG;
 J47: nIgM ->; dM*nIgM;
 J48: nIgG ->; dG*nIgG; 
+
 // feed back to tissue
 J49: Ev -> D; eE*Ev*nIgM;
 J50: Ev -> D; eE*Ev*nIgG;
 J51: V ->; eV*V*sIgM;
 J52: V ->; eV*V*sIgG;
+
 // Parameters
 dE=10^-3;
 E0=5*10^5;
@@ -255,6 +261,7 @@ Ev = 0.0;
 // ck1
 // ck2
 '''
+
 
 
 class TarunsModelSteppable(SteppableBasePy):
