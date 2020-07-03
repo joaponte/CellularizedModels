@@ -263,7 +263,7 @@ class CellularModelSteppable(SteppableBasePy):
         k21 = self.sbml.IFNModel['k21'] * hours_to_mcs
         for cell in self.cell_list_by_type(self.I1,self.I2):
             intracellularIFN = cell.sbml.IModel['IFN']
-            p = k21 * intracellularIFN #/ 3.0 #rescale?
+            p = k21 * intracellularIFN / 3.0 #rescale?
             release = secretorIFN.secreteInsideCellTotalCount(cell, p / cell.volume)
             self.ExtracellularIFN += release.tot_amount
         # E3a: IFNe -> ; t2*IFNe ;
