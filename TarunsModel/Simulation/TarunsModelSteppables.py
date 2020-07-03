@@ -769,5 +769,6 @@ class PlotsSteppable(SteppableBasePy):
                                           self.sbml.LymphModel['Dm'] / self.sbml.FullModel['E0'])
 
         if contact_cytotoxicity and plot_Contact_Cytotoxicity:
-            self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.shared_steppable_vars['ODE_Killing'])
+            self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.sbml.FullModel['J6'])
+            # self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.shared_steppable_vars['ODE_Killing'])
             self.plot_win6.add_data_point("CC3DCC", mcs * days_to_mcs, self.shared_steppable_vars['Contact_Killing'])
