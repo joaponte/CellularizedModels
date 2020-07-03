@@ -69,8 +69,8 @@ J33: Pls ->; dL*Pls;
 J34: Pln ->; dL*Pln;
 J35: Pss -> Pls; d*(1-v)*Pss;
 J36: Psn -> Pln; d*(1-v)*Psn;
-J37: Pss -> Pss; b*v*Pss;
-J38: Psn -> Psn; b*v*Psn;
+J37:  -> Pss; b*v*Pss;
+J38:  -> Psn; b*v*Psn;
 J39: Pls -> Pss; d*(1-v)*Pls;
 J40: Pln -> Psn; d*(1-v)*Pln; 
 
