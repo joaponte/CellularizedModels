@@ -18,6 +18,10 @@ plot_Dm = True
 
 plot_Contact_Cytotoxicity = True
 
+plot_viral_antibodies = True
+
+plot_infected_antibodies = True
+
 # TODO: add graphs for all state variables
 
 model_string = '''
@@ -389,8 +393,6 @@ class TarunsModelSteppable(SteppableBasePy):
         cV = self.sbml.FullModel['cV'] * days_to_mcs
         virus_decay = cV * self.scalar_virus
 
-
-
     def J9_J10_APC_activation_deactivation(self):
         tissue_apc = 0
         lymph_apc = 0
@@ -690,7 +692,7 @@ class PlotsSteppable(SteppableBasePy):
                                                      x_axis_title='Time (days)',
                                                      y_axis_title='Fraction of Cells', x_scale_type='linear',
                                                      y_scale_type='linear',
-                                                     grid=False)
+                                                     grid=True)
 
             self.plot_win.add_plot("ODEE", style='Dots', color='blue', size=5)
             self.plot_win.add_plot("ODEEv", style='Dots', color='yellow', size=5)
@@ -703,7 +705,7 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win2 = self.add_new_plot_window(title='Virus',
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='Virus', x_scale_type='linear', y_scale_type='log',
-                                                      grid=False)
+                                                      grid=True)
 
             self.plot_win2.add_plot("ODEV", style='Dots', color='red', size=5)
             self.plot_win2.add_plot("CC3DV", style='Lines', color='red', size=5)
@@ -713,7 +715,7 @@ class PlotsSteppable(SteppableBasePy):
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='Number of Cells', x_scale_type='linear',
                                                       y_scale_type='linear',
-                                                      grid=False)
+                                                      grid=True)
 
             self.plot_win3.add_plot("ODETc", style='Dots', color='red', size=5)
             self.plot_win3.add_plot("CC3DTc", style='Lines', color='red', size=5)
@@ -723,7 +725,7 @@ class PlotsSteppable(SteppableBasePy):
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='Number of Cells', x_scale_type='linear',
                                                       y_scale_type='linear',
-                                                      grid=False)
+                                                      grid=True)
 
             self.plot_win4.add_plot("ODEAPC", style='Dots', color='red', size=5)
             self.plot_win4.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
@@ -734,41 +736,45 @@ class PlotsSteppable(SteppableBasePy):
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='Number of Cells', x_scale_type='linear',
                                                       y_scale_type='linear',
-                                                      grid=False)
+                                                      grid=True)
 
             self.plot_win5.add_plot("ODEAPC", style='Dots', color='red', size=5)
             # self.plot_win5.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
 
             self.plot_win5.add_plot("CC3DAPC", style='Lines', color='red', size=5)
 
-        if (contact_cytotoxicity == True) and (plot_Contact_Cytotoxicity == True):
+        if contact_cytotoxicity and plot_Contact_Cytotoxicity:
             self.plot_win6 = self.add_new_plot_window(title='Contact Cytotoxicity',
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='Number of Cells', x_scale_type='linear',
                                                       y_scale_type='linear',
-                                                      grid=False)
+                                                      grid=True)
 
             self.plot_win6.add_plot("ODECC", style='Dots', color='red', size=5)
             self.plot_win6.add_plot("CC3DCC", style='Lines', color='red', size=5)
+        if plot_viral_antibodies:
+            self.plot_win7 = self.add_new_plot_window(title='Viral Anti-Bodies',
+                                                      x_axis_title='Time (days)',
+                                                      y_axis_title='Conc', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=True)
 
-        self.plot_win7 = self.add_new_plot_window(title='Anti-Bodies',
-                                                  x_axis_title='Time (days)',
-                                                  y_axis_title='Conc', x_scale_type='linear',
-                                                  y_scale_type='linear',
-                                                  grid=False)
+            self.plot_win7.add_plot("sIgM control SBML", style='Lines', color='yellow', size=5)
+            self.plot_win7.add_plot("sIgG control SBML", style='Lines', color='magenta', size=5)
 
-        self.plot_win7.add_plot("nIgM SBML", style='Dots', color='red', size=5)
-        self.plot_win7.add_plot("nIgG SBML", style='Lines', color='blue', size=5)
-
-        self.plot_win7.add_plot("sIgM SBML", style='Lines', color='yellow', size=5)
-        self.plot_win7.add_plot("sIgG SBML", style='Lines', color='magenta', size=5)
+        if plot_infected_antibodies:
+            self.plot_win8 = self.add_new_plot_window(title='Infected Cell Anti-Bodies',
+                                                      x_axis_title='Time (days)',
+                                                      y_axis_title='Conc', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=True)
+            self.plot_win8.add_plot("nIgM control SBML", style='Lines', color='yellow', size=5)
+            self.plot_win8.add_plot("nIgG control SBML", style='Lines', color='magenta', size=5)
 
     def step(self, mcs):
 
-        # self.plot_win7.add_data_point("nIgM SBML", mcs * days_to_mcs, self.sbml.FullModel['nIgM'])
-        # self.plot_win7.add_data_point("nIgG SBML", mcs * days_to_mcs, self.sbml.FullModel['nIgG'])
-        self.plot_win7.add_data_point("sIgM SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgM'])
-        self.plot_win7.add_data_point("sIgG SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgG'])
+
+
 
         if plot_Epithelial_cells:
             self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,
@@ -821,3 +827,12 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.sbml.FullModel['J6'])
             # self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.shared_steppable_vars['ODE_Killing'])
             self.plot_win6.add_data_point("CC3DCC", mcs * days_to_mcs, self.shared_steppable_vars['Contact_Killing'])
+
+        if plot_viral_antibodies:
+            self.plot_win7.add_data_point("sIgM control SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgM'])
+            self.plot_win7.add_data_point("sIgG control SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgG'])
+        if plot_infected_antibodies:
+            self.plot_win8.add_data_point("nIgM control SBML", mcs * days_to_mcs, self.sbml.FullModel['nIgM'])
+            self.plot_win8.add_data_point("nIgG control SBML", mcs * days_to_mcs, self.sbml.FullModel['nIgG'])
+
+
