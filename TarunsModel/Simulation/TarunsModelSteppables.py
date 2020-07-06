@@ -382,13 +382,14 @@ class TarunsModelSteppable(SteppableBasePy):
             virus_production += abs(release.tot_amount)
         return virus_production
 
-    def J8_virus_decay(self, virus_production):
+    def J8_virus_decay(self):
+        # no longer used, now update_scalar_virus does all the work
         ## Virus Decay
         # J8: V ->; cV*V;
         cV = self.sbml.FullModel['cV'] * days_to_mcs
         virus_decay = cV * self.scalar_virus
-        self.scalar_virus += virus_production - virus_decay
-        self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
+
+
 
     def J9_J10_APC_activation_deactivation(self):
         tissue_apc = 0
@@ -567,12 +568,19 @@ class TarunsModelSteppable(SteppableBasePy):
     def J51_J52_update_virus_decay(self):
 
         gamma_sIgM = self.J51_virus_decay_from_sIgM()
-
+        gamma_sIgG = self.J52_virus_decay_from_sIgG()
         # print((self.sbml.FullModel['cV'] + gamma_sIgM) * days_to_mcs)
         self.get_xml_element('virus_decay').cdata = min(.999,
-                                                        (self.sbml.FullModel['cV'] + gamma_sIgM) * days_to_mcs)
-    def update_scalar_virus(self):
-        pass
+                                                        (self.sbml.FullModel['cV'] + gamma_sIgM + gamma_sIgG) *
+                                                        days_to_mcs)
+
+        return min(.999, (self.sbml.FullModel['cV'] + gamma_sIgM + gamma_sIgG) * days_to_mcs)
+
+    def update_scalar_virus(self, virus_production, current_gamma):
+        # does the work that J8 used to do
+        virus_decay = current_gamma * self.scalar_virus
+        self.scalar_virus += virus_production - virus_decay
+        self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
 
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
@@ -624,7 +632,8 @@ class TarunsModelSteppable(SteppableBasePy):
 
         virus_production = self.J7_virus_production()
 
-        self.J8_virus_decay(virus_production)
+        current_gamma = self.J51_J52_update_virus_decay()
+        self.update_scalar_virus(virus_production, current_gamma)
         # activated_APC_count = 0
 
         tissue_apc, lymph_apc, node_apc, just_moved_in_to_node = self.J9_J10_APC_activation_deactivation()
@@ -638,8 +647,6 @@ class TarunsModelSteppable(SteppableBasePy):
         self.J15_Tcell_inflamatory_seeding()
 
         self.J16_Tcell_clearance()
-
-        self.J51_J52_update_virus_decay()
 
         ## Tcell Contact Killing
         for cell in self.cell_list_by_type(self.TCELL):
