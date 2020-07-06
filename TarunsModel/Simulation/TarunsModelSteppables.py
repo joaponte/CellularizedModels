@@ -15,12 +15,10 @@ plot_Virus = True
 plot_Tcells = True
 plot_APC = True
 plot_Dm = True
-
 plot_Contact_Cytotoxicity = True
-
 plot_viral_antibodies = True
-
 plot_infected_antibodies = True
+plot_current_virus_decay = True
 
 # TODO: add graphs for all state variables
 
@@ -571,7 +569,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
         gamma_sIgM = self.J51_virus_decay_from_sIgM()
         gamma_sIgG = self.J52_virus_decay_from_sIgG()
-        # print((self.sbml.FullModel['cV'] + gamma_sIgM) * days_to_mcs)
+        
         self.get_xml_element('virus_decay').cdata = min(.999,
                                                         (self.sbml.FullModel['cV'] + gamma_sIgM + gamma_sIgG) *
                                                         days_to_mcs)
@@ -756,25 +754,36 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win7 = self.add_new_plot_window(title='Viral Anti-Bodies',
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='Conc', x_scale_type='linear',
-                                                      y_scale_type='linear',
+                                                      y_scale_type='log',
                                                       grid=True)
 
             self.plot_win7.add_plot("sIgM control SBML", style='Lines', color='yellow', size=5)
             self.plot_win7.add_plot("sIgG control SBML", style='Lines', color='magenta', size=5)
 
+            self.plot_win7.add_plot("sIgM CC3D SBML", style='Dots', color='yellow', size=5)
+            self.plot_win7.add_plot("sIgG CC3D SBML", style='Dots', color='magenta', size=5)
+
         if plot_infected_antibodies:
             self.plot_win8 = self.add_new_plot_window(title='Infected Cell Anti-Bodies',
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='Conc', x_scale_type='linear',
-                                                      y_scale_type='linear',
+                                                      y_scale_type='log',
                                                       grid=True)
             self.plot_win8.add_plot("nIgM control SBML", style='Lines', color='yellow', size=5)
             self.plot_win8.add_plot("nIgG control SBML", style='Lines', color='magenta', size=5)
 
+            self.plot_win8.add_plot("nIgM CC3D SBML", style='Dots', color='yellow', size=5)
+            self.plot_win8.add_plot("nIgG CC3D SBML", style='Dots', color='magenta', size=5)
+        if plot_current_virus_decay:
+            self.plot_win9 = self.add_new_plot_window(title='effective virus decay',
+                                                      x_axis_title='Time (days)',
+                                                      y_axis_title='Conc', x_scale_type='linear',
+                                                      y_scale_type='linear',
+                                                      grid=True)
+            self.plot_win9.add_plot('ODE effective decay', style='Lines', color='yellow', size=5)
+            self.plot_win9.add_plot('CC3D effective decay', style='Dots', color='red', size=5)
+
     def step(self, mcs):
-
-
-
 
         if plot_Epithelial_cells:
             self.plot_win.add_data_point("ODEE", mcs * days_to_mcs,
@@ -831,8 +840,19 @@ class PlotsSteppable(SteppableBasePy):
         if plot_viral_antibodies:
             self.plot_win7.add_data_point("sIgM control SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgM'])
             self.plot_win7.add_data_point("sIgG control SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgG'])
+
+            self.plot_win7.add_data_point("sIgM CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['sIgM'])
+            self.plot_win7.add_data_point("sIgG CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['sIgG'])
         if plot_infected_antibodies:
             self.plot_win8.add_data_point("nIgM control SBML", mcs * days_to_mcs, self.sbml.FullModel['nIgM'])
             self.plot_win8.add_data_point("nIgG control SBML", mcs * days_to_mcs, self.sbml.FullModel['nIgG'])
 
-
+            self.plot_win8.add_data_point("nIgM CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['nIgM'])
+            self.plot_win8.add_data_point("nIgG CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['nIgG'])
+        if plot_current_virus_decay:
+            self.plot_win9.add_data_point('ODE effective decay', mcs * days_to_mcs,
+                                          (self.sbml.FullModel['cV'] + self.sbml.FullModel['sIgM'] +
+                                           self.sbml.FullModel['nIgM']) *
+                                          self.sbml.FullModel['eV'] * days_to_mcs)
+            self.plot_win9.add_data_point('CC3D effective decay', mcs * days_to_mcs,
+                                          self.get_xml_element('virus_decay').cdata)
