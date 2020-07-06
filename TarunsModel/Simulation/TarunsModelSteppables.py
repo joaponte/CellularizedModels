@@ -5,7 +5,7 @@ min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 30.0
 
-virus_infection_feedback = 1
+virus_infection_feedback = 2
 contact_cytotoxicity = True
 
 plot_Epithelial_cells = True
@@ -338,7 +338,7 @@ class TarunsModelSteppable(SteppableBasePy):
             V = self.scalar_virus
         elif virus_infection_feedback == 3:
             bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
-            V = secretor.amountSeenByCell(cell)
+            V = self.virus_secretor.amountSeenByCell(cell)
         else:  # in case of things breaking have a default
             bE = self.sbml.FullModel['bE'] * days_to_mcs
             V = self.sbml.FullModel['V']
@@ -541,10 +541,31 @@ class TarunsModelSteppable(SteppableBasePy):
             if dT1 * Ev / (Ev + dT2) > np.random.random():
                 cell.targetVolume = 0.0
 
+    # J51: V ->; eV * V * sIgM;
+    # J52: V ->; eV * V * sIgG;
+
+    def J51_virus_decay_from_sIgM(self):
+
+        if virus_infection_feedback == 1:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs
+            V = self.sbml.FullModel['V']
+        elif virus_infection_feedback == 2:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs
+            V = self.scalar_virus
+        elif virus_infection_feedback == 3:
+            bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
+            # V = self.virus_secretor.amountSeenByCell(cell)
+        else:  # in case of things breaking have a default
+            bE = self.sbml.FullModel['bE'] * days_to_mcs
+            V = self.sbml.FullModel['V']
+
+        pass
+
     def lymph_model_input_from_full(self, Ev, Da):
         Ev *= self.sbml.FullModel['E0'] / self.initial_uninfected
         self.sbml.LymphModel['Ev'] = Ev
         self.sbml.LymphModel['Da'] = Da
+        self.sbml.LymphModel['V'] = self.scalar_virus
 
     def contact_killing(self, cell):
 
