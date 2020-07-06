@@ -87,8 +87,10 @@ J48: nIgG ->; dG*nIgG;
 // feed back to tissue
 J49: Ev -> D; eE*Ev*nIgM; // reevaluate these set (49-52) due to anti-bodies being consumed 
 J50: Ev -> D; eE*Ev*nIgG;
-J51: V + sIgM ->; eV*V*sIgM;
-J52: V + sIgG ->; eV*V*sIgG;
+J51: V  ->; eV*V*sIgM;
+//J51: V + sIgM ->; eV*V*sIgM;
+J52: V  ->; eV*V*sIgG;
+//J52: V + sIgG ->; eV*V*sIgG;
 
 
 // Parameters
@@ -152,20 +154,24 @@ J11: -> Dm; 0.0*kD*Da; // MUST STAY SHUT OFF, DM IS AN INPUT Dm are apc in lymph
 J12: Dm ->; dDm*Dm;
 J13: -> Tc; dC*Tc0;
 J14: Tc ->; dC*Tc;
-J15: Dm -> Tc; (rT1*Dm*Tc/(Dm+pT2) + Dm);
+// J15: Dm -> Tc; (rT1*Dm*Tc/(Dm+pT2) + Dm);
+J15:  -> Tc; rT1*Dm*Tc/(Dm+pT2); 
 J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
 J17: -> Th1; sTh1*Th1/(1+Th2)^2;
-J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
+//J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
+J18:  -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2;
 J19: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
 J20: Th1 ->; mTh*Th1;
 J21: -> Th2; sTh2*Th2/(1+Th2);
-J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
+//J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
+J22:  -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) 
 J23: Th2 ->; mTh*Th2;
 // new eqs
 
 J24: -> B; dB*B0;
 J25: B ->; dB*B;
-J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
+//J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
+J26:  -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
 
 J27: B -> Pss; pS*B;
 J28: B -> Psn; pS*B;
@@ -182,10 +188,10 @@ J38: Psn -> Psn; b*v*Psn;
 J39: Pls -> Pss; d*(1-v)*Pls;
 J40: Pln -> Psn; d*(1-v)*Pln; 
 
-J41: Pss -> sIgM; pAS*Pss;
-J42: Psn -> nIgM; pAS*Psn;
-J43: Pls -> sIgG; pAS*Pls;
-J44: Pln -> nIgG; pAS*Pln;
+J41:  -> sIgM; pAS*Pss;
+J42:  -> nIgM; pAS*Psn;
+J43:  -> sIgG; pAS*Pls;
+J44:  -> nIgG; pAS*Pln;
 J45: sIgM ->; dM*sIgM;
 J46: sIgG ->; dG*sIgG;
 J47: nIgM ->; dM*nIgM;
