@@ -5,7 +5,9 @@ min_to_mcs = 60.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 30.0
 
-virus_infection_feedback = 2
+virus_infection_feedback = 1
+use_LymphModel_outputs = False
+
 contact_cytotoxicity = True
 
 plot_Epithelial_cells = True
@@ -541,24 +543,35 @@ class TarunsModelSteppable(SteppableBasePy):
             if dT1 * Ev / (Ev + dT2) > np.random.random():
                 cell.targetVolume = 0.0
 
-    # J51: V ->; eV * V * sIgM;
-    # J52: V ->; eV * V * sIgG;
-
     def J51_virus_decay_from_sIgM(self):
+        # J51: V ->; eV * V * sIgM;
 
-        if virus_infection_feedback == 1:
-            bE = self.sbml.FullModel['bE'] * days_to_mcs
-            V = self.sbml.FullModel['V']
-        elif virus_infection_feedback == 2:
-            bE = self.sbml.FullModel['bE'] * days_to_mcs
-            V = self.scalar_virus
-        elif virus_infection_feedback == 3:
-            bE = self.sbml.FullModel['bE'] * days_to_mcs * self.initial_uninfected
-            # V = self.virus_secretor.amountSeenByCell(cell)
-        else:  # in case of things breaking have a default
-            bE = self.sbml.FullModel['bE'] * days_to_mcs
-            V = self.sbml.FullModel['V']
+        if use_LymphModel_outputs:
+            sIgM = self.sbml.LymphModel['sIgM']
+        else:
+            sIgM = self.sbml.FullModel['sIgM']
+        eV = self.sbml.FullModel['eV']
+        gamma_sIgM = eV * sIgM
+        return gamma_sIgM
 
+    def J52_virus_decay_from_sIgG(self):
+        # J52: V ->; eV * V * sIgG;
+        if use_LymphModel_outputs:
+            sIgG = self.sbml.LymphModel['sIgG']
+        else:
+            sIgG = self.sbml.FullModel['sIgG']
+        eV = self.sbml.FullModel['eV']
+        gamma_sIgG = eV * sIgG
+        return gamma_sIgG
+
+    def J51_J52_update_virus_decay(self):
+
+        gamma_sIgM = self.J51_virus_decay_from_sIgM()
+
+        # print((self.sbml.FullModel['cV'] + gamma_sIgM) * days_to_mcs)
+        self.get_xml_element('virus_decay').cdata = min(.999,
+                                                        (self.sbml.FullModel['cV'] + gamma_sIgM) * days_to_mcs)
+    def update_scalar_virus(self):
         pass
 
     def lymph_model_input_from_full(self, Ev, Da):
@@ -625,6 +638,8 @@ class TarunsModelSteppable(SteppableBasePy):
         self.J15_Tcell_inflamatory_seeding()
 
         self.J16_Tcell_clearance()
+
+        self.J51_J52_update_virus_decay()
 
         ## Tcell Contact Killing
         for cell in self.cell_list_by_type(self.TCELL):
