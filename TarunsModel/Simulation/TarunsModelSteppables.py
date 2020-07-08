@@ -292,6 +292,8 @@ class TarunsModelSteppable(SteppableBasePy):
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
+        lattice_factor = .08
+        self.max_virus_gamma = .25*float(self.get_xml_element("virus_D").cdata)/lattice_factor
         self.scalar_virus = self.sbml.FullModel['V']
         self.shared_steppable_vars['CC3D_lymph_APC_count'] = 0.0
         self.shared_steppable_vars['Active_APCs'] = 0.0
@@ -569,12 +571,12 @@ class TarunsModelSteppable(SteppableBasePy):
 
         gamma_sIgM = self.J51_virus_decay_from_sIgM()
         gamma_sIgG = self.J52_virus_decay_from_sIgG()
-        
-        self.get_xml_element('virus_decay').cdata = min(.999,
-                                                        (self.sbml.FullModel['cV'] + gamma_sIgM + gamma_sIgG) *
-                                                        days_to_mcs)
 
-        return min(.999, (self.sbml.FullModel['cV'] + gamma_sIgM + gamma_sIgG) * days_to_mcs)
+        effective_gamma = min(self.max_virus_gamma, (self.sbml.FullModel['cV'] * gamma_sIgM * gamma_sIgG) * days_to_mcs)
+        # effective_gamma = (self.sbml.FullModel['cV'] * gamma_sIgM * gamma_sIgG) * days_to_mcs
+        self.get_xml_element('virus_decay').cdata = effective_gamma
+
+        return effective_gamma
 
     def update_scalar_virus(self, virus_production, current_gamma):
         # does the work that J8 used to do
@@ -777,7 +779,7 @@ class PlotsSteppable(SteppableBasePy):
         if plot_current_virus_decay:
             self.plot_win9 = self.add_new_plot_window(title='effective virus decay',
                                                       x_axis_title='Time (days)',
-                                                      y_axis_title='Conc', x_scale_type='linear',
+                                                      y_axis_title='gamma', x_scale_type='linear',
                                                       y_scale_type='linear',
                                                       grid=True)
             self.plot_win9.add_plot('ODE effective decay', style='Lines', color='yellow', size=5)
@@ -850,9 +852,10 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win8.add_data_point("nIgM CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['nIgM'])
             self.plot_win8.add_data_point("nIgG CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['nIgG'])
         if plot_current_virus_decay:
-            self.plot_win9.add_data_point('ODE effective decay', mcs * days_to_mcs,
-                                          (self.sbml.FullModel['cV'] + self.sbml.FullModel['sIgM'] +
-                                           self.sbml.FullModel['nIgM']) *
-                                          self.sbml.FullModel['eV'] * days_to_mcs)
-            self.plot_win9.add_data_point('CC3D effective decay', mcs * days_to_mcs,
-                                          self.get_xml_element('virus_decay').cdata)
+            ode_g = (self.sbml.FullModel['cV'] * self.sbml.FullModel['sIgM'] *
+                     self.sbml.FullModel['nIgM']) * self.sbml.FullModel['eV'] * days_to_mcs
+            if ode_g != 0:
+                self.plot_win9.add_data_point('ODE effective decay', mcs * days_to_mcs, ode_g)
+            cc3d_g = self.get_xml_element('virus_decay').cdata
+            if cc3d_g != 0:
+                self.plot_win9.add_data_point('CC3D effective decay', mcs * days_to_mcs, cc3d_g)
