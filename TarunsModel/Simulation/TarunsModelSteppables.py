@@ -31,7 +31,7 @@ J4: Ev -> E; aE*Ev;
 J5: Ev -> D; dE*Ev;
 J6: Ev -> D; kE*g*Ev*Tc;
 J7: -> V; pV*Ev;
-J8: V ->; cV*V;
+J8: V ->; cV*V; # v0 -> v1; v1 =cV*v0
 
 J9: -> Da; bD*V*(D0-Da);
 J10: Da ->; dD*Da;
@@ -91,7 +91,7 @@ J48: nIgG ->; dG*nIgG;
 // feed back to tissue
 J49: Ev -> D; eE*Ev*nIgM; // reevaluate these set (49-52) due to anti-bodies being consumed 
 J50: Ev -> D; eE*Ev*nIgG;
-J51: V  ->; eV*V*sIgM;
+J51: V  ->; eV*V*sIgM; # v1->v2; v2= sIgM * eV * v1 = sIgM * eV *cV *  v0
 //J51: V + sIgM ->; eV*V*sIgM;
 J52: V  ->; eV*V*sIgG;
 //J52: V + sIgG ->; eV*V*sIgG;
@@ -293,7 +293,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
         lattice_factor = .08
-        self.max_virus_gamma = .25*float(self.get_xml_element("virus_D").cdata)/lattice_factor
+        self.max_virus_gamma = .25 * float(self.get_xml_element("virus_D").cdata) / lattice_factor
         self.scalar_virus = self.sbml.FullModel['V']
         self.shared_steppable_vars['CC3D_lymph_APC_count'] = 0.0
         self.shared_steppable_vars['Active_APCs'] = 0.0
@@ -546,6 +546,33 @@ class TarunsModelSteppable(SteppableBasePy):
             if dT1 * Ev / (Ev + dT2) > np.random.random():
                 cell.targetVolume = 0.0
 
+    def J49_Ev2D_from_nIgM(self, cell):
+        ## Transition from Ev to D
+        # J49: Ev -> D;   eE * Ev * nIgM;
+        if use_LymphModel_outputs:
+            nIgM = self.sbml.LymphModel['nIgM']
+            eE = self.sbml.LymphModel['eE']
+        else:
+            nIgM = self.sbml.FullModel['nIgM']
+            eE = self.sbml.FullModel['eE']
+        p_Ev2D = nIgM * eE
+        if p_Ev2D > np.random.random():
+            cell.type = self.D
+        return
+
+    def J50_Ev2D_from_nIgG(self, cell):
+        # J50: Ev -> D;    eE * Ev * nIgG;
+        if use_LymphModel_outputs:
+            nIgG = self.sbml.LymphModel['nIgG']
+            eE = self.sbml.LymphModel['eE']
+        else:
+            nIgG = self.sbml.FullModel['nIgG']
+            eE = self.sbml.FullModel['eE']
+        p_Ev2D = nIgG * eE
+        if p_Ev2D > np.random.random():
+            cell.type = self.D
+        return
+
     def J51_virus_decay_from_sIgM(self):
         # J51: V ->; eV * V * sIgM;
 
@@ -568,12 +595,14 @@ class TarunsModelSteppable(SteppableBasePy):
         return gamma_sIgG
 
     def J51_J52_update_virus_decay(self):
-
+        # J8: V ->; cV*V;
+        # J51: V ->; eV * V * sIgM;
+        # J52: V ->; eV * V * sIgG;
         gamma_sIgM = self.J51_virus_decay_from_sIgM()
         gamma_sIgG = self.J52_virus_decay_from_sIgG()
 
-        effective_gamma = min(self.max_virus_gamma, (self.sbml.FullModel['cV'] * gamma_sIgM * gamma_sIgG) * days_to_mcs)
-        # effective_gamma = (self.sbml.FullModel['cV'] * gamma_sIgM * gamma_sIgG) * days_to_mcs
+        effective_gamma = min(self.max_virus_gamma, (gamma_sIgM + gamma_sIgG + self.sbml.FullModel['cV']) * days_to_mcs)
+        # effective_gamma = (gamma_sIgM + gamma_sIgG + self.sbml.FullModel['cV']) * days_to_mcs
         self.get_xml_element('virus_decay').cdata = effective_gamma
 
         return effective_gamma
@@ -631,6 +660,13 @@ class TarunsModelSteppable(SteppableBasePy):
         Tc = len(self.cell_list_by_type(self.TCELL)) / self.initial_uninfected * self.sbml.FullModel['E0']
         for cell in self.cell_list_by_type(self.EV):
             self.J6_EvtoD(cell, Tc)
+
+        for cell in self.cell_list_by_type(self.EV):
+            self.J49_Ev2D_from_nIgM(cell)
+
+        for cell in self.cell_list_by_type(self.EV):
+            self.J50_Ev2D_from_nIgG(cell)
+
 
         virus_production = self.J7_virus_production()
 
@@ -697,6 +733,7 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win.add_plot("ODEE", style='Dots', color='blue', size=5)
             self.plot_win.add_plot("ODEEv", style='Dots', color='yellow', size=5)
             self.plot_win.add_plot("ODED", style='Dots', color='red', size=5)
+
             self.plot_win.add_plot("CC3DE", style='Lines', color='blue', size=5)
             self.plot_win.add_plot("CC3DEv", style='Lines', color='yellow', size=5)
             self.plot_win.add_plot("CC3DD", style='Lines', color='red', size=5)
@@ -759,11 +796,11 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='log',
                                                       grid=True)
 
-            self.plot_win7.add_plot("sIgM control SBML", style='Lines', color='yellow', size=5)
-            self.plot_win7.add_plot("sIgG control SBML", style='Lines', color='magenta', size=5)
+            self.plot_win7.add_plot("sIgM control SBML", style='Dots', color='yellow', size=5)
+            self.plot_win7.add_plot("sIgG control SBML", style='Dots', color='magenta', size=5)
 
-            self.plot_win7.add_plot("sIgM CC3D SBML", style='Dots', color='yellow', size=5)
-            self.plot_win7.add_plot("sIgG CC3D SBML", style='Dots', color='magenta', size=5)
+            self.plot_win7.add_plot("sIgM CC3D SBML", style='Lines', color='yellow', size=5)
+            self.plot_win7.add_plot("sIgG CC3D SBML", style='Lines', color='magenta', size=5)
 
         if plot_infected_antibodies:
             self.plot_win8 = self.add_new_plot_window(title='Infected Cell Anti-Bodies',
@@ -771,19 +808,19 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_axis_title='Conc', x_scale_type='linear',
                                                       y_scale_type='log',
                                                       grid=True)
-            self.plot_win8.add_plot("nIgM control SBML", style='Lines', color='yellow', size=5)
-            self.plot_win8.add_plot("nIgG control SBML", style='Lines', color='magenta', size=5)
+            self.plot_win8.add_plot("nIgM control SBML", style='Dots', color='yellow', size=5)
+            self.plot_win8.add_plot("nIgG control SBML", style='Dots', color='magenta', size=5)
 
-            self.plot_win8.add_plot("nIgM CC3D SBML", style='Dots', color='yellow', size=5)
-            self.plot_win8.add_plot("nIgG CC3D SBML", style='Dots', color='magenta', size=5)
+            self.plot_win8.add_plot("nIgM CC3D SBML", style='Lines', color='yellow', size=5)
+            self.plot_win8.add_plot("nIgG CC3D SBML", style='Lines', color='magenta', size=5)
         if plot_current_virus_decay:
             self.plot_win9 = self.add_new_plot_window(title='effective virus decay',
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='gamma', x_scale_type='linear',
                                                       y_scale_type='linear',
                                                       grid=True)
-            self.plot_win9.add_plot('ODE effective decay', style='Lines', color='yellow', size=5)
-            self.plot_win9.add_plot('CC3D effective decay', style='Dots', color='red', size=5)
+            self.plot_win9.add_plot('ODE effective decay', style='Dots', color='yellow', size=5)
+            self.plot_win9.add_plot('CC3D effective decay', style='Lines', color='red', size=5)
 
     def step(self, mcs):
 
@@ -852,8 +889,8 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win8.add_data_point("nIgM CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['nIgM'])
             self.plot_win8.add_data_point("nIgG CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['nIgG'])
         if plot_current_virus_decay:
-            ode_g = (self.sbml.FullModel['cV'] * self.sbml.FullModel['sIgM'] *
-                     self.sbml.FullModel['nIgM']) * self.sbml.FullModel['eV'] * days_to_mcs
+            ode_g = (self.sbml.FullModel['eV'] * (self.sbml.FullModel['sIgM'] + self.sbml.FullModel['nIgM'])) *\
+                    self.sbml.FullModel['cV'] * days_to_mcs
             if ode_g != 0:
                 self.plot_win9.add_data_point('ODE effective decay', mcs * days_to_mcs, ode_g)
             cc3d_g = self.get_xml_element('virus_decay').cdata
