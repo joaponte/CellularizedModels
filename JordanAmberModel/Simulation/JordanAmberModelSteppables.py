@@ -10,7 +10,7 @@ Data_writeout = False
 # 1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
 # 2 pulls from the scalar virus from the cellular model (feedback in the cellular model but no field)
 # 3 pulls from the virus field
-how_to_determine_V = 2
+how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
@@ -235,7 +235,7 @@ class CellularModelSteppable(SteppableBasePy):
             cell.sbml.IModel['V'] = cell.sbml.VModel['V']
             cell.sbml.IModel['P'] = cell.sbml.VModel['P']
             IFNe = secretorIFN.amountSeenByCell(cell)
-            cell.sbml.IModel['IFNe'] = IFNe # Rescale
+            cell.sbml.IModel['IFNe'] = IFNe
             ## Inputs to the Virus model
             cell.sbml.VModel['IFN'] = cell.sbml.IModel['IFN']
 
