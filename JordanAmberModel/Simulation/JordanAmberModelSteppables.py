@@ -5,7 +5,8 @@ plot_ODEModel = True
 plot_CellModel = True
 
 couple_Models = True
-feedback_IFNModel = False
+feedback_IFNModel = True
+how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
@@ -193,12 +194,19 @@ class CellularModelSteppable(SteppableBasePy):
         ## U to I1 transition - Amber Model
         # V1: T -> U ; beta * V * T
         for cell in self.cell_list_by_type(self.U):
-            b = self.sbml.FluModel['beta'] * self.shared_steppable_vars['InitialNumberCells'] * days_to_mcs
-            V = secretorV.amountSeenByCell(cell)
-            p_UtoI1 = b * V
-            if np.random.random() < p_UtoI1:
-                cell.type = self.I1
-                cell.sbml.VModel['V'] = V
+            # Determine V from scalar virus from the ODE
+            if how_to_determine_V == 1:
+                b = self.sbml.FluModel['beta'] * self.sbml.FluModel['T0'] * days_to_mcs
+                V = self.sbml.FluModel['V'] / self.sbml.FluModel['T0']
+            # Determine V from scalar virus from the cellular model
+            if how_to_determine_V == 2:
+                b = self.sbml.FluModel['beta'] * self.initial_uninfected * days_to_mcs
+                V = self.ExtracellularVirus / self.initial_uninfected
+            # Determine V from the virus field
+            if how_to_determine_V == 3:
+                b = self.sbml.FluModel['beta'] * self.initial_uninfected * days_to_mcs
+                V = secretorV.amountSeenByCell(cell)
+            p_UtoI1 =  beta * V
 
         ## I1 to I2 transition - Amber Model
         # V2: I1 -> I2 ; k * I1
@@ -220,20 +228,28 @@ class CellularModelSteppable(SteppableBasePy):
 
         ## Updating values of intracellular models
         for cell in self.cell_list:
-            if not feedback_IFNModel:
-                ## Inputs to the INF model
-                cell.sbml.IModel['V'] = self.sbml.IFNModel['V']
-                cell.sbml.IModel['P'] = self.sbml.IFNModel['P']
-                cell.sbml.IModel['IFNe'] = self.sbml.IFNModel['IFNe']
-                ## Inputs to the Virus model
-                cell.sbml.VModel['IFN'] = self.sbml.IFNModel['IFN']
-            if feedback_IFNModel:
+            if couple_Models:
                 cell.sbml.IModel['V'] = cell.sbml.VModel['V']
                 cell.sbml.IModel['P'] = cell.sbml.VModel['P']
                 IFNe = secretorIFN.amountSeenByCell(cell)
                 cell.sbml.IModel['IFNe'] = IFNe
                 ## Inputs to the Virus model
                 cell.sbml.VModel['IFN'] = cell.sbml.IModel['IFN']
+            if not couple_Models:
+                if feedback_IFNModel:
+                    cell.sbml.IModel['V'] = cell.sbml.VModel['V']
+                    cell.sbml.IModel['P'] = cell.sbml.VModel['P']
+                    IFNe = secretorIFN.amountSeenByCell(cell)
+                    cell.sbml.IModel['IFNe'] = IFNe
+                    ## Inputs to the Virus model
+                    cell.sbml.VModel['IFN'] = cell.sbml.IModel['IFN']
+                if not feedback_IFNModel:
+                    ## Inputs to the INF model
+                    cell.sbml.IModel['V'] = self.sbml.IFNModel['V']
+                    cell.sbml.IModel['P'] = self.sbml.IFNModel['P']
+                    cell.sbml.IModel['IFNe'] = self.sbml.IFNModel['IFNe']
+                    ## Inputs to the Virus model
+                    cell.sbml.VModel['IFN'] = self.sbml.IFNModel['IFN']
 
         ## Production of extracellular IFN - Jordan Model
         # E2b: IFN -> IFNe; k21 * IFN ;
@@ -241,7 +257,7 @@ class CellularModelSteppable(SteppableBasePy):
         k21 = self.sbml.IFNModel['k21'] * hours_to_mcs
         for cell in self.cell_list_by_type(self.I1,self.I2):
             intracellularIFN = cell.sbml.IModel['IFN']
-            p = k21 * intracellularIFN
+            p = k21 * intracellularIFN * self.sbml.IFNModel['k21'] / self.shared_steppable_vars['InitialNumberCells']
             release = secretorIFN.secreteInsideCellTotalCount(cell, p / cell.volume)
             self.ExtracellularIFN += release.tot_amount
         # E3a: IFNe -> ; t2*IFNe ;
@@ -365,7 +381,7 @@ class IFNPlotSteppable(SteppableBasePy):
             self.plot_win5.add_data_point("ODESTATP", mcs * hours_to_mcs, self.sbml.IFNModel['STATP'])
             self.plot_win6.add_data_point("ODEIRF7", mcs * hours_to_mcs, self.sbml.IFNModel['IRF7'])
             self.plot_win7.add_data_point("ODEIRF7P", mcs * hours_to_mcs, self.sbml.IFNModel['IRF7P'])
-            self.plot_win8.add_data_point("ODEINF", mcs * hours_to_mcs, self.sbml.IFNModel['IFN'])
+            self.plot_win8.add_data_point("ODEIFN", mcs * hours_to_mcs, self.sbml.IFNModel['IFN'])
 
         if plot_CellModel:
             L = len(self.cell_list_by_type(self.U,self.I1,self.I2))
