@@ -147,8 +147,15 @@ class ODEModelSteppable(SteppableBasePy):
     def start(self):
         self.shared_steppable_vars['InitialNumberCells'] = len(self.cell_list_by_type(self.U))
 
-        # Uptading max simulation steps using scaling factor to simulate 10 days
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
+
+        # Adding free floating antimony model
+        self.add_free_floating_antimony(model_string=FluModel_string, model_name='FluModel',
+                                        step_size=days_to_mcs)
+
+        # Changing initial values according to discussions with Amber Smith
+        self.sbml.FluModel['I1'] = 0.0
+        self.sbml.FluModel['V'] = 75.0
 
         self.add_free_floating_antimony(model_string=IFNModel_string, model_name='IFNModel',
                                         step_size=hours_to_mcs)
