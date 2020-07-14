@@ -4,8 +4,8 @@ import numpy as np
 plot_ODEModel = True
 plot_CellModel = True
 
-couple_Models = False
-feedback_IFNModel = True
+couple_Models = True
+feedback_IFNModel = False
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
@@ -182,6 +182,7 @@ class CellularModelSteppable(SteppableBasePy):
     def start(self):
         # set initial model parameters
         self.ExtracellularIFN = 0.0
+        self.ExtracellularVirus = 0.0
         self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['k73'] * hours_to_mcs
         self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs
 
@@ -253,9 +254,29 @@ class CellularModelSteppable(SteppableBasePy):
             I = secretorIFN.amountSeenByCell(cell)
             self.ExtracellularIFN_Field += I
 
+        ## Production of extracellular virus - Jordan Model
+        # E8b: V -> ; k73 * V
+        V = self.ExtracellularVirus
+        k73 = self.sbml.IFNModel['k73'] * hours_to_mcs
+        for cell in self.cell_list_by_type(self.I2):
+            Virus = cell.sbml.VModel['V']
+            p = k73 * Virus
+            release = secretorV.secreteInsideCellTotalCount(cell, p / cell.volume)
+            self.ExtracellularVirus += release.tot_amount
+        c = self.sbml.FluModel['c'] * days_to_mcs
+        self.ExtracellularVirus -= c * V
+
+        ## Measure amount of extracellular virus field
+        self.ExtracellularVirus_Field = 0
+        for cell in self.cell_list:
+            V = secretorV.amountSeenByCell(cell)
+            self.ExtracellularVirus_Field += V
+
         # Dictonary to pass information between steppables
         self.shared_steppable_vars['ExtracellularIFN'] = self.ExtracellularIFN
         self.shared_steppable_vars['ExtracellularIFN_Field'] = self.ExtracellularIFN_Field
+        self.shared_steppable_vars['ExtracellularVirus'] = self.ExtracellularVirus
+        self.shared_steppable_vars['ExtracellularVirus_Field'] = self.ExtracellularVirus_Field
 
 class IFNPlotSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
