@@ -70,7 +70,7 @@ viral_model_string = '''
 
     //Initial Conditions
     P    =  1.0     ;
-    V    =  6.9e-8  ; 
+    V    =  0.0     ; 
     
     //Inputs
     IFN  =  0.0     ;
@@ -130,8 +130,10 @@ class ODEModelSteppable(SteppableBasePy):
                                         cell_types=[self.U], step_size=hours_to_mcs)
 
         if not couple_Models:
+            self.get_xml_element('IFNe_dc').cdata = 0.0
             for cell in self.cell_list_by_type(self.U):
                 cell.type = self.I2
+                cell.sbml.VModel['V'] = 6.9e-8
 
     def step(self, mcs):
         self.timestep_sbml()
@@ -146,8 +148,28 @@ class CellularModelSteppable(SteppableBasePy):
         self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['k73'] * hours_to_mcs
 
     def step(self, mcs):
+        secretorV = self.get_field_secretor("Virus")
         secretorIFN = self.get_field_secretor("IFNe")
-        # P to D transition - Jordan Model
+
+        ## U to I1 transition - Amber Model
+        # V1: T -> U ; beta * V * T
+        for cell in self.cell_list_by_type(self.U):
+            b = self.sbml.FluModel['beta'] * self.shared_steppable_vars['InitialNumberCells'] * days_to_mcs
+            V = secretorV.amountSeenByCell(cell)
+            p_UtoI1 = b * V
+            if np.random.random() < p_UtoI1:
+                cell.type = self.I1
+                cell.sbml.VModel['V'] = V
+
+        ## I1 to I2 transition - Amber Model
+        # V2: I1 -> I2 ; k * I1
+        for cell in self.cell_list_by_type(self.I1):
+            k = self.sbml.FluModel['k'] * days_to_mcs
+            p_T1oI2 = k
+            if np.random.random() < p_T1oI2:
+                cell.type = self.I2
+
+        ## P to D transition - Jordan Model
         # E7a: P -> ; P * k61 * V;
         for cell in self.cell_list_by_type(self.I2):
             k61 = cell.sbml.VModel['k61'] * hours_to_mcs

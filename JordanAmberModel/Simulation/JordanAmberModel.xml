@@ -70,7 +70,7 @@
       <DiffusionField Name="Virus">
          <DiffusionData>
             <FieldName>Virus</FieldName>
-            <GlobalDiffusionConstant id = "virus_dc">0.0</GlobalDiffusionConstant>
+            <GlobalDiffusionConstant id = "virus_dc">1.0</GlobalDiffusionConstant>
             <GlobalDecayConstant id = "virus_decay">0.0</GlobalDecayConstant>
             <InitialConcentrationExpression>75.0/(256*256)</InitialConcentrationExpression>
          </DiffusionData>
@@ -86,7 +86,7 @@
       <DiffusionField Name="IFNe">
          <DiffusionData>
             <FieldName>Virus</FieldName>
-            <GlobalDiffusionConstant id = "IFNe_dc">0.0</GlobalDiffusionConstant>
+            <GlobalDiffusionConstant id = "IFNe_dc">1.0</GlobalDiffusionConstant>
             <GlobalDecayConstant id = "IFNe_decay">0.03283</GlobalDecayConstant>
          </DiffusionData>
          <BoundaryConditions>
