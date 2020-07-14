@@ -107,7 +107,7 @@
          <BoxMax x="256" y="256" z="1"/>
          <Gap>0</Gap>
          <Width>3</Width>
-         <Types>I2</Types>
+         <Types>U</Types>
       </Region>
    </Steppable>
 </CompuCell3D>

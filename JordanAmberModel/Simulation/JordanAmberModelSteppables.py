@@ -3,6 +3,8 @@ import numpy as np
 
 plot_ODEModel = True
 plot_CellModel = True
+
+couple_Models = False
 feedback_IFNModel = True
 
 min_to_mcs = 10.0  # min/mcs
@@ -10,7 +12,6 @@ hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0  # 10 in the original model
 
-# Modified code to make IFNe production dependent on the number of infected cells (P)
 IFNModel_string = '''
     //Equations
     E2a: -> IFN         ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)    ;
@@ -75,7 +76,6 @@ viral_model_string = '''
     IFN  =  0.0     ;
 '''
 
-# Modified code to make IFNe production dependent on the number of infected cells (P)
 IFN_model_string = '''
     //Equations
     E2a: -> IFN         ; P*(k12*(V^n)/(k13+(V^n))+k14*IRF7P)               ;
@@ -115,6 +115,8 @@ class ODEModelSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+        self.shared_steppable_vars['InitialNumberCells'] = len(self.cell_list_by_type(self.U))
+
         # Uptading max simulation steps using scaling factor to simulate 10 days
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
 
@@ -122,10 +124,14 @@ class ODEModelSteppable(SteppableBasePy):
                                         step_size=hours_to_mcs)
 
         self.add_antimony_to_cell_types(model_string=viral_model_string, model_name='VModel',
-                                        cell_types=[self.I2], step_size=hours_to_mcs)
+                                        cell_types=[self.U], step_size=hours_to_mcs)
 
         self.add_antimony_to_cell_types(model_string=IFN_model_string, model_name='IModel',
-                                        cell_types=[self.I2], step_size=hours_to_mcs)
+                                        cell_types=[self.U], step_size=hours_to_mcs)
+
+        if not couple_Models:
+            for cell in self.cell_list_by_type(self.U):
+                cell.type = self.I2
 
     def step(self, mcs):
         self.timestep_sbml()
@@ -136,7 +142,6 @@ class CellularModelSteppable(SteppableBasePy):
 
     def start(self):
         # set initial model parameters
-        self.initial_infected = len(self.cell_list_by_type(self.I2))
         self.ExtracellularIFN = 0.0
         self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['k73'] * hours_to_mcs
 
@@ -153,7 +158,7 @@ class CellularModelSteppable(SteppableBasePy):
                 cell.type = self.DEAD
 
         ## Updating values of intracellular models
-        for cell in self.cell_list_by_type(self.I2):
+        for cell in self.cell_list:
             if not feedback_IFNModel:
                 ## Inputs to the INF model
                 cell.sbml.IModel['V'] = self.sbml.IFNModel['V']
@@ -173,7 +178,7 @@ class CellularModelSteppable(SteppableBasePy):
         # E2b: IFN -> IFNe; k21 * IFN ;
         I = self.ExtracellularIFN
         k21 = self.sbml.IFNModel['k21'] * hours_to_mcs
-        for cell in self.cell_list_by_type(self.I2):
+        for cell in self.cell_list_by_type(self.I1,self.I2):
             intracellularIFN = cell.sbml.IModel['IFN']
             p = k21 * intracellularIFN
             release = secretorIFN.secreteInsideCellTotalCount(cell, p / cell.volume)
@@ -184,7 +189,7 @@ class CellularModelSteppable(SteppableBasePy):
 
         ## Measure amount of extracellular IFN field
         self.ExtracellularIFN_Field = 0
-        for cell in self.cell_list_by_type(self.I2):
+        for cell in self.cell_list_by_type(self.U,self.I1,self.I2):
             I = secretorIFN.amountSeenByCell(cell)
             self.ExtracellularIFN_Field += I
 
@@ -197,7 +202,7 @@ class IFNPlotSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
-        self.initial_infected = len(self.cell_list_by_type(self.I2))
+        self.initial_infected = len(self.cell_list_by_type(self.U))
         # Initialize Graphic Window for Jordan IFN model
         if (plot_ODEModel == True) or (plot_CellModel == True):
             self.plot_win1 = self.add_new_plot_window(title='V',
@@ -300,7 +305,8 @@ class IFNPlotSteppable(SteppableBasePy):
 
             self.plot_win1.add_data_point("CC3DV", mcs * hours_to_mcs, avgV)
             self.plot_win2.add_data_point("CC3DH", mcs * hours_to_mcs, avgH)
-            self.plot_win3.add_data_point("CC3DP", mcs * hours_to_mcs, L / self.initial_infected)
+            self.plot_win3.add_data_point("CC3DP", mcs * hours_to_mcs,
+                                          L / self.shared_steppable_vars['InitialNumberCells'])
             self.plot_win4.add_data_point("CC3DIFNe", mcs * hours_to_mcs,
                                           self.shared_steppable_vars['ExtracellularIFN'])
             self.plot_win4.add_data_point("CC3DIFNe2", mcs * hours_to_mcs,
