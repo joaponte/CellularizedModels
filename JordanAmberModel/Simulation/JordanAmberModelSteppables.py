@@ -146,6 +146,7 @@ class CellularModelSteppable(SteppableBasePy):
         # set initial model parameters
         self.ExtracellularIFN = 0.0
         self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['k73'] * hours_to_mcs
+        self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs
 
     def step(self, mcs):
         secretorV = self.get_field_secretor("Virus")
