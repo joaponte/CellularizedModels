@@ -181,9 +181,9 @@ class CellularModelSteppable(SteppableBasePy):
 
     def start(self):
         # set initial model parameters
-        self.ExtracellularIFN = 0.0
-        self.ExtracellularVirus = 0.0
+        self.ExtracellularIFN = self.sbml.IFNModel['IFN']
         self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['k73'] * hours_to_mcs
+        self.ExtracellularVirus = self.sbml.FluModel['V']
         self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs
 
     def step(self, mcs):
@@ -268,7 +268,7 @@ class CellularModelSteppable(SteppableBasePy):
 
         ## Measure amount of extracellular virus field
         self.ExtracellularVirus_Field = 0
-        for cell in self.cell_list:
+        for cell in self.cell_list_by_type(self.U,self.I1,self.I2):
             V = secretorV.amountSeenByCell(cell)
             self.ExtracellularVirus_Field += V
 
@@ -357,7 +357,7 @@ class IFNPlotSteppable(SteppableBasePy):
 
     def step(self, mcs):
         if plot_ODEModel:
-            L = len(self.cell_list_by_type(self.I2))
+            L = len(self.cell_list_by_type(self.U,self.I1,self.I2))
             self.plot_win1.add_data_point("ODEV", mcs * hours_to_mcs, self.sbml.IFNModel['V'])
             self.plot_win2.add_data_point("ODEH", mcs * hours_to_mcs, self.sbml.IFNModel['P'])
             self.plot_win3.add_data_point("ODEP", mcs * hours_to_mcs, self.sbml.IFNModel['P'])
@@ -368,7 +368,7 @@ class IFNPlotSteppable(SteppableBasePy):
             self.plot_win8.add_data_point("ODEINF", mcs * hours_to_mcs, self.sbml.IFNModel['IFN'])
 
         if plot_CellModel:
-            L = len(self.cell_list_by_type(self.I2))
+            L = len(self.cell_list_by_type(self.U,self.I1,self.I2))
             avgV = 0.0
             avgH = 0.0
             avgSTATP = 0.0
@@ -376,7 +376,7 @@ class IFNPlotSteppable(SteppableBasePy):
             avgIRF7P = 0.0
             avgIFN = 0.0
 
-            for cell in self.cell_list_by_type(self.I2):
+            for cell in self.cell_list_by_type(self.U,self.I1,self.I2):
                 avgV += cell.sbml.VModel['V'] / L
                 avgH += cell.sbml.VModel['P'] / L
                 avgSTATP += cell.sbml.IModel['STATP'] / L
@@ -396,3 +396,64 @@ class IFNPlotSteppable(SteppableBasePy):
             self.plot_win6.add_data_point("CC3DIRF7", mcs * hours_to_mcs, avgIRF7)
             self.plot_win7.add_data_point("CC3DIRF7P", mcs * hours_to_mcs, avgIRF7P)
             self.plot_win8.add_data_point("CC3DIFN", mcs * hours_to_mcs, avgIFN)
+
+class FluPlotSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        if couple_Models:
+            self.initial_uninfected = len(self.cell_list_by_type(self.U))
+            if (plot_ODEModel == True) or (plot_CellModel == True):
+                self.plot_win9 = self.add_new_plot_window(title='Flu Model Cells',
+                                                         x_axis_title='Hours',
+                                                         y_axis_title='Variables', x_scale_type='linear',
+                                                         y_scale_type='linear',
+                                                         grid=False, config_options={'legend': True})
+
+                self.plot_win10 = self.add_new_plot_window(title='Flu Model Virus',
+                                                          x_axis_title='Hours',
+                                                          y_axis_title='Virus', x_scale_type='linear',
+                                                          y_scale_type='linear',
+                                                          grid=False, config_options={'legend': True})
+
+                if plot_ODEModel == True:
+                    self.plot_win9.add_plot("ODET", style='Dots', color='blue', size=5)
+                    self.plot_win9.add_plot("ODEI1", style='Dots', color='orange', size=5)
+                    self.plot_win9.add_plot("ODEI2", style='Dots', color='red', size=5)
+                    self.plot_win9.add_plot("ODED", style='Dots', color='purple', size=5)
+                    self.plot_win10.add_plot("ODEV", style='Dots', color='blue', size=5)
+
+                if plot_CellModel == True:
+                    self.plot_win9.add_plot("CC3DT", style='Lines', color='blue', size=5)
+                    self.plot_win9.add_plot("CC3DI1", style='Lines', color='orange', size=5)
+                    self.plot_win9.add_plot("CC3DI2", style='Lines', color='red', size=5)
+                    self.plot_win9.add_plot("CC3DD", style='Lines', color='purple', size=5)
+                    self.plot_win10.add_plot("CC3DV", style='Lines', color='blue', size=5)
+
+    def step(self, mcs):
+        if couple_Models:
+            if (plot_ODEModel == True) or (plot_CellModel == True):
+                if plot_ODEModel == True:
+                    self.plot_win9.add_data_point("ODET", mcs * days_to_mcs * 24.0,
+                                                 self.sbml.FluModel['T'] / self.sbml.FluModel['T0'])
+                    self.plot_win9.add_data_point("ODEI1", mcs * days_to_mcs * 24.0,
+                                                 self.sbml.FluModel['I1'] / self.sbml.FluModel['T0'])
+                    self.plot_win9.add_data_point("ODEI2", mcs * days_to_mcs * 24.0,
+                                                 self.sbml.FluModel['I2'] / self.sbml.FluModel['T0'])
+                    self.plot_win9.add_data_point("ODED", mcs * days_to_mcs * 24.0,
+                                                 self.sbml.FluModel['D'] / self.sbml.FluModel['T0'])
+                    self.plot_win10.add_data_point("ODEV", mcs * days_to_mcs * 24.0,
+                                                  np.log10(self.sbml.FluModel['V']))
+
+                if plot_CellModel == True:
+                    self.plot_win9.add_data_point("CC3DT", mcs * days_to_mcs * 24.0,
+                                                 len(self.cell_list_by_type(self.U)) / self.initial_uninfected)
+                    self.plot_win9.add_data_point("CC3DI1", mcs * days_to_mcs * 24.0,
+                                                 len(self.cell_list_by_type(self.I1)) / self.initial_uninfected)
+                    self.plot_win9.add_data_point("CC3DI2", mcs * days_to_mcs * 24.0,
+                                                 len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
+                    self.plot_win9.add_data_point("CC3DD", mcs * days_to_mcs * 24.0,
+                                                 len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
+                    self.plot_win10.add_data_point("CC3DV", mcs * days_to_mcs * 24.0,
+                                                  np.log10(self.shared_steppable_vars['ExtracellularVirus_Field']))
