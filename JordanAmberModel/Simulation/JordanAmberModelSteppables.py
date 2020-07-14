@@ -12,6 +12,36 @@ hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 10.0  # 10 in the original model
 
+'''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
+supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
+
+FluModel_string = '''        
+        model FluModel()
+
+        //State Variables and Transitions
+        V1: -> T  ; -beta * V * T ;                             // Susceptible Cells
+        V2: -> I1 ;  beta * V * T - k * I1 ;                    // Early Infected Cells
+        V3: -> I2 ;  k * I1 - delta_d * I2 / (K_delta + I2) ;   // Late Infected Cells
+        V4: -> V  ;  p * I2 - c * V ;                           // Extracellular Virus
+        V5: -> D  ;  delta_d * I2 / (K_delta + I2) ;            // Cleared Infected Cells (for Bookkeeping)
+
+        //Parameters
+        beta = 2.4* 10^(-4) ;                                   // Virus Infective
+        p = 1.6 ;                                               // Virus Production
+        c = 13.0 ;                                              // Virus Clearance
+        k = 4.0 ;                                               // Eclipse phase
+        delta_d = 1.6 * 10^6 ;                                  // Infected Cell Clearance
+        K_delta = 4.5 * 10^5 ;                                  // Half Saturation Constant         
+
+        // Initial Conditions ;
+        T0 = 1.0*10^7;
+        T = T0  ;                                               // Initial Number of Uninfected Cells
+        I1 = 75.0 ;                                             // Initial Number of Infected Cells
+end'''
+
+'''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
+Regulating Excessive Cytokine Production'''
+
 IFNModel_string = '''
     //Equations
     E2a: -> IFN         ; P*(k11*RIGI*V+k12*(V^n)/(k13+(V^n))+k14*IRF7P)    ;
