@@ -6,7 +6,7 @@ plot_CellModel = True
 
 couple_Models = True
 feedback_IFNModel = True
-how_to_determine_V = 3
+how_to_determine_V = 1
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
