@@ -11,7 +11,7 @@
    <Potts>
       
       <!-- Basic properties of CPM (GGH) algorithm -->
-      <Dimensions x="256" y="256" z="1"/>
+      <Dimensions x="100" y="100" z="1"/>
       <Steps id="simulation_steps">100000</Steps>
       <Temperature>10.0</Temperature>
       <NeighborOrder>1</NeighborOrder>
@@ -85,7 +85,7 @@
       </DiffusionField>
       <DiffusionField Name="IFNe">
          <DiffusionData>
-            <FieldName>Virus</FieldName>
+            <FieldName>IFNe</FieldName>
             <GlobalDiffusionConstant id = "IFNe_dc">1.0</GlobalDiffusionConstant>
             <GlobalDecayConstant id = "IFNe_decay">0.03283</GlobalDecayConstant>
          </DiffusionData>
@@ -104,7 +104,7 @@
       <!-- Initial layout of cells in the form of rectangular slab -->
       <Region>
          <BoxMin x="0" y="0" z="0"/>
-         <BoxMax x="256" y="256" z="1"/>
+         <BoxMax x="100" y="100" z="1"/>
          <Gap>0</Gap>
          <Width>3</Width>
          <Types>U</Types>

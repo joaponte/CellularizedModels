@@ -182,8 +182,8 @@ class CellularModelSteppable(SteppableBasePy):
 
     def start(self):
         # set initial model parameters
-        self.ExtracellularIFN = self.sbml.IFNModel['IFN']
-        self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['k73'] * hours_to_mcs
+        self.ExtracellularIFN = self.sbml.IFNModel['IFNe']
+        self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['t2'] * hours_to_mcs
         self.ExtracellularVirus = self.sbml.FluModel['V']
         self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs
 
@@ -268,10 +268,10 @@ class CellularModelSteppable(SteppableBasePy):
         self.ExtracellularIFN -= t2 * I
 
         ## Measure amount of extracellular IFN field
-        self.ExtracellularIFN_Field = 0
-        for cell in self.cell_list_by_type(self.U,self.I1,self.I2):
-            I = secretorIFN.amountSeenByCell(cell)
-            self.ExtracellularIFN_Field += I
+        num_cells = len(self.cell_list_by_type(self.U, self.I1, self.I2, self.DEAD))
+        num_living = len(self.cell_list_by_type(self.U, self.I1, self.I2))
+        self.ExtracellularIFN_Field = self.get_field_secretor("IFNe").totalFieldIntegral() / num_cells * num_living
+        self.ExtracellularIFN_Field *= (1 - t2)
 
         ## Production of extracellular virus - Jordan Model
         # E8b: V -> ; k73 * V
