@@ -5,8 +5,8 @@ plot_ODEModel = True
 plot_CellModel = True
 
 couple_Models = True
-feedback_IFNModel = True
-how_to_determine_V = 1
+how_to_determine_V = 3
+feedback_IFNModel = False # Determines the IFNe from the ODE model (False) or from field (True)
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
@@ -89,9 +89,9 @@ IFNModel_string = '''
 
 # Viral Replication Model
 viral_model_string = '''
-    E7a: P ->           ; P*k61*V                    ;
-    E8a: -> V           ; P*k71*V/(1.0+k72*IFN*7E-5) ;
-    E8b: V ->           ; k73*V                      ;
+    E7a: P ->           ; P*k61*V                     ;
+    E8a: -> V           ; P*k71*V/(1.0+k72*IFN*7E-5)  ;
+    E8b: V ->           ; k73*V                       ;
 
     //Parameters
     k61 = 0.635     ;
@@ -201,7 +201,7 @@ class CellularModelSteppable(SteppableBasePy):
             # Determine V from scalar virus from the cellular model
             if how_to_determine_V == 2:
                 b = self.sbml.FluModel['beta'] * self.shared_steppable_vars['InitialNumberCells']* days_to_mcs
-                V = self.ExtracellularVirus / self.initial_uninfected
+                V = self.ExtracellularVirus / self.shared_steppable_vars['InitialNumberCells']
             # Determine V from the virus field
             if how_to_determine_V == 3:
                 b = self.sbml.FluModel['beta'] * self.shared_steppable_vars['InitialNumberCells'] * days_to_mcs
@@ -209,7 +209,7 @@ class CellularModelSteppable(SteppableBasePy):
             p_UtoI1 = b * V
             if np.random.random() < p_UtoI1:
                 cell.type = self.I1
-                cell.sbml.VModel['V'] = V
+                cell.sbml.VModel['V'] = 6.9e-8
 
         ## I1 to I2 transition - Amber Model
         # V2: I1 -> I2 ; k * I1
@@ -236,7 +236,6 @@ class CellularModelSteppable(SteppableBasePy):
                 cell.sbml.IModel['P'] = cell.sbml.VModel['P']
                 IFNe = secretorIFN.amountSeenByCell(cell)
                 cell.sbml.IModel['IFNe'] = IFNe
-                ## Inputs to the Virus model
                 cell.sbml.VModel['IFN'] = cell.sbml.IModel['IFN']
             if not couple_Models:
                 if feedback_IFNModel:
@@ -244,7 +243,6 @@ class CellularModelSteppable(SteppableBasePy):
                     cell.sbml.IModel['P'] = cell.sbml.VModel['P']
                     IFNe = secretorIFN.amountSeenByCell(cell)
                     cell.sbml.IModel['IFNe'] = IFNe
-                    ## Inputs to the Virus model
                     cell.sbml.VModel['IFN'] = cell.sbml.IModel['IFN']
                 if not feedback_IFNModel:
                     ## Inputs to the INF model
@@ -271,7 +269,7 @@ class CellularModelSteppable(SteppableBasePy):
         num_cells = len(self.cell_list_by_type(self.U, self.I1, self.I2, self.DEAD))
         num_living = len(self.cell_list_by_type(self.U, self.I1, self.I2))
         self.ExtracellularIFN_Field = self.get_field_secretor("IFNe").totalFieldIntegral() / num_cells * num_living
-        self.ExtracellularIFN_Field *= (1 - t2)
+        # self.ExtracellularIFN_Field *= (1 - t2)
 
         ## Production of extracellular virus - Jordan Model
         # E8b: V -> ; k73 * V
