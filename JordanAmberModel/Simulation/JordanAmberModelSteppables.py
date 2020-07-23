@@ -189,7 +189,9 @@ class CellularModelSteppable(SteppableBasePy):
         self.ExtracellularVirus = self.sbml.FluModel['V']
         self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs
 
-
+        cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
+        cell.type = self.I2
+        cell.sbml.VModel['V'] = 6.9e-8
     def step(self, mcs):
         secretorV = self.get_field_secretor("Virus")
         secretorIFN = self.get_field_secretor("IFNe")
