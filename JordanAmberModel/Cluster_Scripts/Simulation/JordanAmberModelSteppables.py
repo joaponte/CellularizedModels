@@ -1,9 +1,8 @@
 from cc3d.core.PySteppables import *
 import numpy as np
 
-plot_ODEModel = False
-plot_CellModel = False
-plot_PlaqueAssay = True
+plot_ODEModel = True
+plot_CellModel = True
 
 couple_Models = True
 how_to_determine_V = 3
@@ -170,10 +169,6 @@ class ODEModelSteppable(SteppableBasePy):
         self.add_antimony_to_cell_types(model_string=IFN_model_string, model_name='IModel',
                                         cell_types=[self.U], step_size=hours_to_mcs)
 
-        # Initial conditions with infected cell in the center
-        cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
-        cell.type = self.I1
-        cell.sbml.VModel['V'] = 6.9e-8
         if not couple_Models:
             self.get_xml_element('IFNe_dc').cdata = 0.0
             for cell in self.cell_list_by_type(self.U):
@@ -194,6 +189,9 @@ class CellularModelSteppable(SteppableBasePy):
         self.ExtracellularVirus = self.sbml.FluModel['V']
         self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs
 
+        cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
+        cell.type = self.I2
+        cell.sbml.VModel['V'] = 6.9e-8
     def step(self, mcs):
         secretorV = self.get_field_secretor("Virus")
         secretorIFN = self.get_field_secretor("IFNe")
@@ -481,64 +479,3 @@ class FluPlotSteppable(SteppableBasePy):
                                                  len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
                     self.plot_win10.add_data_point("CC3DV", mcs * days_to_mcs * 24.0,
                                                   np.log10(self.shared_steppable_vars['ExtracellularVirus_Field']))
-
-class PlaqueAssaySteppable(SteppableBasePy):
-    def __init__(self, frequency=1):
-        SteppableBasePy.__init__(self, frequency)
-
-    def start(self):
-        if plot_PlaqueAssay == True:
-            self.plot_win11 = self.add_new_plot_window(title='Plaque Growth',
-                                                       x_axis_title='Hours',
-                                                       y_axis_title='Avg Radial Distance', x_scale_type='linear',
-                                                       y_scale_type='linear',
-                                                       grid=False, config_options={'legend': True})
-            self.plot_win11.add_plot("rdI1", style='Lines', color='orange', size=5)
-            self.plot_win11.add_plot("rdI2", style='Lines', color='red', size=5)
-            self.plot_win11.add_plot("rdD", style='Lines', color='purple', size=5)
-
-            self.plot_win12 = self.add_new_plot_window(title='Effective Infectivity',
-                                                       x_axis_title='Hours',
-                                                       y_axis_title='Effective Infectivity', x_scale_type='linear',
-                                                       y_scale_type=linear,
-                                                       grid=False, config_options={'legend': True})
-            self.plot_win12.add_plot("ODEB", style='Dots', color='blue', size=5)
-            self.plot_win12.add_plot("CC3DBeff", style='Lines', color='blue', size=5)
-            self.previousT = 0.0
-
-    def step(self, mcs):
-        if plot_PlaqueAssay == True:
-            avgI1rd = 0.0
-            num_I1 = len(self.cell_list_by_type(self.I1))
-            for cell in self.cell_list_by_type(self.I1):
-                xCOM = cell.xCOM
-                yCOM = cell.yCOM
-                avgI1rd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_I1
-
-            avgI2rd = 0.0
-            num_I2 = len(self.cell_list_by_type(self.I2))
-            for cell in self.cell_list_by_type(self.I2):
-                xCOM = cell.xCOM
-                yCOM = cell.yCOM
-                avgI2rd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_I2
-
-            avgDrd = 0.0
-            num_D = len(self.cell_list_by_type(self.DEAD))
-            for cell in self.cell_list_by_type(self.DEAD):
-                xCOM = cell.xCOM
-                yCOM = cell.yCOM
-                avgDrd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_D
-
-            self.plot_win11.add_data_point("rdI1", mcs * hours_to_mcs, avgI1rd)
-            self.plot_win11.add_data_point("rdI2", mcs * hours_to_mcs, avgI2rd)
-            self.plot_win11.add_data_point("rdD", mcs * hours_to_mcs, avgDrd)
-
-            Beff = 0.0
-            num_T = len(self.cell_list_by_type(self.U))
-            dT = abs(num_T - self.previousT)
-            self.previousT = num_T
-            if self.shared_steppable_vars['ExtracellularVirus_Field']:
-                Beff = dT / (num_T*self.shared_steppable_vars['ExtracellularVirus_Field']*hours_to_mcs)
-
-            self.plot_win12.add_data_point("ODEB", mcs * hours_to_mcs,self.sbml.FluModel['beta'])
-            self.plot_win12.add_data_point("CC3DBeff", mcs * hours_to_mcs, Beff)
