@@ -155,8 +155,10 @@ class ODEModelSteppable(SteppableBasePy):
                                         step_size=days_to_mcs)
 
         # Changing initial values according to discussions with Amber Smith
-        self.sbml.FluModel['I1'] = 0.0
-        self.sbml.FluModel['V'] = 75.0
+        # self.sbml.FluModel['I1'] = 0.0
+        # self.sbml.FluModel['V'] = 75.0
+        self.sbml.FluModel['I1'] = 1.0 / self.shared_steppable_vars['InitialNumberCells']
+        self.sbml.FluModel['V'] = 0.0
 
         self.add_free_floating_antimony(model_string=IFNModel_string, model_name='IFNModel',
                                         step_size=hours_to_mcs)
@@ -186,6 +188,7 @@ class CellularModelSteppable(SteppableBasePy):
         self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['t2'] * hours_to_mcs
         self.ExtracellularVirus = self.sbml.FluModel['V']
         self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs
+
 
     def step(self, mcs):
         secretorV = self.get_field_secretor("Virus")
@@ -277,7 +280,7 @@ class CellularModelSteppable(SteppableBasePy):
         k73 = self.sbml.IFNModel['k73'] * hours_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             Virus = cell.sbml.VModel['V']
-            p = k73 * Virus * self.sbml.IFNModel['k21'] * self.sbml.FluModel['T0'] / self.shared_steppable_vars['InitialNumberCells']
+            p = k73 * Virus * self.sbml.IFNModel['k21'] * 1094460.28
             release = secretorV.secreteInsideCellTotalCount(cell, p / cell.volume)
             self.ExtracellularVirus += release.tot_amount
         c = self.sbml.FluModel['c'] * days_to_mcs
