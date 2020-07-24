@@ -87,7 +87,10 @@ class ModelSteppable(SteppableBasePy):
             IFN = cell.dict['IRF7P']
             H = cell.dict['H']
             V = cell.dict['V']
-            IFNe = secretorIFN.amountSeenByCell(cell)
+            uptake_probability = 0.0000001
+            uptake = secretorIFN.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            IFNe = abs(uptake.tot_amount) / uptake_probability
+            secretorIFN.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
             (dSTATP,dIRF7,dIRF7P,dIFN) = IFN_Model(H,V,IFNe,STATP,IRF7,IRF7P,IFN)
             (dH, dV) = Virus_Model(H,V,IFN)
             cell.dict['STATP'] = dSTATP * hours_to_mcs + STATP
@@ -101,7 +104,10 @@ class ModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.U):
             # Determine V from the virus field
             b = self.beta * self.shared_steppable_vars['InitialNumberCells'] * days_to_mcs
-            V = secretorV.amountSeenByCell(cell)
+            uptake_probability = 0.0000001
+            uptake = secretorV.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            V = abs(uptake.tot_amount) / uptake_probability
+            secretorV.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
             p_UtoI1 = b * V
             if np.random.random() < p_UtoI1:
                 cell.type = self.I1
@@ -131,17 +137,23 @@ class ModelSteppable(SteppableBasePy):
         ## Measure amount of extracellular IFN field
         self.shared_steppable_vars['ExtracellularIFN_Field'] = 0.0
         for cell in self.cell_list_by_type(self.U,self.I1,self.I2):
-            self.shared_steppable_vars['ExtracellularIFN_Field'] += secretorIFN.amountSeenByCell(cell)
+            uptake_probability = 0.0000001
+            uptake = secretorIFN.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            self.shared_steppable_vars['ExtracellularIFN_Field'] +=  abs(uptake.tot_amount) / uptake_probability
+            secretorIFN.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
         ## Production of extracellular virus
         k73 = self.k73 * hours_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             secretorV.secreteInsideCellTotalCount(cell, k73 * cell.dict['V'] * 1094460.28 / cell.volume)
 
-        ## Measure amount of extracellular IFN field
+        ## Measure amount of extracellular Virus field
         self.shared_steppable_vars['ExtracellularVirus_Field'] = 0.0
         for cell in self.cell_list:
-            self.shared_steppable_vars['ExtracellularVirus_Field'] += secretorIFN.amountSeenByCell(cell)
+            uptake_probability = 0.0000001
+            uptake = secretorV.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            self.shared_steppable_vars['ExtracellularVirus_Field'] += abs(uptake.tot_amount) / uptake_probability
+            secretorV.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
 class PlaqueAssaySteppable(SteppableBasePy):
     def __init__(self, frequency=1):
