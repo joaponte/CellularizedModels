@@ -156,10 +156,10 @@ class ODEModelSteppable(SteppableBasePy):
                                         step_size=days_to_mcs)
 
         # Changing initial values according to discussions with Amber Smith
-        # self.sbml.FluModel['I1'] = 0.0
-        # self.sbml.FluModel['V'] = 75.0
-        self.sbml.FluModel['I1'] = 1.0 / self.shared_steppable_vars['InitialNumberCells']
-        self.sbml.FluModel['V'] = 0.0
+        self.sbml.FluModel['I1'] = 0.0
+        self.sbml.FluModel['V'] = 75.0
+        # self.sbml.FluModel['I1'] = 1.0 / self.shared_steppable_vars['InitialNumberCells']
+        # self.sbml.FluModel['V'] = 0.0
 
         self.add_free_floating_antimony(model_string=IFNModel_string, model_name='IFNModel',
                                         step_size=hours_to_mcs)
@@ -176,7 +176,7 @@ class ODEModelSteppable(SteppableBasePy):
         cell.sbml.VModel['V'] = 6.9e-8
         if not couple_Models:
             self.get_xml_element('IFNe_dc').cdata = 0.0
-            for cell in self.cell_list_by_type(self.U):
+            for cell in self.cell_list_by_type(self.U,self.I1):
                 cell.type = self.I2
                 cell.sbml.VModel['V'] = 6.9e-8
 
@@ -500,7 +500,7 @@ class PlaqueAssaySteppable(SteppableBasePy):
             self.plot_win12 = self.add_new_plot_window(title='Effective Infectivity',
                                                        x_axis_title='Hours',
                                                        y_axis_title='Effective Infectivity', x_scale_type='linear',
-                                                       y_scale_type=linear,
+                                                       y_scale_type='log',
                                                        grid=False, config_options={'legend': True})
             self.plot_win12.add_plot("ODEB", style='Dots', color='blue', size=5)
             self.plot_win12.add_plot("CC3DBeff", style='Lines', color='blue', size=5)
