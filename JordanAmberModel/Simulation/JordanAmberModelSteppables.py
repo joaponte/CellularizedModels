@@ -284,7 +284,7 @@ class CellularModelSteppable(SteppableBasePy):
         k73 = self.sbml.IFNModel['k73'] * hours_to_mcs
         for cell in self.cell_list_by_type(self.I2):
             Virus = cell.sbml.VModel['V']
-            p = k73 * Virus * self.sbml.IFNModel['k21'] * 1094460.28
+            p = k73 * Virus * 1094460.28
             release = secretorV.secreteInsideCellTotalCount(cell, p / cell.volume)
             self.ExtracellularVirus += release.tot_amount
         c = self.sbml.FluModel['c'] * days_to_mcs
