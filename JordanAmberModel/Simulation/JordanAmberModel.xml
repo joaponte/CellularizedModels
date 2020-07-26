@@ -11,7 +11,7 @@
    <Potts>
       
       <!-- Basic properties of CPM (GGH) algorithm -->
-      <Dimensions x="256" y="256" z="1"/>
+      <Dimensions x="200" y="200" z="1"/>
       <Steps id="simulation_steps">100000</Steps>
       <Temperature>10.0</Temperature>
       <NeighborOrder>1</NeighborOrder>
@@ -67,11 +67,13 @@
    </Plugin>
 
    <Steppable Type="DiffusionSolverFE">
-      <DiffusionField Name="IFNe">
+      <DiffusionField Name="Virus">
          <DiffusionData>
             <FieldName>Virus</FieldName>
-            <GlobalDiffusionConstant id = "IFNe_dc">0.001</GlobalDiffusionConstant>
-            <GlobalDecayConstant id = "IFNe_decay">0.0</GlobalDecayConstant>
+            <GlobalDiffusionConstant id = "virus_dc">1.0</GlobalDiffusionConstant>
+            <GlobalDecayConstant id = "virus_decay">0.0</GlobalDecayConstant>
+<!--            <InitialConcentrationExpression>75.0/(300*300)</InitialConcentrationExpression>-->
+            <InitialConcentrationExpression>0.0/(100*100)</InitialConcentrationExpression>
          </DiffusionData>
          <BoundaryConditions>
             <Plane Axis="X">
@@ -82,11 +84,11 @@
             </Plane>
          </BoundaryConditions>
       </DiffusionField>
-      <DiffusionField Name="Virus">
+      <DiffusionField Name="IFNe">
          <DiffusionData>
-            <FieldName>Virus</FieldName>
-            <GlobalDiffusionConstant id = "Virus_dc">1.0</GlobalDiffusionConstant>
-            <GlobalDecayConstant id = "Virus_decay">0.0</GlobalDecayConstant>
+            <FieldName>IFNe</FieldName>
+            <GlobalDiffusionConstant id = "IFNe_dc">1.0</GlobalDiffusionConstant>
+            <GlobalDecayConstant id = "IFNe_decay">0.03283</GlobalDecayConstant>
          </DiffusionData>
          <BoundaryConditions>
             <Plane Axis="X">
@@ -103,10 +105,10 @@
       <!-- Initial layout of cells in the form of rectangular slab -->
       <Region>
          <BoxMin x="0" y="0" z="0"/>
-         <BoxMax x="256" y="256" z="1"/>
+         <BoxMax x="200" y="200" z="1"/>
          <Gap>0</Gap>
          <Width>3</Width>
-         <Types>I2</Types>
+         <Types>U</Types>
       </Region>
    </Steppable>
 </CompuCell3D>
