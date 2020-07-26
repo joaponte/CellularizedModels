@@ -1,6 +1,5 @@
-
 from cc3d import CompuCellSetup
-        
+
 from JordanAmberModelSteppables import ModelSteppable
 CompuCellSetup.register_steppable(steppable=ModelSteppable(frequency=1))
 
