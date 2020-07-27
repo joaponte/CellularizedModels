@@ -1,0 +1,8 @@
+<Simulation version="4.1.1">
+   <XMLScript Type="XMLScript">Simulation/GlazierModel.xml</XMLScript>
+   <PythonScript Type="PythonScript">Simulation/GlazierModel.py</PythonScript>
+   <Resource Type="Python">Simulation/GlazierModelInputs.py</Resource>
+   <Resource Type="Python">Simulation/GlazierModelLib.py</Resource>
+   <Resource Type="Python">Simulation/GlazierModelSteppables.py</Resource>
+   <Resource Type="Python">Simulation/__init__.py</Resource>
+</Simulation>
