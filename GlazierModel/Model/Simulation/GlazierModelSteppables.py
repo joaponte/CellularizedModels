@@ -620,4 +620,7 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
                 self.__cd8_count -= 1
 
     def get_model_val(self, _var_str):
-        return self.__rr[_var_str]
+        try:
+            return self.__rr[_var_str]
+        except RuntimeError:
+            return None
