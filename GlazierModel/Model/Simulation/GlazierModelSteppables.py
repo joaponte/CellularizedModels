@@ -168,13 +168,13 @@ class ViralLifeCycleSteppable(SteppableBasePy):
 
         secretor = self.get_field_secretor("Virus")
 
-        # Internalization
-        beta = self.ir_steppable.get_model_val("beta")
-        for cell in self.cell_list_by_type(self.UNINFECTED):
-            seen_amount = secretor.amountSeenByCell(cell) / cell.volume * self.dim.z
-            pr_infect = GlazierModelLib.ul_rate_to_prob(beta * seen_amount)
-            if random.random() < pr_infect:
-                cell.type = self.INFECTED
+        # Virus releasing -> Dead
+        d_i2 = self.ir_steppable.get_model_val("deltaI2")
+        pr_death = GlazierModelLib.ul_rate_to_prob(d_i2)
+        for cell in self.cell_list_by_type(self.VIRUSRELEASING):
+            if random.random() < pr_death:
+                cell.type = self.DEAD
+                self.simdata_steppable.track_death_viral()
 
         # Infected -> Virus releasing
         k = self.ir_steppable.get_model_val("k")
@@ -183,13 +183,13 @@ class ViralLifeCycleSteppable(SteppableBasePy):
             if random.random() < pr_release:
                 cell.type = self.VIRUSRELEASING
 
-        # Virus releasing -> Dead
-        d_i2 = self.ir_steppable.get_model_val("deltaI2")
-        pr_death = GlazierModelLib.ul_rate_to_prob(d_i2)
-        for cell in self.cell_list_by_type(self.VIRUSRELEASING):
-            if random.random() < pr_death:
-                cell.type = self.DEAD
-                self.simdata_steppable.track_death_viral()
+        # Internalization
+        beta = self.ir_steppable.get_model_val("beta")
+        for cell in self.cell_list_by_type(self.UNINFECTED):
+            seen_amount = secretor.amountSeenByCell(cell) / cell.volume * self.dim.z
+            pr_infect = GlazierModelLib.ul_rate_to_prob(beta * seen_amount)
+            if random.random() < pr_infect:
+                cell.type = self.INFECTED
 
 
 class SimDataSteppable(SteppableBasePy):
@@ -594,6 +594,11 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
         for pixel in med_pixel_set:
             xi = pixel.x
             yi = pixel.y
+
+            # No placing cells over a boundary
+            if xi + int(cell_diameter / 2) >= self.dim.x or yi + int(cell_diameter / 2) >= self.dim.y:
+                continue
+
             open_space = True
             for x in range(xi, xi + int(cell_diameter / 2)):
                 for y in range(yi, yi + int(cell_diameter / 2)):
@@ -602,11 +607,11 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
                         break
             if open_space:
                 concentration_iteration = target_field[xi, yi, 1]
+                sites_sampled += 1
                 if concentration_iteration >= max_concentration:
                     max_concentration = concentration_iteration
                     x_seed = xi
                     y_seed = yi
-                    sites_sampled += 1
             if sites_sampled == n_sites_frac:
                 break
         if x_seed is not None:
