@@ -544,12 +544,13 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
             if model_name == GlazierModelLib.ir_model_name:
                 self.__rr = rr
 
-        # Add initial immune cell population, if any
-        E_init = self.get_model_val("E")
-        if E_init is not None:
-            [self.add_immune_cell() for _ in range(int(E_init))]
-
     def step(self, mcs):
+        if mcs == 0:
+            # Add initial immune cell population, if any
+            E_init = self.get_model_val("E")
+            if E_init is not None:
+                [self.add_immune_cell() for _ in range(int(E_init))]
+
         # Pass spatial information to ODEs
         self.__rr["Cyto"] = self.get_field_secretor("cytokine").totalFieldIntegral() / self.dim.z
 
