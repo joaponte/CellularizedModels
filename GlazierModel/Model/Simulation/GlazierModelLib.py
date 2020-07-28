@@ -1,3 +1,5 @@
+import math
+
 # Name of Antimony/SBML model of immune cell recruitment
 ir_model_name = 'TcellModel'
 
@@ -26,12 +28,11 @@ def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1, time_conv=1):
     J8: LymphCyto -> ; deltaLC*LymphCyto // Clearance of lymph cytokine
     // Amplification of T cells in Lymph Node (may have to add 0 order source)
     J9: -> LymphE ; kLE*KLLE*LymphE/(KLLE+LymphE)*LymphCyto/(KLC+LymphCyto) + aEL*(bEL-LymphE)
-    J10: LymphE->E ; kLEE* LymphE //Transport of T cells to tissue
-    J11: E-> ; dE*E // Clearance of E cells
+    J10: LymphE-> ; kLEE* LymphE //Transport of T cells to tissue
     
     // Species initializations:
-    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue-- can be zero
-    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node--can't be zero
+    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue
+    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node
     Cyto = 0.0 ;
     LymphCyto = 0.0 ;
     
@@ -85,8 +86,8 @@ def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75, time_conv=1):
     I2 = 0.0 ;
     D = 0.0 ;
     V = 0.0 ;
-    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue-- can be zero
-    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node--can't be zero
+    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue
+    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node
     Cyto = 0.0 ;
     LymphCyto = 0.0 ;
     
@@ -146,8 +147,8 @@ def immune_recruitment_model_string_original(time_conv=1):
     I2 = 0.0 ;
     D = 0.0 ;
     V = 0.0 ;
-    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue-- can be zero
-    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node--can't be zero
+    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue
+    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node
     Cyto = 0.0 ;
     LymphCyto = 0.0 ;
     
@@ -172,3 +173,7 @@ def immune_recruitment_model_string_original(time_conv=1):
     bEL = 4.2E5;
     end'''
     return model_string
+
+
+def ul_rate_to_prob(_rate):
+    return _rate * math.exp(-_rate)

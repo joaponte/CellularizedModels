@@ -113,7 +113,8 @@ class ImmuneCellKillingSteppable(SteppableBasePy):
             if cd8_area == 0:
                 continue
 
-            pr_death = d_e * self.num_ecs / k_e / srf_area * cd8_area
+            death_rate = d_e * self.num_ecs / k_e / srf_area * cd8_area
+            pr_death = GlazierModelLib.ul_rate_to_prob(death_rate)
             if random.random() < pr_death:
                 cell.type = self.DEAD
                 cell.targetVolume = 0
@@ -171,20 +172,22 @@ class ViralLifeCycleSteppable(SteppableBasePy):
         beta = self.ir_steppable.get_model_val("beta")
         for cell in self.cell_list_by_type(self.UNINFECTED):
             seen_amount = secretor.amountSeenByCell(cell) / cell.volume * self.dim.z
-            pr_infect = beta * seen_amount
+            pr_infect = GlazierModelLib.ul_rate_to_prob(beta * seen_amount)
             if random.random() < pr_infect:
                 cell.type = self.INFECTED
 
         # Infected -> Virus releasing
         k = self.ir_steppable.get_model_val("k")
+        pr_release = GlazierModelLib.ul_rate_to_prob(k)
         for cell in self.cell_list_by_type(self.INFECTED):
-            if random.random() < k:
+            if random.random() < pr_release:
                 cell.type = self.VIRUSRELEASING
 
         # Virus releasing -> Dead
         d_i2 = self.ir_steppable.get_model_val("deltaI2")
+        pr_death = GlazierModelLib.ul_rate_to_prob(d_i2)
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
-            if random.random() < d_i2:
+            if random.random() < pr_death:
                 cell.type = self.DEAD
                 self.simdata_steppable.track_death_viral()
 
@@ -520,9 +523,6 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
         # Reference to solver
         self.__rr = None
 
-        # Running value of spatial cd8 cells; track internally since departing cells may not always be departed
-        self.__cd8_count = 0
-
     def start(self):
         # Post reference to self
         self.shared_steppable_vars[GlazierModelLib.ir_steppable_key] = self
@@ -544,6 +544,11 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
             if model_name == GlazierModelLib.ir_model_name:
                 self.__rr = rr
 
+        # Add initial immune cell population, if any
+        E_init = self.get_model_val("E")
+        if E_init is not None:
+            [self.add_immune_cell() for _ in range(int(E_init))]
+
     def step(self, mcs):
         # Pass spatial information to ODEs
         self.__rr["Cyto"] = self.get_field_secretor("cytokine").totalFieldIntegral() / self.dim.z
@@ -551,73 +556,60 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
         # Integrate ODEs
         self.__rr.timestep()
 
-        # Adjust local immune cell population
+        # Calculate outflow
+        remove_rate = self.get_model_val("dE")
+        pr_remove = GlazierModelLib.ul_rate_to_prob(remove_rate)
+        for cell in self.cell_list_by_type(self.CD8LOCAL):
+            if random.random() < pr_remove:
+                cell.targetVolume = 0
 
-        #   Get current ODE population
-        num_cd8_ode = self.__rr["E"]
+        # Calculate inflow
+        num_add = 0
+        add_rate = self.get_model_val("LymphE") * self.get_model_val("kLEE")
+        exp_term = math.exp(-add_rate)
+        sum_term = 1.0
+        while random.random() < 1 - exp_term * sum_term:
+            num_add += 1.0
+            sum_term += add_rate ** num_add / math.factorial(num_add)
+        [self.add_immune_cell() for _ in range(int(num_add))]
 
-        #   Calculate deterministic and stochastic adjustments
-        val_n_diff = num_cd8_ode - self.__cd8_count
-        val_n_det = 0
-        adding_cell = val_n_diff >= 0
-        if val_n_diff < 0:
-            val_n_det = int(math.ceil(val_n_diff))
-        elif val_n_diff > 0:
-            val_n_det = int(math.floor(val_n_diff))
-
-        abs_diff = abs(val_n_diff - val_n_det)
-        val_n_prob = math.exp((abs_diff - 1.0) * shape_param)
-
-        #   Do recruitment updates
-        [self.adjust_immune_cell(adding_cell) for _ in range(abs(val_n_det))]
-        if random.random() < val_n_prob:
-            self.adjust_immune_cell(adding_cell)
-
-    def adjust_immune_cell(self, adding_cell):
+    def add_immune_cell(self):
         # Accumulate unoccupied samples equal to a fraction of the number of sites and place the cell at the site
         # with the maximum value
 
-        if adding_cell:
-            sample_frac = 0.01  # Move to inputs
-            n_sites = self.dim.x * self.dim.y
-            n_sites_frac = int(n_sites * sample_frac)
+        sample_frac = 0.01  # Move to inputs
+        n_sites = self.dim.x * self.dim.y
+        n_sites_frac = int(n_sites * sample_frac)
 
-            max_concentration = 0
-            target_field = self.field.cytokine
-            x_seed = None
-            y_seed = None
-            sites_sampled = 0
-            sample_attempts = 0
-            while sites_sampled < n_sites_frac and sample_attempts < n_sites:
-                sample_attempts += 1
-                xi = random.randint(cell_diameter, self.dim.x - cell_diameter)
-                yi = random.randint(cell_diameter, self.dim.y - cell_diameter)
-                open_space = True
-                for x in range(xi, xi + int(cell_diameter / 2)):
-                    for y in range(yi, yi + int(cell_diameter / 2)):
-                        if self.cell_field[x, y, 1]:
-                            open_space = False
-                            break
-                if open_space:
-                    concentration_iteration = target_field[xi, yi, 1]
-                    if concentration_iteration >= max_concentration:
-                        max_concentration = concentration_iteration
-                        x_seed = xi
-                        y_seed = yi
-                        sites_sampled += 1
-            if x_seed is not None:
-                cell = self.new_cell(self.CD8LOCAL)
-                self.cell_field[x_seed:x_seed + int(cell_diameter / 2), y_seed:y_seed + int(cell_diameter / 2), 1] = \
-                    cell
-                cell.targetVolume = cell_volume
-                cell.lambdaVolume = volume_lm
-                self.__cd8_count += 1
-        else:
-            type_list = [x for x in self.cell_list_by_type(self.CD8LOCAL)]
-            if type_list:
-                cell = random.choice(type_list)
-                cell.targetVolume = 0
-                self.__cd8_count -= 1
+        max_concentration = 0
+        target_field = self.field.cytokine
+        x_seed = None
+        y_seed = None
+        sites_sampled = 0
+        sample_attempts = 0
+        while sites_sampled < n_sites_frac and sample_attempts < n_sites:
+            sample_attempts += 1
+            xi = random.randint(cell_diameter, self.dim.x - cell_diameter)
+            yi = random.randint(cell_diameter, self.dim.y - cell_diameter)
+            open_space = True
+            for x in range(xi, xi + int(cell_diameter / 2)):
+                for y in range(yi, yi + int(cell_diameter / 2)):
+                    if self.cell_field[x, y, 1]:
+                        open_space = False
+                        break
+            if open_space:
+                concentration_iteration = target_field[xi, yi, 1]
+                if concentration_iteration >= max_concentration:
+                    max_concentration = concentration_iteration
+                    x_seed = xi
+                    y_seed = yi
+                    sites_sampled += 1
+        if x_seed is not None:
+            cell = self.new_cell(self.CD8LOCAL)
+            self.cell_field[x_seed:x_seed + int(cell_diameter / 2), y_seed:y_seed + int(cell_diameter / 2), 1] = \
+                cell
+            cell.targetVolume = cell_volume
+            cell.lambdaVolume = volume_lm
 
     def get_model_val(self, _var_str):
         try:
