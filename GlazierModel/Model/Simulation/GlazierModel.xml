@@ -64,6 +64,10 @@
 
    <Plugin Name="Secretion"/>
 
+   <Plugin Name="PixelTracker">
+       <TrackMedium/>
+   </Plugin>
+
    <Steppable Type="DiffusionSolverFE">
       <DiffusionField Name="Virus">
          <DiffusionData>

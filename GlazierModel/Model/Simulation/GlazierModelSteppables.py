@@ -586,11 +586,13 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
         x_seed = None
         y_seed = None
         sites_sampled = 0
-        sample_attempts = 0
-        while sites_sampled < n_sites_frac and sample_attempts < n_sites:
-            sample_attempts += 1
-            xi = random.randint(cell_diameter, self.dim.x - cell_diameter)
-            yi = random.randint(cell_diameter, self.dim.y - cell_diameter)
+
+        med_pixel_set = [ptd.pixel for ptd in self.pixel_tracker_plugin.getMediumPixelSet()]
+        random.shuffle(med_pixel_set)
+
+        for pixel in med_pixel_set:
+            xi = pixel.x
+            yi = pixel.y
             open_space = True
             for x in range(xi, xi + int(cell_diameter / 2)):
                 for y in range(yi, yi + int(cell_diameter / 2)):
@@ -604,6 +606,8 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
                     x_seed = xi
                     y_seed = yi
                     sites_sampled += 1
+            if sites_sampled == n_sites_frac:
+                break
         if x_seed is not None:
             cell = self.new_cell(self.CD8LOCAL)
             self.cell_field[x_seed:x_seed + int(cell_diameter / 2), y_seed:y_seed + int(cell_diameter / 2), 1] = \
