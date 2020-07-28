@@ -241,7 +241,7 @@ class SimDataSteppable(SteppableBasePy):
                                                          x_axis_title='MCS',
                                                          y_axis_title='Numer of cells',
                                                          x_scale_type='linear',
-                                                         y_scale_type='linear',
+                                                         y_scale_type='log',
                                                          grid=True,
                                                          config_options={'legend': True})
 
@@ -283,7 +283,7 @@ class SimDataSteppable(SteppableBasePy):
                                                            x_axis_title='MCS',
                                                            y_axis_title='Numer of cells',
                                                            x_scale_type='linear',
-                                                           y_scale_type='linear',
+                                                           y_scale_type='log',
                                                            grid=True,
                                                            config_options={'legend': True})
 
@@ -364,18 +364,19 @@ class SimDataSteppable(SteppableBasePy):
             num_cells_immune_l = self.ir_steppable.get_model_val("LymphE")
 
             # Plot population data plot if requested
+            min_thresh = 0.1
             if plot_pop_data:
-                if num_cells_uninfected > 0:
+                if num_cells_uninfected > min_thresh:
                     self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
-                if num_cells_infected > 0:
+                if num_cells_infected > min_thresh:
                     self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
-                if num_cells_virusreleasing > 0:
+                if num_cells_virusreleasing > min_thresh:
                     self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
-                if num_cells_dead > 0:
+                if num_cells_dead > min_thresh:
                     self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
-                if num_cells_immune > 0:
+                if num_cells_immune > min_thresh:
                     self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
-                if num_cells_immune_l > 0:
+                if num_cells_immune_l > min_thresh:
                     self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
                 if plot_ode_sol:
@@ -386,17 +387,17 @@ class SimDataSteppable(SteppableBasePy):
                     num_cells_immune = self.__rr["E"]
                     num_cells_immune_l = self.__rr["LymphE"]
 
-                    if num_cells_uninfected > 0:
+                    if num_cells_uninfected > min_thresh:
                         self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
-                    if num_cells_infected > 0:
+                    if num_cells_infected > min_thresh:
                         self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
-                    if num_cells_virusreleasing > 0:
+                    if num_cells_virusreleasing > min_thresh:
                         self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
-                    if num_cells_dead > 0:
+                    if num_cells_dead > min_thresh:
                         self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
-                    if num_cells_immune > 0:
+                    if num_cells_immune > min_thresh:
                         self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
-                    if num_cells_immune_l > 0:
+                    if num_cells_immune_l > min_thresh:
                         self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
 
             # Write population data to file if requested
@@ -452,10 +453,11 @@ class SimDataSteppable(SteppableBasePy):
             num_contact = self.__death_mech['contact']
 
             # Plot death data if requested
+            min_thresh = 0.1
             if plot_death_data:
-                if num_viral > 0:
+                if num_viral > min_thresh:
                     self.death_data_win.add_data_point("Viral", mcs, num_viral)
-                if num_contact > 0:
+                if num_contact > min_thresh:
                     self.death_data_win.add_data_point("Contact", mcs, num_contact)
 
             # Write death data if requested
@@ -469,9 +471,9 @@ class SimDataSteppable(SteppableBasePy):
 
                 # Plot death data if requested
                 if plot_death_data:
-                    if num_viral > 0:
+                    if num_viral > min_thresh:
                         self.death_data_win.add_data_point("ViralODE", mcs, num_viral)
-                    if num_contact > 0:
+                    if num_contact > min_thresh:
                         self.death_data_win.add_data_point("ContactODE", mcs, num_contact)
 
     def track_death_viral(self):
