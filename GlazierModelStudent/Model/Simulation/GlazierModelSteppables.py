@@ -58,51 +58,50 @@ def immune_recruitment_model_string_original(time_conv=1.0):
     model_string = f'''model TcellModelOriginal()
     s_t = {time_conv}
 
-    // Reactions:
-    J1: TE -> I1 ; beta*TE*V // Infection rate
-    J2: I1 -> I2 ; k*I1 // Eclipse Phase
-    J3: I2 -> D ;  deltaI2*I2 +deltaE*E*I2/(KdeltaE+I2) // General and Immune mediated cell death
-    J4: -> V; p*I2 // Virus production by virus releasing infected cells
-    J4A: V -> ; cV*V // Viral clearance
-    J5: -> Cyto ; cC*(I1+I2) // Cytokine Production
-    J6: Cyto -> ; deltaC*Cyto // Clearance of Cytokines
-    J7: Cyto -> LymphCyto ; kCyto*Cyto // Transport of Cyto to lymph Node
-    J8: LymphCyto -> ; deltaLC*LymphCyto // Clearance of lymph cytokine
-    // Amplification of T cells in Lymph Node
-    J9: -> LymphE ; kLE*KLLE*LymphE/(KLLE+LymphE)*LymphCyto/(KLC+LymphCyto) + aEL*(bEL - LymphE)
-    J10: LymphE->E ; kLEE* LymphE // Transport of T cells to tissue
-    J11: E-> ; dE*E // Clearance of E cells
-
-    // Species initializations:
-    TE = 1E7 ; // Intitial number of epithelal cells
-    I1 = 75.0 ; // Initial number of infected cells
-    I2 = 0.0 ;
-    D = 0.0 ;
-    V = 0.0 ;
-    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue
-    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node
-    Cyto = 0.0 ;
-    LymphCyto = 0.0 ;
-
-    // Parameter initialization:
-    beta = 6.2E-5 * s_t; // virus infectivity Units, TCID^-1 /day
-    k = 4.0 * s_t; // eclipse phase transition, units /day
-    p = 1.0 * s_t; // virus production, units TCID/cell/day
-    cV = 9.4 * s_t; // virus clearance, units /day
-    deltaI2 = 1.4E-1 * s_t; // infected cell clearance, units / day
-    deltaE = 5 * s_t; // infected cell clearance by CD8Es, units / day
-    KdeltaE = 8.1E5; // half saturation constant, units number of cells CD8E
-    dE = 1.0 * s_t; // CD8E clearance, units /day
-    cC = 1.0 * s_t; // Cytokine Production 
-    deltaC = 2.0 * s_t; // Clearance of Cytokines, units of /day
-    kCyto = 0.5 * s_t; // Transport of Cyto to lymph Node, units of /day
-    deltaLC = 0.5 * s_t; // Clearance of lymph cytokine , units of /day
-    kLE = 2.0 * s_t; // Amplification of T cells in Lymph Node, units of /day
-    kLEE = 0.5; // Transport of T cells to tissue, units /day
-    KLC = 2E6; // Saturation for effect of cytokine on T cell production
-    KLLE = 1E7; // Saturation of T cells in lymph node
-    aEL = 1.0 * s_t;
-    bEL = 4.2E5;
+    //Equations
+    E1: T -> I1 ; beta*T*V ; //Infection rate
+    E2: I1 -> I2 ; k*I1 ; //Infection rate
+    E3: -> V ; p*I2 ; //Virus Production
+    E4: V -> ; c*V ; // Virus Decay
+    E5: I2 -> D ; d*I2 ; // Infected Cell Clearance (apopotosis + innate immune response)
+    E6: -> C ; pc*(I1+I2) ; // Cytokine production
+    E7: C -> ; cc*C ; // Cytokine decay
+    E8: C -> Cl ; kc * C // Cytokine transport to the lymph node
+    E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
+    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
+    E11: El -> E; ke*El   ;
+    E12: E ->  ; dE*E     ;
+    E13: I2 -> D ; kei2*dei2*E/(E+kei2+I2)*I2 ;
+    
+    
+    //Parameters
+    beta = 6.2E-5 * s_t ; // 1.0/(TCID*day)
+    k = 4.0 * s_t ; // 1.0/day
+    p = 1.0 * s_t ; // TCID/cell/day
+    c = 9.4 * s_t ; // 1.0/day
+    d = 2.4E-1 * s_t; // 1.0/day
+    pc = 1.0 * s_t ;
+    cc = 2.0 * s_t ; // 1.0/day
+    kc = 0.5 * s_t ; // 1.0/day
+    ccl = 0.5 * s_t ; // 1.0/day
+    pel = 1E-4 * s_t ;
+    rel = 1.0E-7 * s_t ;
+    Kel = 1E3 ;
+    ke = 0.5 * s_t ;
+    dE = 1.0 * s_t ;
+    dei2 = 12E-2 * s_t ; //15E3
+    kei2 = 5E4 ;
+    
+    //Inputs
+    V = 0.0
+    
+    //Initial Conditions
+    T0 = 1E7
+    T = T0
+    I1 = 75 
+    C = 0.0
+    E = 0.0
+    El = 0.0
     end'''
     return model_string
 
@@ -120,55 +119,56 @@ def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75.0, time_conv=1
     s_v = {num_ec} / 1E7;
     s_t = {time_conv};
     
-    // Reactions:
-    J1: TE -> I1 ; beta*TE*V //Infection rate
-    J2: I1 -> I2 ; k*I1 //Eclipse Phase
-    J3: I2 -> D ;  deltaI2*I2 +deltaE*E*I2/(KdeltaE+I2) // General and Immune mediated cell death
-    J4: -> V; p*I2 // Virus production by virus releasing infected cells
-    J4A: V -> ; cV*V // Viral clearance
-    J5: -> Cyto ; cC*(I1+I2) // Cytokine Production
-    J6: Cyto -> ; deltaC*Cyto // Clearance of Cytokines
-    J7: Cyto -> LymphCyto ; kCyto*Cyto // Transport of Cyto to lymph Node
-    J8: LymphCyto -> ; deltaLC*LymphCyto // Clearance of lymph cytokine
-    // Amplification of T cells in Lymph Node
-    J9: -> LymphE ; kLE*KLLE*LymphE/(KLLE+LymphE)*LymphCyto/(KLC+LymphCyto) + aEL*(bEL-LymphE)
-    J10: LymphE->E ; kLEE* LymphE //Transport of T cells to tissue
-    J11: E-> ; dE*E // Clearance of E cells
+    //Equations
+    E1: T -> I1 ; beta*T*V ; //Infection rate
+    E2: I1 -> I2 ; k*I1 ; //Infection rate
+    E3: -> V ; p*I2 ; //Virus Production
+    E4: V -> ; c*V ; // Virus Decay
+    E5: I2 -> D ; d*I2 ; // Infected Cell Clearance (apopotosis + innate immune response)
+    E6: -> C ; pc*(I1+I2) ; // Cytokine production
+    E7: C -> ; cc*C ; // Cytokine decay
+    E8: C -> Cl ; kc * C // Cytokine transport to the lymph node
+    E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
+    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
+    E11: El -> E; ke*El   ;
+    E12: E ->  ; dE*E     ;
+    E13: I2 -> D ; kei2*dei2*E/(E+kei2+I2)*I2 ;
     
-    // Species initializations:
-    TE = {num_ec} ; //Intitial number of epithelal cells
-    I1 = {num_infect} ; // Initial number of infected cells
-    I2 = 0.0 ;
-    D = 0.0 ;
-    V = 0.0 ;
-    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue
-    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node
-    Cyto = 0.0 ;
-    LymphCyto = 0.0 ;
     
-    // Parameter initialization:
-    beta = 6.2E-5 / s_v * s_t; // virus infectivity Units, TCID^-1 /day
-    k = 4.0 * s_t; // eclipse phase transition, units /day
-    p = 1.0 * s_t; // virus production, units TCID/cell/day
-    cV = 9.4 * s_t; // virus clearance, units /day
-    deltaI2 = 1.4E-1 * s_t; // infected cell clearance, units / day
-    deltaE = 5 * s_t; // infected cell clearance by CD8Es, units / day
-    KdeltaE = 8.1E5 * s_v; // half saturation constant, units number of cells CD8E
-    dE = 1.0 * s_t; // CD8E clearance, units /day
-    cC = 1.0 * s_t; // Cytokine Production 
-    deltaC = 2.0 * s_t; // Clearance of Cytokines, units of /day
-    kCyto = 0.5 * s_t; // Transport of Cyto to lymph Node, units of /day
-    deltaLC = 0.5 * s_t; // Clearance of lymph cytokine , units of /day
-    kLE = 2.0 * s_t; // Amplification of T cells in Lymph Node, units of /day
-    kLEE = 0.5 * s_t; // Transport of T cells to tissue, units /day
-    KLC = 2E6 * s_v; // Saturation for effect of cytokine on T cell production
-    KLLE = 1E7 * s_v; // Saturation of T cells in lymph node
-    aEL = 1.0 * s_t;
-    bEL = 4.2E5 * s_v;
+    //Parameters
+    beta = 6.2E-5 * s_t / s_v ; // 1.0/(TCID*day)
+    k = 4.0 * s_t ; // 1.0/day
+    p = 1.0 * s_t ; // TCID/cell/day
+    c = 9.4 * s_t ; // 1.0/day
+    d = 2.4E-1 * s_t; // 1.0/day
+    pc = 1.0 * s_t ;
+    cc = 2.0 * s_t ; // 1.0/day
+    kc = 0.5 * s_t ; // 1.0/day
+    ccl = 0.5 * s_t ; // 1.0/day
+    pel = 1E-4 * s_t ;
+    # rel = 1.0E-7 * s_t / s_v ;
+    rel = 1.0E-1 * s_t / s_v ;
+    Kel = 1E3 * s_v ;
+    ke = 0.5 * s_t ;
+    dE = 1.0 * s_t ;
+    # dei2 = 12E-2 * s_t / s_v ; //15E3
+    dei2 = 12E-6 * s_t / s_v ; //15E3
+    kei2 = 5E4 * s_v ;
+    
+    //Inputs
+    V = 0.0
+    
+    //Initial Conditions
+    T0 = {num_ec}
+    T = T0
+    I1 = {num_infect}
+    C = 0.0
+    E = 0.0
+    El = 0.0
 
     // Death mechanism tracking
-    -> viralDeath ; deltaI2*I2 ;
-    -> cd8Death ; deltaE*E*I2/(KdeltaE+I2) ;
+    -> viralDeath ; d*I2 ;
+    -> cd8Death ; kei2*dei2*E/(E+kei2+I2)*I2 ;
     viralDeath = 0;
     cd8Death = 0;
 
@@ -190,38 +190,41 @@ def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1.0, time_conv=1.
     s_l = 1 / 1E7 / {sites_per_cell};
     s_t = {time_conv};
 
-    // Reactions:
-    J7: -> LymphCyto ; kCyto*Cyto // Transport of Cyto to lymph Node
-    J8: LymphCyto -> ; deltaLC*LymphCyto // Clearance of lymph cytokine
-    // Amplification of T cells in Lymph Node
-    J9: -> LymphE ; kLE*KLLE*LymphE/(KLLE+LymphE)*LymphCyto/(KLC+LymphCyto) + aEL*(bEL-LymphE)
-    J10: LymphE-> ; kLEE* LymphE //Transport of T cells to tissue
+    //Equations
+    E8: -> Cl ; kc * C // Cytokine transport to the lymph node
+    E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
+    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
+    E11: El -> ; ke*El   ;
     
-    // Species initializations:
-    E = kLE/dE*LymphE ; // Initial number of CD8E cells in Tissue
-    LymphE = aEL*bEL/(kLE+aEL) ; // Initial number of CD8E cells in Lymph Node
-    Cyto = 0.0 ;
-    LymphCyto = 0.0 ;
+    //Parameters
+    beta = 6.2E-5 * s_t / s_l ; // 1.0/(TCID*day)
+    k = 4.0 * s_t ; // 1.0/day
+    p = 1.0 * s_t ; // TCID/cell/day
+    c = 9.4 * s_t ; // 1.0/day
+    d = 2.4E-1 * s_t; // 1.0/day
+    pc = 1.0 * s_t ;
+    cc = 2.0 * s_t ; // 1.0/day
+    kc = 0.5 * s_t ; // 1.0/day
+    ccl = 0.5 * s_t ; // 1.0/day
+    pel = 1E-4 * s_t ;
+    # rel = 1.0E-7 * s_t / s_v ;
+    rel = 1.0E-1 * s_t / s_v ;
+    Kel = 1E3 * s_v ;
+    ke = 0.5 * s_t ;
+    dE = 1.0 * s_t ;
+    # dei2 = 12E-2 * s_t / s_v ; //15E3
+    dei2 = 12E-6 * s_t / s_v ; //15E3
+    kei2 = 5E4 * s_v ;
     
-    // Parameter initialization:
-    beta = 6.2E-5 / s_l * s_t; // virus infectivity Units, TCID^-1 /day
-    k = 4.0 * s_t; // eclipse phase transition, units /day
-    p = 1.0 * s_t; // virus production, units TCID/cell/day
-    cV = 9.4 * s_t; // virus clearance, units /day
-    deltaI2 = 1.4E-1 * s_t; // infected cell clearance, units / day
-    deltaE = 5 * s_t; // infected cell clearance by CD8Es, units / day
-    KdeltaE = 8.1E5 * s_v; // half saturation constant, units number of cells CD8E
-    dE = 1.0 * s_t; // CD8E clearance, units /day
-    cC = 1.0 * s_t; // Cytokine Production 
-    deltaC = 2.0 * s_t; // Clearance of Cytokines, units of /day
-    kCyto = 0.5 * s_t; // Transport of Cyto to lymph Node, units of /day
-    deltaLC = 0.5 * s_t; // Clearance of lymph cytokine , units of /day
-    kLE = 2.0 * s_t; // Amplification of T cells in Lymph Node, units of /day
-    kLEE = 0.5 * s_t; // Transport of T cells to tissue, units /day
-    KLC = 2E6 * s_v; // Saturation for effect of cytokine on T cell production
-    KLLE = 1E7 * s_v; // Saturation of T cells in lymph node
-    aEL = 1.0 * s_t;
-    bEL = 4.2E5 * s_v;
+    //Inputs
+    V = 0.0
+    
+    //Initial Conditions
+    T0 = {num_ec}
+    T = T0
+    C = 0.0
+    E = 0.0
+    El = 0.0
     end'''
     return model_string
 
@@ -316,11 +319,11 @@ class ModelSteppable(SteppableBasePy):
 
         #   Extracellular virus: diffusion and decay
         self.get_xml_element('virus_dc').cdata = virus_dc
-        self.get_xml_element('virus_decay').cdata = self.rr["cV"]
+        self.get_xml_element('virus_decay').cdata = self.rr["c"]
 
         #   Local cytokine: diffusion and decay
         self.get_xml_element('cytokine_dc').cdata = cytokine_dc
-        self.get_xml_element('cytokine_decay').cdata = self.rr["deltaC"] + self.rr["kCyto"]
+        self.get_xml_element('cytokine_decay').cdata = self.rr["cc"] + self.rr["kc"]
 
         # Step: data tracking setup
 
@@ -420,7 +423,7 @@ class ModelSteppable(SteppableBasePy):
                     self.rr_ode = rr
 
             #   Apply initial conditions
-            self.rr_ode["TE"] = len(self.cell_list_by_type(self.UNINFECTED))
+            self.rr_ode["T"] = len(self.cell_list_by_type(self.UNINFECTED))
             self.rr_ode["I1"] = len(self.cell_list_by_type(self.INFECTED))
             self.rr_ode["I2"] = len(self.cell_list_by_type(self.VIRUSRELEASING))
             self.rr_ode["D"] = len(self.cell_list_by_type(self.DEAD))
@@ -431,57 +434,8 @@ class ModelSteppable(SteppableBasePy):
         virus_secretor = self.get_field_secretor("Virus")
         cytokine_secretor = self.get_field_secretor("cytokine")
 
-        if mcs == 0:
-            # Add initial immune cell population, if any
-            E_init = self.rr["E"]
-            # Seeding algorithm is the same as below for calculating inflow
-            for _ in range(int(E_init)):
-                sample_frac = 0.01  # Number of sites to sample
-                n_sites = self.dim.x * self.dim.y
-                n_sites_frac = int(n_sites * sample_frac)
-
-                max_concentration = 0
-                x_seed = None
-                y_seed = None
-                sites_sampled = 0
-
-                med_pixel_set = [ptd.pixel for ptd in self.pixel_tracker_plugin.getMediumPixelSet()]
-                random.shuffle(med_pixel_set)
-
-                for pixel in med_pixel_set:
-                    xi = pixel.x
-                    yi = pixel.y
-
-                    # No placing immune cells over a boundary
-                    if xi + int(cell_diameter / 2) >= self.dim.x or yi + int(cell_diameter / 2) >= self.dim.y:
-                        continue
-
-                    open_space = True
-                    for x in range(xi, xi + int(cell_diameter / 2)):
-                        for y in range(yi, yi + int(cell_diameter / 2)):
-                            if self.cell_field[x, y, 1]:
-                                open_space = False
-                                break
-                    if open_space:
-                        concentration_iteration = self.field.cytokine[xi, yi, 1]
-                        sites_sampled += 1
-                        if concentration_iteration >= max_concentration:
-                            max_concentration = concentration_iteration
-                            x_seed = xi
-                            y_seed = yi
-                    if sites_sampled == n_sites_frac:
-                        break
-                if x_seed is not None:
-                    cell = self.new_cell(self.CD8LOCAL)
-                    self.cell_field[x_seed:x_seed + int(cell_diameter / 2),
-                    y_seed:y_seed + int(cell_diameter / 2), 1] = \
-                        cell
-                    cell.targetVolume = cell_volume
-                    cell.lambdaVolume = volume_lm
-
         # Step: Immune cell killing
-        k_e = self.rr["KdeltaE"]
-        d_e = self.rr["deltaE"]
+        dei2 = self.rr["dei2"]
 
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             cd8_area = 0
@@ -495,7 +449,7 @@ class ModelSteppable(SteppableBasePy):
             if cd8_area == 0:
                 continue
 
-            death_rate = d_e * num_ecs / k_e / srf_area * cd8_area
+            death_rate = dei2 * num_ecs / srf_area * cd8_area
             pr_death = death_rate * math.exp(-death_rate)
             if random.random() < pr_death:
                 cell.type = self.DEAD
@@ -504,7 +458,7 @@ class ModelSteppable(SteppableBasePy):
 
         # Step: Viral killing
 
-        death_rate = self.rr["deltaI2"]
+        death_rate = self.rr["d"]
         pr_death = death_rate * math.exp(-death_rate)
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             if random.random() < pr_death:
@@ -532,7 +486,7 @@ class ModelSteppable(SteppableBasePy):
         # Step: Immune recruitment
 
         # Pass spatial information to ODEs
-        self.rr["Cyto"] = cytokine_secretor.totalFieldIntegral() / self.dim.z
+        self.rr["C"] = cytokine_secretor.totalFieldIntegral() / self.dim.z
 
         # Integrate ODEs
         self.rr.timestep()
@@ -546,12 +500,13 @@ class ModelSteppable(SteppableBasePy):
 
         # Calculate inflow
         num_add = 0
-        add_rate = self.rr["LymphE"] * self.rr["kLEE"]
+        add_rate = self.rr["El"] * self.rr["ke"]
         exp_term = math.exp(-add_rate)
         sum_term = 1.0
         while random.random() < 1 - exp_term * sum_term:
             num_add += 1.0
             sum_term += add_rate ** num_add / math.factorial(num_add)
+        print(f'self.rr["El"], self.rr["ke"], add_rate, num_add: ', self.rr["El"], self.rr["ke"], add_rate, num_add)
 
         for _ in range(int(num_add)):
             sample_frac = 0.01  # Number of sites to sample
@@ -614,7 +569,7 @@ class ModelSteppable(SteppableBasePy):
             virus_secretor.secreteInsideCellTotalCount(cell, secr_amount / cell.volume)
 
         #   Local cytokine: secretion by infected and virus-releasing cells
-        secr_amount = self.rr["cC"]
+        secr_amount = self.rr["pc"]
         for cell in self.cell_list_by_type(self.INFECTED, self.VIRUSRELEASING):
             cytokine_secretor.secreteInsideCellTotalCount(cell, secr_amount / cell.volume)
 
@@ -648,7 +603,7 @@ class ModelSteppable(SteppableBasePy):
             num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
             num_cells_dead = len(self.cell_list_by_type(self.DEAD))
             num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
-            num_cells_immune_l = self.rr_ode["LymphE"]
+            num_cells_immune_l = self.rr_ode["El"]
 
             # Plot population data plot if requested
             min_thresh = 0.1
@@ -667,12 +622,12 @@ class ModelSteppable(SteppableBasePy):
                     self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
                 if plot_ode_sol:
-                    num_cells_uninfected = self.rr_ode["TE"]
+                    num_cells_uninfected = self.rr_ode["T"]
                     num_cells_infected = self.rr_ode["I1"]
                     num_cells_virusreleasing = self.rr_ode["I2"]
                     num_cells_dead = self.rr_ode["D"]
                     num_cells_immune = self.rr_ode["E"]
-                    num_cells_immune_l = self.rr_ode["LymphE"]
+                    num_cells_immune_l = self.rr_ode["El"]
 
                     if num_cells_uninfected > min_thresh:
                         self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
@@ -704,7 +659,7 @@ class ModelSteppable(SteppableBasePy):
             # Gather total diffusive amounts
             med_viral_total = virus_secretor.totalFieldIntegral() / self.dim.z
             med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
-            med_cyt_lymph = self.rr["LymphCyto"]
+            med_cyt_lymph = self.rr["Cl"]
             # Plot total diffusive viral amount if requested
             if plot_med_diff_data:
                 if med_viral_total > 0:
@@ -721,8 +676,8 @@ class ModelSteppable(SteppableBasePy):
 
             if plot_ode_sol:
                 med_viral_total = self.rr_ode["V"]
-                med_cyt_total = self.rr_ode["Cyto"]
-                med_cyt_lymph = self.rr_ode["LymphCyto"]
+                med_cyt_total = self.rr_ode["C"]
+                med_cyt_lymph = self.rr_ode["Cl"]
 
                 # Plot total diffusive viral amount if requested
                 if plot_med_diff_data:
