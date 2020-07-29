@@ -54,6 +54,9 @@ def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1, time_conv=1):
     //Initial Conditions
     T0 = {num_ec}
     T = T0
+    C = 0
+    E = 0
+    El = 0
     end'''
     return model_string
 
@@ -105,6 +108,9 @@ def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75, time_conv=1):
     T0 = {num_ec}
     T = T0
     I1 = {num_infect}
+    C = 0
+    E = 0
+    El = 0
 
 
     // Death mechanism tracking
@@ -162,6 +168,9 @@ def immune_recruitment_model_string_original(time_conv=1):
     T0 = 1E7
     T = T0
     I1 = 75 
+    C = 0
+    E = 0
+    El = 0
     end'''
     return model_string
 

@@ -419,7 +419,7 @@ class SimDataSteppable(SteppableBasePy):
             # Gather total diffusive amounts
             med_viral_total = self.get_field_secretor("Virus").totalFieldIntegral() / self.dim.z
             med_cyt_total = self.get_field_secretor("cytokine").totalFieldIntegral() / self.dim.z
-            med_cyt_lymph = self.ir_steppable.get_model_val("CL")
+            med_cyt_lymph = self.ir_steppable.get_model_val("Cl")
             # Plot total diffusive viral amount if requested
             if plot_med_diff_data:
                 if med_viral_total > 0:
@@ -437,7 +437,7 @@ class SimDataSteppable(SteppableBasePy):
             if plot_ode_sol:
                 med_viral_total = self.__rr["V"]
                 med_cyt_total = self.__rr["C"]
-                med_cyt_lymph = self.__rr["CL"]
+                med_cyt_lymph = self.__rr["Cl"]
 
                 # Plot total diffusive viral amount if requested
                 if plot_med_diff_data:
