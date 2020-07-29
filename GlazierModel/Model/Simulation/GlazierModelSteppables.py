@@ -66,7 +66,7 @@ class ViralSecretionSteppable(SteppableBasePy):
             self.ir_steppable: ImmuneRecruitmentSteppable = self.shared_steppable_vars[GlazierModelLib.ir_steppable_key]
 
         self.get_xml_element('virus_dc').cdata = virus_dc
-        self.get_xml_element('virus_decay').cdata = self.ir_steppable.get_model_val("cV")
+        self.get_xml_element('virus_decay').cdata = self.ir_steppable.get_model_val("c")
 
         secr_amount = self.ir_steppable.get_model_val('p') / cell_volume
         self.get_xml_element("virus_secr3").cdata = secr_amount
@@ -98,8 +98,7 @@ class ImmuneCellKillingSteppable(SteppableBasePy):
             self.simdata_steppable: SimDataSteppable = \
                 self.shared_steppable_vars[GlazierModelLib.simdata_steppable_key]
 
-        k_e = self.ir_steppable.get_model_val("KdeltaE")
-        d_e = self.ir_steppable.get_model_val("deltaE")
+        dei2 = self.ir_steppable.get_model_val("dei2")
 
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             cd8_area = 0
@@ -113,7 +112,7 @@ class ImmuneCellKillingSteppable(SteppableBasePy):
             if cd8_area == 0:
                 continue
 
-            death_rate = d_e * self.num_ecs / k_e / srf_area * cd8_area
+            death_rate = dei2 * self.num_ecs / srf_area * cd8_area
             pr_death = GlazierModelLib.ul_rate_to_prob(death_rate)
             if random.random() < pr_death:
                 cell.type = self.DEAD
@@ -169,8 +168,8 @@ class ViralLifeCycleSteppable(SteppableBasePy):
         secretor = self.get_field_secretor("Virus")
 
         # Virus releasing -> Dead
-        d_i2 = self.ir_steppable.get_model_val("deltaI2")
-        pr_death = GlazierModelLib.ul_rate_to_prob(d_i2)
+        d = self.ir_steppable.get_model_val("d")
+        pr_death = GlazierModelLib.ul_rate_to_prob(d)
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             if random.random() < pr_death:
                 cell.type = self.DEAD
@@ -330,7 +329,7 @@ class SimDataSteppable(SteppableBasePy):
                 if model_name == GlazierModelLib.ir_model_name_ode:
                     self.__rr = rr
 
-            self.__rr["TE"] = len(self.cell_list_by_type(self.UNINFECTED))
+            self.__rr["T"] = len(self.cell_list_by_type(self.UNINFECTED))
             self.__rr["I1"] = len(self.cell_list_by_type(self.INFECTED))
             self.__rr["I2"] = len(self.cell_list_by_type(self.VIRUSRELEASING))
             self.__rr["D"] = len(self.cell_list_by_type(self.DEAD))
@@ -364,7 +363,7 @@ class SimDataSteppable(SteppableBasePy):
             num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
             num_cells_dead = len(self.cell_list_by_type(self.DEAD))
             num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
-            num_cells_immune_l = self.ir_steppable.get_model_val("LymphE")
+            num_cells_immune_l = self.ir_steppable.get_model_val("El")
 
             # Plot population data plot if requested
             min_thresh = 0.1
@@ -383,12 +382,12 @@ class SimDataSteppable(SteppableBasePy):
                     self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
                 if plot_ode_sol:
-                    num_cells_uninfected = self.__rr["TE"]
+                    num_cells_uninfected = self.__rr["T"]
                     num_cells_infected = self.__rr["I1"]
                     num_cells_virusreleasing = self.__rr["I2"]
                     num_cells_dead = self.__rr["D"]
                     num_cells_immune = self.__rr["E"]
-                    num_cells_immune_l = self.__rr["LymphE"]
+                    num_cells_immune_l = self.__rr["El"]
 
                     if num_cells_uninfected > min_thresh:
                         self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
@@ -420,7 +419,7 @@ class SimDataSteppable(SteppableBasePy):
             # Gather total diffusive amounts
             med_viral_total = self.get_field_secretor("Virus").totalFieldIntegral() / self.dim.z
             med_cyt_total = self.get_field_secretor("cytokine").totalFieldIntegral() / self.dim.z
-            med_cyt_lymph = self.ir_steppable.get_model_val("LymphCyto")
+            med_cyt_lymph = self.ir_steppable.get_model_val("CL")
             # Plot total diffusive viral amount if requested
             if plot_med_diff_data:
                 if med_viral_total > 0:
@@ -437,8 +436,8 @@ class SimDataSteppable(SteppableBasePy):
 
             if plot_ode_sol:
                 med_viral_total = self.__rr["V"]
-                med_cyt_total = self.__rr["Cyto"]
-                med_cyt_lymph = self.__rr["LymphCyto"]
+                med_cyt_total = self.__rr["C"]
+                med_cyt_lymph = self.__rr["CL"]
 
                 # Plot total diffusive viral amount if requested
                 if plot_med_diff_data:
@@ -503,11 +502,11 @@ class CytokineSecretionSteppable(SteppableBasePy):
 
         # cytokine diff parameters
         self.get_xml_element('cytokine_dc').cdata = cytokine_dc
-        d_c = self.ir_steppable.get_model_val("deltaC")
-        k_c = self.ir_steppable.get_model_val("kCyto")
-        self.get_xml_element('cytokine_decay').cdata = d_c + k_c
+        cc = self.ir_steppable.get_model_val("cc")
+        kc = self.ir_steppable.get_model_val("kc")
+        self.get_xml_element('cytokine_decay').cdata = cc + kc
 
-        secr_amount = self.ir_steppable.get_model_val("cC") / cell_volume
+        secr_amount = self.ir_steppable.get_model_val("pc") / cell_volume
         self.get_xml_element('cytokine_secr2').cdata = secr_amount
         self.get_xml_element('cytokine_secr3').cdata = secr_amount
 
@@ -552,7 +551,7 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
                 [self.add_immune_cell() for _ in range(int(E_init))]
 
         # Pass spatial information to ODEs
-        self.__rr["Cyto"] = self.get_field_secretor("cytokine").totalFieldIntegral() / self.dim.z
+        self.__rr["C"] = self.get_field_secretor("cytokine").totalFieldIntegral() / self.dim.z
 
         # Integrate ODEs
         self.__rr.timestep()
@@ -566,7 +565,7 @@ class ImmuneRecruitmentSteppable(SteppableBasePy):
 
         # Calculate inflow
         num_add = 0
-        add_rate = self.get_model_val("LymphE") * self.get_model_val("kLEE")
+        add_rate = self.get_model_val("El") * self.get_model_val("ke")
         exp_term = math.exp(-add_rate)
         sum_term = 1.0
         while random.random() < 1 - exp_term * sum_term:
