@@ -41,12 +41,12 @@ def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1, time_conv=1):
     kc = 0.5 * s_t ; // 1.0/day
     ccl = 0.5 * s_t ; // 1.0/day
     pel = 1E-4 * s_t ;
-    rel = 1.0E-7 * s_t / s_v ;
-    Kel = 1E3 * s_v ;
-    ke = 0.5 * s_t ;
-    dE = 1.0 * s_t ;
-    dei2 = 12E-2 * s_t / s_v ; //15E3
-    kei2 = 5E4 * s_v ;
+    rel = 0.005 * s_t / s_v ;
+    Kel = 100 * s_v ;
+    ke = 0.1 * s_t ;
+    dE = 0.5 * s_t ;
+    dei2 = 1E-2 * s_t / s_v ; //15E3
+    kei2 = 5E2 * s_v ;
     
     //Inputs
     V = 0.0
@@ -94,12 +94,12 @@ def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75, time_conv=1):
     kc = 0.5 * s_t ; // 1.0/day
     ccl = 0.5 * s_t ; // 1.0/day
     pel = 1E-4 * s_t ;
-    rel = 1.0E-7 * s_t / s_v ;
-    Kel = 1E3 * s_v ;
-    ke = 0.5 * s_t ;
-    dE = 1.0 * s_t ;
-    dei2 = 12E-2 * s_t / s_v ; //15E3
-    kei2 = 5E4 * s_v ;
+    rel = 0.005 * s_t / s_v ;
+    Kel = 100 * s_v ;
+    ke = 0.1 * s_t ;
+    dE = 0.5 * s_t ;
+    dei2 = 1E-2 * s_t / s_v ; //15E3
+    kei2 = 5E2 * s_v ;
     
     //Inputs
     V = 0.0
@@ -154,12 +154,12 @@ def immune_recruitment_model_string_original(time_conv=1):
     kc = 0.5 * s_t ; // 1.0/day
     ccl = 0.5 * s_t ; // 1.0/day
     pel = 1E-4 * s_t ;
-    rel = 1.0E-7 * s_t ;
-    Kel = 1E3 ;
-    ke = 0.5 * s_t ;
-    dE = 1.0 * s_t ;
-    dei2 = 12E-2 * s_t ; //15E3
-    kei2 = 5E4 ;
+    rel = 0.005 * s_t ;
+    Kel = 100 ;
+    ke = 0.1 * s_t ;
+    dE = 0.5 * s_t ;
+    dei2 = 1E-2 * s_t ; //15E3
+    kei2 = 5E2 ;
     
     //Inputs
     V = 0.0
@@ -176,4 +176,4 @@ def immune_recruitment_model_string_original(time_conv=1):
 
 
 def ul_rate_to_prob(_rate):
-    return _rate * math.exp(-_rate)
+    return 1 - math.exp(-_rate)
