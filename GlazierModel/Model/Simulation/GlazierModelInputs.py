@@ -40,8 +40,5 @@ lamda_chemotaxis = 1E5
 # Antimony/SBML model step size
 sbml_step_size = 1.0
 
-# Regulation shape parameter
-shape_param = 10
-
 # Initial fraction of infected cells
 init_infect = 0.05

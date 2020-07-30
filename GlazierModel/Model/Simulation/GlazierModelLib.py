@@ -16,7 +16,7 @@ ir_steppable_key = 'ir_steppable'
 simdata_steppable_key = 'simdata_steppable'
 
 
-def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1, time_conv=1):
+def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1.0, time_conv=1.0):
     model_string = f'''model {ir_model_name}()
     // Scaling coefficients
     s_v = {num_ec} / 1E7;
@@ -27,8 +27,7 @@ def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1, time_conv=1):
     E8: -> Cl ; kc * C // Cytokine transport to the lymph node
     E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
     E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
-    E11: El -> ; ke*El   ;
-    
+    E11: El -> ; ke*El ;
     
     //Parameters
     beta = 6.2E-5 * s_t / s_l ; // 1.0/(TCID*day)
@@ -45,7 +44,7 @@ def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1, time_conv=1):
     Kel = 100 * s_v ;
     ke = 0.1 * s_t ;
     dE = 0.5 * s_t ;
-    dei2 = 1E-2 * s_t / s_v ; //15E3
+    dei2 = 1E-2 * s_t / s_v ;
     kei2 = 5E2 * s_v ;
     
     //Inputs
@@ -61,27 +60,26 @@ def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1, time_conv=1):
     return model_string
 
 
-def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75, time_conv=1):
+def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75.0, time_conv=1.0):
     model_string = f'''model {ir_model_name_ode}()
     // Scaling coefficients
     s_v = {num_ec} / 1E7;
     s_t = {time_conv};
     
     //Equations
-    E1: T -> I1 ; beta*T*V ; //Infection rate
-    E2: I1 -> I2 ; k*I1 ; //Infection rate
-    E3: -> V ; p*I2 ; //Virus Production
+    E1: T -> I1 ; beta*T*V ; // Infection rate
+    E2: I1 -> I2 ; k*I1 ; // Infection rate
+    E3: -> V ; p*I2 ; // Virus Production
     E4: V -> ; c*V ; // Virus Decay
-    E5: I2 -> D ; d*I2 ; // Infected Cell Clearance (apopotosis + innate immune response)
+    E5: I2 -> D ; d*I2 ; // Infected Cell Clearance (apopotosis)
     E6: -> C ; pc*(I1+I2) ; // Cytokine production
     E7: C -> ; cc*C ; // Cytokine decay
     E8: C -> Cl ; kc * C // Cytokine transport to the lymph node
     E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
-    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
-    E11: El -> E; ke*El   ;
-    E12: E ->  ; dE*E     ;
+    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ; // Infected Cell Clearance (innate immune response)
+    E11: El -> E; ke*El ;
+    E12: E ->  ; dE*E ;
     E13: I2 -> D ; kei2*dei2*E/(E+kei2+I2)*I2 ;
-    
     
     //Parameters
     beta = 6.2E-5 * s_t / s_v ; // 1.0/(TCID*day)
@@ -98,7 +96,7 @@ def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75, time_conv=1):
     Kel = 100 * s_v ;
     ke = 0.1 * s_t ;
     dE = 0.5 * s_t ;
-    dei2 = 1E-2 * s_t / s_v ; //15E3
+    dei2 = 1E-2 * s_t / s_v ;
     kei2 = 5E2 * s_v ;
     
     //Inputs
@@ -112,7 +110,6 @@ def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75, time_conv=1):
     E = 0
     El = 0
 
-
     // Death mechanism tracking
     -> viralDeath ; d*I2 ;
     -> cd8Death ; kei2*dei2*E/(E+kei2+I2)*I2 ;
@@ -123,25 +120,24 @@ def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75, time_conv=1):
     return model_string
 
 
-def immune_recruitment_model_string_original(time_conv=1):
+def immune_recruitment_model_string_original(time_conv=1.0):
     model_string = f'''model {ir_model_name_orig}()
     s_t = {time_conv}
 
     //Equations
     E1: T -> I1 ; beta*T*V ; //Infection rate
     E2: I1 -> I2 ; k*I1 ; //Infection rate
-    E3: -> V ; p*I2 ; //Virus Production
+    E3: -> V ; p*I2 ; // Virus Production
     E4: V -> ; c*V ; // Virus Decay
-    E5: I2 -> D ; d*I2 ; // Infected Cell Clearance (apopotosis + innate immune response)
+    E5: I2 -> D ; d*I2 ; // Infected Cell Clearance (apopotosis)
     E6: -> C ; pc*(I1+I2) ; // Cytokine production
     E7: C -> ; cc*C ; // Cytokine decay
     E8: C -> Cl ; kc * C // Cytokine transport to the lymph node
     E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
-    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
-    E11: El -> E; ke*El   ;
-    E12: E ->  ; dE*E     ;
+    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ; // Infected Cell Clearance (innate immune response)
+    E11: El -> E; ke*El ;
+    E12: E ->  ; dE*E ;
     E13: I2 -> D ; kei2*dei2*E/(E+kei2+I2)*I2 ;
-    
     
     //Parameters
     beta = 6.2E-5 * s_t ; // 1.0/(TCID*day)
@@ -158,7 +154,7 @@ def immune_recruitment_model_string_original(time_conv=1):
     Kel = 100 ;
     ke = 0.1 * s_t ;
     dE = 0.5 * s_t ;
-    dei2 = 1E-2 * s_t ; //15E3
+    dei2 = 1E-2 * s_t ;
     kei2 = 5E2 ;
     
     //Inputs
