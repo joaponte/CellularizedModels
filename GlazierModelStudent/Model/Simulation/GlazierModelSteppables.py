@@ -43,21 +43,15 @@ cytokine_dc = exp_cytokine_dc_cyto * s_to_mcs / (um_to_lat_width ** 2)  # CK dif
 lamda_chemotaxis = 1E5
 
 # Antimony/SBML model step size
-sbml_step_size = 1.0
+sbml_step_size = s_to_mcs / 60 / 60 / 24
 
 # Initial fraction of infected cells
 init_infect = 0.05
 
+# Option to use local or ODE virus
+use_local_virus = True
 
-def immune_recruitment_model_string_original(time_conv=1.0):
-    """
-    String generator for original ODE model
-    :param time_conv: conversion factor from ODE model time scale to simulation time scale
-    :return: model string
-    """
-    model_string = f'''model TcellModelOriginal()
-    s_t = {time_conv}
-
+ode_model_string = f'''model ODEModel()
     //Equations
     E1: T -> I1 ; beta*T*V ; //Infection rate
     E2: I1 -> I2 ; k*I1 ; //Infection rate
@@ -72,29 +66,35 @@ def immune_recruitment_model_string_original(time_conv=1.0):
     E11: El -> E; ke*El   ;
     E12: E ->  ; dE*E     ;
     E13: I2 -> D ; kei2*dei2*E/(E+kei2+I2)*I2 ;
-    
-    
+
+
     //Parameters
-    beta = 6.2E-5 * s_t ; // 1.0/(TCID*day)
-    k = 4.0 * s_t ; // 1.0/day
-    p = 1.0 * s_t ; // TCID/cell/day
-    c = 9.4 * s_t ; // 1.0/day
-    d = 2.4E-1 * s_t; // 1.0/day
-    pc = 1.0 * s_t ;
-    cc = 2.0 * s_t ; // 1.0/day
-    kc = 0.5 * s_t ; // 1.0/day
-    ccl = 0.5 * s_t ; // 1.0/day
-    pel = 1E-4 * s_t ;
-    rel = 0.005 * s_t ;
+    beta = 6.2E-5 ; // 1.0/(TCID*day)
+    k = 4.0 ; // 1.0/day
+    p = 1.0 ; // TCID/cell/day
+    c = 9.4 ; // 1.0/day
+    d = 2.4E-1; // 1.0/day
+    pc = 1.0 ;
+    cc = 2.0 ; // 1.0/day
+    kc = 0.5 ; // 1.0/day
+    ccl = 0.5 ; // 1.0/day
+    pel = 1E-4 ;
+    rel = 0.005 ;
     Kel = 100 ;
-    ke = 0.1 * s_t ;
-    dE = 0.5 * s_t ;
-    dei2 = 1E-2 * s_t ; //15E3
+    ke = 0.1 ;
+    dE = 0.5 ;
+    dei2 = 1E-2 ; //15E3
     kei2 = 5E2 ;
-    
+
+    //Killing mechanisms
+    -> viralDeath ; d*I2
+    -> cd8Death ; kei2*dei2*E/(E+kei2+I2)*I2
+    viralDeath = 0 ;
+    cd8Death = 0 ; 
+
     //Inputs
     V = 0.0
-    
+
     //Initial Conditions
     T0 = 1E7
     T = T0
@@ -103,126 +103,39 @@ def immune_recruitment_model_string_original(time_conv=1.0):
     E = 0.0
     El = 0.0
     end'''
-    return model_string
 
-
-def immune_recruitment_model_string_ode(num_ec=1E7, num_infect=75.0, time_conv=1.0):
-    """
-    String generator for ODE model scaled to simulation domain
-    :param num_ec: number of epithelial cells
-    :param num_infect: number of initially infected cells
-    :param time_conv: conversion factor from ODE model time scale to simulation time scale
-    :return: model string
-    """
-    model_string = f'''model TcellModelODE()
-    // Scaling coefficients
-    s_v = {num_ec} / 1E7;
-    s_t = {time_conv};
-    
-    //Equations
-    E1: T -> I1 ; beta*T*V ; //Infection rate
-    E2: I1 -> I2 ; k*I1 ; //Infection rate
-    E3: -> V ; p*I2 ; //Virus Production
-    E4: V -> ; c*V ; // Virus Decay
-    E5: I2 -> D ; d*I2 ; // Infected Cell Clearance (apopotosis + innate immune response)
-    E6: -> C ; pc*(I1+I2) ; // Cytokine production
-    E7: C -> ; cc*C ; // Cytokine decay
-    E8: C -> Cl ; kc * C // Cytokine transport to the lymph node
-    E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
-    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
-    E11: El -> E; ke*El   ;
-    E12: E ->  ; dE*E     ;
-    E13: I2 -> D ; kei2*dei2*E/(E+kei2+I2)*I2 ;
-    
-    
-    //Parameters
-    beta = 6.2E-5 * s_t / s_v ; // 1.0/(TCID*day)
-    k = 4.0 * s_t ; // 1.0/day
-    p = 1.0 * s_t ; // TCID/cell/day
-    c = 9.4 * s_t ; // 1.0/day
-    d = 2.4E-1 * s_t; // 1.0/day
-    pc = 1.0 * s_t ;
-    cc = 2.0 * s_t ; // 1.0/day
-    kc = 0.5 * s_t ; // 1.0/day
-    ccl = 0.5 * s_t ; // 1.0/day
-    pel = 1E-4 * s_t ;
-    rel = 0.005 * s_t / s_v ;
-    Kel = 100 * s_v ;
-    ke = 0.1 * s_t ;
-    dE = 0.5 * s_t ;
-    dei2 = 1E-2 * s_t / s_v ; //15E3
-    kei2 = 5E2 * s_v ;
-    
-    //Inputs
-    V = 0.0
-    
-    //Initial Conditions
-    T0 = {num_ec}
-    T = T0
-    I1 = {num_infect}
-    C = 0.0
-    E = 0.0
-    El = 0.0
-
-    // Death mechanism tracking
-    -> viralDeath ; d*I2 ;
-    -> cd8Death ; kei2*dei2*E/(E+kei2+I2)*I2 ;
-    viralDeath = 0;
-    cd8Death = 0;
-
-    end'''
-    return model_string
-
-
-def immune_recruitment_model_string(num_ec=1E7, sites_per_cell=1.0, time_conv=1.0):
-    """
-    String generator for cellularized ODE model
-    :param num_ec: number of epithelial cells
-    :param sites_per_cell: number of sites per epithelial cell
-    :param time_conv: conversion factor from ODE model time scale to simulation time scale
-    :return: model string
-    """
-    model_string = f'''model TcellModel()
-    // Scaling coefficients
-    s_v = {num_ec} / 1E7;
-    s_l = 1 / 1E7 / {sites_per_cell};
-    s_t = {time_conv};
-
+lymph_node_model_string = f'''model LymphNodeMode()
     //Equations
     E8: -> Cl ; kc * C // Cytokine transport to the lymph node
     E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
     E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
     E11: El -> ; ke*El   ;
-    
+
     //Parameters
-    beta = 6.2E-5 * s_t / s_l ; // 1.0/(TCID*day)
-    k = 4.0 * s_t ; // 1.0/day
-    p = 1.0 * s_t ; // TCID/cell/day
-    c = 9.4 * s_t ; // 1.0/day
-    d = 2.4E-1 * s_t; // 1.0/day
-    pc = 1.0 * s_t ;
-    cc = 2.0 * s_t ; // 1.0/day
-    kc = 0.5 * s_t ; // 1.0/day
-    ccl = 0.5 * s_t ; // 1.0/day
-    pel = 1E-4 * s_t ;
-    rel = 0.005 * s_t / s_v ;
-    Kel = 100 * s_v ;
-    ke = 0.1 * s_t ;
-    dE = 0.5 * s_t ;
-    dei2 = 1E-2 * s_t / s_v ; //15E3
-    kei2 = 5E2 * s_v ;
-    
+    beta = 6.2E-5 ; // 1.0/(TCID*day)
+    k = 4.0 ; // 1.0/day
+    p = 1.0 ; // TCID/cell/day
+    c = 9.4 ; // 1.0/day
+    d = 2.4E-1; // 1.0/day
+    pc = 1.0 ;
+    cc = 2.0 ; // 1.0/day
+    kc = 0.5 ; // 1.0/day
+    ccl = 0.5 ; // 1.0/day
+    pel = 1E-4 ;
+    rel = 0.005 ;
+    Kel = 100 ;
+    ke = 0.1 ;
+    dE = 0.5 ;
+    dei2 = 1E-2 ; //15E3
+    kei2 = 5E2 ;
+    T0 = 1E7 ;
+
     //Inputs
-    V = 0.0
-    
-    //Initial Conditions
-    T0 = {num_ec}
-    T = T0
     C = 0.0
-    E = 0.0
+
+    //Outputs
     El = 0.0
     end'''
-    return model_string
 
 
 class ModelSteppable(SteppableBasePy):
@@ -263,6 +176,11 @@ class ModelSteppable(SteppableBasePy):
         self.death_mech = {'viral': 0,
                            'contact': 0}
 
+        # Scaling coefficients
+        self.scale_by_volume = None
+        self.scale_by_voxel = None
+        self.scale_by_time = None
+
     def start(self):
 
         # Step: Initialize epithelial sheet
@@ -298,28 +216,30 @@ class ModelSteppable(SteppableBasePy):
         # Step: initialize ODEs
 
         #   Generate solver instance
-        model_string = immune_recruitment_model_string(num_ec=num_ecs,
-                                                       sites_per_cell=cell_volume,
-                                                       time_conv=s_to_mcs / 60 / 60 / 24)
-        self.add_free_floating_antimony(model_string=model_string,
-                                        model_name='TcellModel',
+        self.add_free_floating_antimony(model_string=lymph_node_model_string,
+                                        model_name='LymphNodeMode',
                                         step_size=sbml_step_size)
 
         #   Get reference to solver
         from cc3d.CompuCellSetup import persistent_globals as pg
         for model_name, rr in pg.free_floating_sbml_simulators.items():
-            if model_name == 'TcellModel':
+            if model_name == 'LymphNodeMode':
                 self.rr = rr
+
+        # Step: calculate scaling coefficients
+        self.scale_by_volume = num_ecs / self.rr["T0"]
+        self.scale_by_voxel = 1 / self.rr["T0"] / cell_volume
+        self.scale_by_time = s_to_mcs / 60 / 60 / 24
 
         # Step: load secretion values from ODEs into XML
 
         #   Extracellular virus: diffusion and decay
         self.get_xml_element('virus_dc').cdata = virus_dc
-        self.get_xml_element('virus_decay').cdata = self.rr["c"]
+        self.get_xml_element('virus_decay').cdata = self.rr["c"] * self.scale_by_time
 
         #   Local cytokine: diffusion and decay
         self.get_xml_element('cytokine_dc').cdata = cytokine_dc
-        self.get_xml_element('cytokine_decay').cdata = self.rr["cc"] + self.rr["kc"]
+        self.get_xml_element('cytokine_decay').cdata = (self.rr["cc"] + self.rr["kc"]) * self.scale_by_time
 
         # Step: data tracking setup
 
@@ -344,13 +264,12 @@ class ModelSteppable(SteppableBasePy):
             self.pop_data_win.add_plot("CD8Local", style='Dots', color='white', size=dot_size)
             self.pop_data_win.add_plot("CD8Lymph", style='Dots', color='purple', size=dot_size)
 
-            if plot_ode_sol:
-                self.pop_data_win.add_plot("UninfectedODE", style='Lines', color='blue', size=line_size)
-                self.pop_data_win.add_plot("InfectedODE", style='Lines', color='red', size=line_size)
-                self.pop_data_win.add_plot("VirusReleasingODE", style='Lines', color='green', size=line_size)
-                self.pop_data_win.add_plot("DeadODE", style='Lines', color='yellow', size=line_size)
-                self.pop_data_win.add_plot("CD8LocalODE", style='Lines', color='white', size=line_size)
-                self.pop_data_win.add_plot("CD8LymphODE", style='Lines', color='purple', size=line_size)
+            self.pop_data_win.add_plot("UninfectedODE", style='Lines', color='blue', size=line_size)
+            self.pop_data_win.add_plot("InfectedODE", style='Lines', color='red', size=line_size)
+            self.pop_data_win.add_plot("VirusReleasingODE", style='Lines', color='green', size=line_size)
+            self.pop_data_win.add_plot("DeadODE", style='Lines', color='yellow', size=line_size)
+            self.pop_data_win.add_plot("CD8LocalODE", style='Lines', color='white', size=line_size)
+            self.pop_data_win.add_plot("CD8LymphODE", style='Lines', color='purple', size=line_size)
 
         if self.plot_med_diff_data:
             self.med_diff_data_win = self.add_new_plot_window(title='Total diffusive species',
@@ -365,10 +284,9 @@ class ModelSteppable(SteppableBasePy):
             self.med_diff_data_win.add_plot("MedCytLocal", style='Dots', color='blue', size=dot_size)
             self.med_diff_data_win.add_plot("MedCytLymph", style='Dots', color='green', size=dot_size)
 
-            if plot_ode_sol:
-                self.med_diff_data_win.add_plot("MedViralODE", style='Lines', color='red', size=line_size)
-                self.med_diff_data_win.add_plot("MedCytLocalODE", style='Lines', color='blue', size=line_size)
-                self.med_diff_data_win.add_plot("MedCytLymphODE", style='Lines', color='green', size=line_size)
+            self.med_diff_data_win.add_plot("MedViralODE", style='Lines', color='red', size=line_size)
+            self.med_diff_data_win.add_plot("MedCytLocalODE", style='Lines', color='blue', size=line_size)
+            self.med_diff_data_win.add_plot("MedCytLymphODE", style='Lines', color='green', size=line_size)
 
         if self.plot_death_data:
             self.death_data_win = self.add_new_plot_window(title='Death data',
@@ -382,9 +300,8 @@ class ModelSteppable(SteppableBasePy):
             self.death_data_win.add_plot("Viral", style='Dots', color='blue', size=5)
             self.death_data_win.add_plot("Contact", style='Dots', color='green', size=5)
 
-            if plot_ode_sol:
-                self.death_data_win.add_plot("ViralODE", style='Lines', color='blue', size=line_size)
-                self.death_data_win.add_plot("ContactODE", style='Lines', color='green', size=line_size)
+            self.death_data_win.add_plot("ViralODE", style='Lines', color='blue', size=line_size)
+            self.death_data_win.add_plot("ContactODE", style='Lines', color='green', size=line_size)
 
         # Check that output directory is available
         if self.output_dir is not None:
@@ -404,25 +321,22 @@ class ModelSteppable(SteppableBasePy):
                 with open(self.death_data_path, 'w'):
                     pass
 
-        if plot_ode_sol:
             #   Generate solver instance
-            model_string = immune_recruitment_model_string_ode(num_ec=num_ecs,
-                                                               time_conv=s_to_mcs / 60 / 60 / 24)
-            self.add_free_floating_antimony(model_string=model_string,
-                                            model_name='TcellModelODE',
+            self.add_free_floating_antimony(model_string=ode_model_string,
+                                            model_name='ODEModel',
                                             step_size=sbml_step_size)
 
-            #   Get reference to solver
-            from cc3d.CompuCellSetup import persistent_globals as pg
-            for model_name, rr in pg.free_floating_sbml_simulators.items():
-                if model_name == 'TcellModelODE':
-                    self.rr_ode = rr
+        #   Get reference to solver
+        from cc3d.CompuCellSetup import persistent_globals as pg
+        for model_name, rr in pg.free_floating_sbml_simulators.items():
+            if model_name == 'ODEModel':
+                self.rr_ode = rr
 
-            #   Apply initial conditions
-            self.rr_ode["T"] = len(self.cell_list_by_type(self.UNINFECTED))
-            self.rr_ode["I1"] = len(self.cell_list_by_type(self.INFECTED))
-            self.rr_ode["I2"] = len(self.cell_list_by_type(self.VIRUSRELEASING))
-            self.rr_ode["D"] = len(self.cell_list_by_type(self.DEAD))
+        #   Apply initial conditions
+        self.rr_ode["T"] = len(self.cell_list_by_type(self.UNINFECTED)) / self.scale_by_volume
+        self.rr_ode["I1"] = len(self.cell_list_by_type(self.INFECTED)) / self.scale_by_volume
+        self.rr_ode["I2"] = len(self.cell_list_by_type(self.VIRUSRELEASING)) / self.scale_by_volume
+        self.rr_ode["D"] = len(self.cell_list_by_type(self.DEAD)) / self.scale_by_volume
 
     def step(self, mcs):
         # Prep stuff
@@ -431,7 +345,7 @@ class ModelSteppable(SteppableBasePy):
         cytokine_secretor = self.get_field_secretor("cytokine")
 
         # Step: Immune cell killing
-        dei2 = self.rr["dei2"]
+        dei2 = self.rr["dei2"] * self.scale_by_time / self.scale_by_volume
 
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             cd8_area = 0
@@ -446,7 +360,7 @@ class ModelSteppable(SteppableBasePy):
                 continue
 
             death_rate = dei2 * num_ecs / srf_area * cd8_area
-            pr_death = death_rate * math.exp(-death_rate)
+            pr_death = 1 - math.exp(-death_rate)
             if random.random() < pr_death:
                 cell.type = self.DEAD
                 cell.targetVolume = 0
@@ -454,8 +368,8 @@ class ModelSteppable(SteppableBasePy):
 
         # Step: Viral killing
 
-        death_rate = self.rr["d"]
-        pr_death = death_rate * math.exp(-death_rate)
+        death_rate = self.rr["d"] * self.scale_by_time
+        pr_death = 1 - math.exp(-death_rate)
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             if random.random() < pr_death:
                 cell.type = self.DEAD
@@ -464,45 +378,52 @@ class ModelSteppable(SteppableBasePy):
         # Step: Viral life cycle
 
         # Infected -> Virus releasing
-        release_rate = self.rr["k"]
-        pr_release = release_rate * math.exp(-release_rate)
+        release_rate = self.rr["k"] * self.scale_by_time
+        pr_release = 1 - math.exp(-release_rate)
         for cell in self.cell_list_by_type(self.INFECTED):
             if random.random() < pr_release:
                 cell.type = self.VIRUSRELEASING
 
         # Internalization
-        beta = self.rr["beta"]
-        for cell in self.cell_list_by_type(self.UNINFECTED):
-            seen_amount = virus_secretor.amountSeenByCell(cell) / cell.volume * self.dim.z
-            infect_rate = beta * seen_amount
-            pr_infect = infect_rate * math.exp(-infect_rate)
-            if random.random() < pr_infect:
-                cell.type = self.INFECTED
+        if use_local_virus:
+            beta = self.rr["beta"] * self.scale_by_time / self.scale_by_voxel  # * num_ecs
+            for cell in self.cell_list_by_type(self.UNINFECTED):
+                seen_amount = virus_secretor.amountSeenByCell(cell) / cell.volume * self.dim.z
+                infect_rate = beta * seen_amount
+                pr_infect = 1 - math.exp(-infect_rate)
+                if random.random() < pr_infect:
+                    cell.type = self.INFECTED
+        else:
+            beta = self.rr["beta"] * self.scale_by_time
+            infect_rate = beta * self.rr_ode["V"]
+            pr_infect = 1 - math.exp(-infect_rate)
+            for cell in self.cell_list_by_type(self.UNINFECTED):
+                if random.random() < pr_infect:
+                    cell.type = self.INFECTED
 
         # Step: Immune recruitment
 
         # Pass spatial information to ODEs
-        self.rr["C"] = cytokine_secretor.totalFieldIntegral() / self.dim.z
+        self.rr["C"] = cytokine_secretor.totalFieldIntegral() / self.dim.z / self.scale_by_volume
 
         # Integrate ODEs
         self.rr.timestep()
 
         # Calculate outflow
-        remove_rate = self.rr["dE"]
-        pr_remove = remove_rate * math.exp(-remove_rate)
+        remove_rate = self.rr["dE"] * self.scale_by_time
+        pr_remove = 1 - math.exp(-remove_rate)
         for cell in self.cell_list_by_type(self.CD8LOCAL):
             if random.random() < pr_remove:
                 cell.targetVolume = 0
 
         # Calculate inflow
         num_add = 0
-        add_rate = self.rr["El"] * self.rr["ke"]
+        add_rate = self.rr["El"] * self.rr["ke"] * self.scale_by_time * self.scale_by_volume
         exp_term = math.exp(-add_rate)
         sum_term = 1.0
         while random.random() < 1 - exp_term * sum_term:
             num_add += 1.0
             sum_term += add_rate ** num_add / math.factorial(num_add)
-        print(f'self.rr["El"], self.rr["ke"], add_rate, num_add: ', self.rr["El"], self.rr["ke"], add_rate, num_add)
 
         for _ in range(int(num_add)):
             sample_frac = 0.01  # Number of sites to sample
@@ -560,12 +481,12 @@ class ModelSteppable(SteppableBasePy):
         # Step: Secretion
 
         #   Extracellular virus: secretion by virus-releasing cells
-        secr_amount = self.rr["p"]
+        secr_amount = self.rr["p"] * self.scale_by_time
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             virus_secretor.secreteInsideCellTotalCount(cell, secr_amount / cell.volume)
 
         #   Local cytokine: secretion by infected and virus-releasing cells
-        secr_amount = self.rr["pc"]
+        secr_amount = self.rr["pc"] * self.scale_by_time
         for cell in self.cell_list_by_type(self.INFECTED, self.VIRUSRELEASING):
             cytokine_secretor.secreteInsideCellTotalCount(cell, secr_amount / cell.volume)
 
@@ -599,7 +520,7 @@ class ModelSteppable(SteppableBasePy):
             num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
             num_cells_dead = len(self.cell_list_by_type(self.DEAD))
             num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
-            num_cells_immune_l = self.rr_ode["El"]
+            num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
 
             # Plot population data plot if requested
             min_thresh = 0.1
@@ -618,12 +539,12 @@ class ModelSteppable(SteppableBasePy):
                     self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
                 if plot_ode_sol:
-                    num_cells_uninfected = self.rr_ode["T"]
-                    num_cells_infected = self.rr_ode["I1"]
-                    num_cells_virusreleasing = self.rr_ode["I2"]
-                    num_cells_dead = self.rr_ode["D"]
-                    num_cells_immune = self.rr_ode["E"]
-                    num_cells_immune_l = self.rr_ode["El"]
+                    num_cells_uninfected = self.rr_ode["T"] * self.scale_by_volume
+                    num_cells_infected = self.rr_ode["I1"] * self.scale_by_volume
+                    num_cells_virusreleasing = self.rr_ode["I2"] * self.scale_by_volume
+                    num_cells_dead = self.rr_ode["D"] * self.scale_by_volume
+                    num_cells_immune = self.rr_ode["E"] * self.scale_by_volume
+                    num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
 
                     if num_cells_uninfected > min_thresh:
                         self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
@@ -655,7 +576,7 @@ class ModelSteppable(SteppableBasePy):
             # Gather total diffusive amounts
             med_viral_total = virus_secretor.totalFieldIntegral() / self.dim.z
             med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
-            med_cyt_lymph = self.rr["Cl"]
+            med_cyt_lymph = self.rr["Cl"] * self.scale_by_volume
             # Plot total diffusive viral amount if requested
             if plot_med_diff_data:
                 if med_viral_total > 0:
@@ -671,9 +592,9 @@ class ModelSteppable(SteppableBasePy):
                     fout.write('{}, {}, {}, {}\n'.format(mcs, med_viral_total, med_cyt_total, med_cyt_lymph))
 
             if plot_ode_sol:
-                med_viral_total = self.rr_ode["V"]
-                med_cyt_total = self.rr_ode["C"]
-                med_cyt_lymph = self.rr_ode["Cl"]
+                med_viral_total = self.rr_ode["V"] * self.scale_by_volume
+                med_cyt_total = self.rr_ode["C"] * self.scale_by_volume
+                med_cyt_lymph = self.rr_ode["Cl"] * self.scale_by_volume
 
                 # Plot total diffusive viral amount if requested
                 if plot_med_diff_data:
@@ -704,8 +625,8 @@ class ModelSteppable(SteppableBasePy):
                     fout.write(f'{mcs}, {num_viral}, {num_contact}\n')
 
             if plot_ode_sol:
-                num_viral = self.rr_ode['viralDeath']
-                num_contact = self.rr_ode['cd8Death']
+                num_viral = self.rr_ode['viralDeath'] * self.scale_by_volume
+                num_contact = self.rr_ode['cd8Death'] * self.scale_by_volume
 
                 # Plot death data if requested
                 if plot_death_data:
