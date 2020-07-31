@@ -204,12 +204,15 @@ class SimDataSteppable(SteppableBasePy):
 
         self.pop_data_win = None
         self.pop_data_path = None
+        self.pop_data = dict()
 
         self.med_diff_data_win = None
         self.med_diff_data_path = None
+        self.med_diff_data = dict()
 
         self.death_data_win = None
         self.death_data_path = None
+        self.death_data = dict()
 
         self.plot_pop_data = plot_pop_data_freq > 0
         self.write_pop_data = write_pop_data_freq > 0
@@ -224,6 +227,9 @@ class SimDataSteppable(SteppableBasePy):
         # Cell death mechanism tracking
         self.__death_mech = {'viral': 0,
                              'contact': 0}
+
+        # For flushing outputs every quarter simulation length
+        self.__flush_counter = 1
 
         # ODE instance
         self.__rr = None
@@ -383,14 +389,12 @@ class SimDataSteppable(SteppableBasePy):
 
             # Write population data to file if requested
             if write_pop_data:
-                with open(self.pop_data_path, 'a') as fout:
-                    fout.write('{}, {}, {}, {}, {}, {}, {}\n'.format(mcs,
-                                                                     num_cells_uninfected,
-                                                                     num_cells_infected,
-                                                                     num_cells_virusreleasing,
-                                                                     num_cells_dead,
-                                                                     num_cells_immune,
-                                                                     num_cells_immune_l))
+                self.pop_data[mcs] = [num_cells_uninfected,
+                                      num_cells_infected,
+                                      num_cells_virusreleasing,
+                                      num_cells_dead,
+                                      num_cells_immune,
+                                      num_cells_immune_l]
 
             if plot_pop_data and plot_ode_sol:
                 num_cells_uninfected = self.__rr["T"]
@@ -432,8 +436,7 @@ class SimDataSteppable(SteppableBasePy):
 
             # Write total diffusive viral amount if requested
             if write_med_diff_data:
-                with open(self.med_diff_data_path, 'a') as fout:
-                    fout.write('{}, {}, {}, {}\n'.format(mcs, med_viral_total, med_cyt_total, med_cyt_lymph))
+                self.med_diff_data[mcs] = [med_viral_total, med_cyt_total, med_cyt_lymph]
 
             if plot_med_diff_data and plot_ode_sol:
                 med_viral_total = self.__rr["V"]
@@ -465,8 +468,7 @@ class SimDataSteppable(SteppableBasePy):
 
             # Write death data if requested
             if write_death_data:
-                with open(self.death_data_path, 'a') as fout:
-                    fout.write(f'{mcs}, {num_viral}, {num_contact}\n')
+                self.death_data[mcs] = [num_viral, num_contact]
 
             if plot_death_data and plot_ode_sol:
                 num_viral = self.__rr['viralDeath']
@@ -478,6 +480,51 @@ class SimDataSteppable(SteppableBasePy):
                         self.death_data_win.add_data_point("ViralODE", mcs, num_viral)
                     if num_contact > min_thresh:
                         self.death_data_win.add_data_point("ContactODE", mcs, num_contact)
+
+        # Flush outputs at quarter simulation lengths
+        if mcs >= int(self.simulator.getNumSteps() / 4 * self.__flush_counter):
+            self.flush_stored_outputs()
+            self.__flush_counter += 1
+
+    def on_stop(self):
+        self.finish()
+
+    def finish(self):
+        self.flush_stored_outputs()
+
+    def data_output_string(self, _data: dict):
+        """
+        Generate string for data output to file from data dictionary
+        :param _data: data dictionary; keys are steps, values are lists of data
+        :return: output string to write to file
+        """
+        mcs_list = list(_data.keys())
+        mcs_list.sort()
+        f_str = ''
+        for mcs in mcs_list:
+            f_str += f'{mcs}'
+            for v in _data[mcs]:
+                f_str += f', {v}'
+            f_str += '\n'
+        return f_str
+
+    def flush_stored_outputs(self):
+        """
+        Write stored outputs to file and clear output storage
+        :return: None
+        """
+        # Each tuple contains the necessary information for writing a set of data to file
+        #   1. Boolean for whether we're writing to file at all
+        #   2. The path to write the data to
+        #   3. The data to write
+        output_info = [(self.write_pop_data, self.pop_data_path, self.pop_data),
+                       (self.write_med_diff_data, self.med_diff_data_path, self.med_diff_data),
+                       (self.write_death_data, self.death_data_path, self.death_data)]
+        for write_data, data_path, data in output_info:
+            if write_data:
+                with open(data_path, 'a') as fout:
+                    fout.write(self.data_output_string(data))
+                    data.clear()
 
     def track_death_viral(self):
         self.__death_mech['viral'] += 1
