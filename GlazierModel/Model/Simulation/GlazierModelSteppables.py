@@ -381,36 +381,37 @@ class SimDataSteppable(SteppableBasePy):
                 if num_cells_immune_l > min_thresh:
                     self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
-                if plot_ode_sol:
-                    num_cells_uninfected = self.__rr["T"]
-                    num_cells_infected = self.__rr["I1"]
-                    num_cells_virusreleasing = self.__rr["I2"]
-                    num_cells_dead = self.__rr["D"]
-                    num_cells_immune = self.__rr["E"]
-                    num_cells_immune_l = self.__rr["El"]
-
-                    if num_cells_uninfected > min_thresh:
-                        self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
-                    if num_cells_infected > min_thresh:
-                        self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
-                    if num_cells_virusreleasing > min_thresh:
-                        self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
-                    if num_cells_dead > min_thresh:
-                        self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
-                    if num_cells_immune > min_thresh:
-                        self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
-                    if num_cells_immune_l > min_thresh:
-                        self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
-
             # Write population data to file if requested
             if write_pop_data:
                 with open(self.pop_data_path, 'a') as fout:
-                    fout.write('{}, {}, {}, {}, {}, {}\n'.format(mcs,
-                                                                 num_cells_uninfected,
-                                                                 num_cells_infected,
-                                                                 num_cells_virusreleasing,
-                                                                 num_cells_dead,
-                                                                 num_cells_immune))
+                    fout.write('{}, {}, {}, {}, {}, {}, {}\n'.format(mcs,
+                                                                     num_cells_uninfected,
+                                                                     num_cells_infected,
+                                                                     num_cells_virusreleasing,
+                                                                     num_cells_dead,
+                                                                     num_cells_immune,
+                                                                     num_cells_immune_l))
+
+            if plot_pop_data and plot_ode_sol:
+                num_cells_uninfected = self.__rr["T"]
+                num_cells_infected = self.__rr["I1"]
+                num_cells_virusreleasing = self.__rr["I2"]
+                num_cells_dead = self.__rr["D"]
+                num_cells_immune = self.__rr["E"]
+                num_cells_immune_l = self.__rr["El"]
+
+                if num_cells_uninfected > min_thresh:
+                    self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
+                if num_cells_infected > min_thresh:
+                    self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
+                if num_cells_virusreleasing > min_thresh:
+                    self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
+                if num_cells_dead > min_thresh:
+                    self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
+                if num_cells_immune > min_thresh:
+                    self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
+                if num_cells_immune_l > min_thresh:
+                    self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
 
         # Diffusive field data tracking
 
@@ -434,7 +435,7 @@ class SimDataSteppable(SteppableBasePy):
                 with open(self.med_diff_data_path, 'a') as fout:
                     fout.write('{}, {}, {}, {}\n'.format(mcs, med_viral_total, med_cyt_total, med_cyt_lymph))
 
-            if plot_ode_sol:
+            if plot_med_diff_data and plot_ode_sol:
                 med_viral_total = self.__rr["V"]
                 med_cyt_total = self.__rr["C"]
                 med_cyt_lymph = self.__rr["Cl"]
@@ -467,7 +468,7 @@ class SimDataSteppable(SteppableBasePy):
                 with open(self.death_data_path, 'a') as fout:
                     fout.write(f'{mcs}, {num_viral}, {num_contact}\n')
 
-            if plot_ode_sol:
+            if plot_death_data and plot_ode_sol:
                 num_viral = self.__rr['viralDeath']
                 num_contact = self.__rr['cd8Death']
 
