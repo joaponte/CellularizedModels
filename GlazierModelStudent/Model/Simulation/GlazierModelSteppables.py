@@ -363,7 +363,7 @@ class ModelSteppable(SteppableBasePy):
             num_add += 1.0
             sum_term += add_rate ** num_add / math.factorial(num_add)
 
-        # Try to seed as many immune cells as calculated for inflow
+        # Seed as many immune cells as calculated for inflow
         for _ in range(int(num_add)):
             # Get random medium pixel (needs medium tracking!)
             med_pixel_set = [ptd.pixel for ptd in self.pixel_tracker_plugin.getMediumPixelSet()]
