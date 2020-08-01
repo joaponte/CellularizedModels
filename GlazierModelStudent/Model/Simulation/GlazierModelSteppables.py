@@ -316,6 +316,10 @@ class ModelSteppable(SteppableBasePy):
                 cell.targetVolume = 0
                 self.death_mech['contact'] += 1
 
+        # Plot contact death data
+        if self.death_mech['contact'] > 0:
+            self.death_data_win.add_data_point("Contact", mcs, self.death_mech['contact'])
+
         # Step: Viral killing
 
         death_rate = self.rr["d"] * self.scale_by_time
@@ -324,6 +328,10 @@ class ModelSteppable(SteppableBasePy):
             if random.random() < pr_death:
                 cell.type = self.DEAD
                 self.death_mech['viral'] += 1
+
+        # Plot viral death data
+        if self.death_mech['viral'] > 0:
+            self.death_data_win.add_data_point("Viral", mcs, self.death_mech['viral'])
 
         # Step: Viral life cycle
 
@@ -350,6 +358,21 @@ class ModelSteppable(SteppableBasePy):
             for cell in self.cell_list_by_type(self.UNINFECTED):
                 if random.random() < pr_infect:
                     cell.type = self.INFECTED
+
+        # Plot epithelial population data
+
+        num_cells_uninfected = len(self.cell_list_by_type(self.UNINFECTED))
+        num_cells_infected = len(self.cell_list_by_type(self.INFECTED))
+        num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
+        num_cells_dead = len(self.cell_list_by_type(self.DEAD))
+        if num_cells_uninfected > 0:
+            self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
+        if num_cells_infected > 0:
+            self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
+        if num_cells_virusreleasing > 0:
+            self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
+        if num_cells_dead > 0:
+            self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
 
         # Step: Immune recruitment
 
@@ -418,6 +441,14 @@ class ModelSteppable(SteppableBasePy):
                 cell.targetVolume = cell_volume
                 cell.lambdaVolume = volume_lm
 
+        # Plot immune cell population data
+        num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
+        num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
+        if num_cells_immune > 0:
+            self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
+        if num_cells_immune_l > 0:
+            self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
+
         # Step: Update chemotaxis
 
         for cell in self.cell_list_by_type(self.CD8LOCAL):
@@ -440,34 +471,22 @@ class ModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.INFECTED, self.VIRUSRELEASING):
             cytokine_secretor.secreteInsideCellTotalCount(cell, secr_amount / cell.volume)
 
-        # Step: Update data tracking
+        # Plot total diffusive viral amount
+        med_viral_total = virus_secretor.totalFieldIntegral() / self.dim.z
+        med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
+        med_cyt_lymph = self.rr["Cl"] * self.scale_by_volume
+        if med_viral_total > 0:
+            self.med_diff_data_win.add_data_point("MedViral", mcs, med_viral_total)
+        if med_cyt_total > 0:
+            self.med_diff_data_win.add_data_point("MedCytLocal", mcs, med_cyt_total)
+        if med_cyt_lymph > 0:
+            self.med_diff_data_win.add_data_point("MedCytLymph", mcs, med_cyt_lymph)
+
+        # Step: Update ODE data and tracking
 
         self.rr_ode.timestep()
 
         # Population data tracking
-
-        # Gather population data
-        num_cells_uninfected = len(self.cell_list_by_type(self.UNINFECTED))
-        num_cells_infected = len(self.cell_list_by_type(self.INFECTED))
-        num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
-        num_cells_dead = len(self.cell_list_by_type(self.DEAD))
-        num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
-        num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
-
-        # Plot population data plot if requested
-        min_thresh = 0.1
-        if num_cells_uninfected > min_thresh:
-            self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
-        if num_cells_infected > min_thresh:
-            self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
-        if num_cells_virusreleasing > min_thresh:
-            self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
-        if num_cells_dead > min_thresh:
-            self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
-        if num_cells_immune > min_thresh:
-            self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
-        if num_cells_immune_l > min_thresh:
-            self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
         num_cells_uninfected = self.rr_ode["T"] * self.scale_by_volume
         num_cells_infected = self.rr_ode["I1"] * self.scale_by_volume
@@ -476,6 +495,7 @@ class ModelSteppable(SteppableBasePy):
         num_cells_immune = self.rr_ode["E"] * self.scale_by_volume
         num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
 
+        min_thresh = 0.1
         if num_cells_uninfected > min_thresh:
             self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
         if num_cells_infected > min_thresh:
@@ -491,18 +511,6 @@ class ModelSteppable(SteppableBasePy):
 
         # Diffusive field data tracking
 
-        # Gather total diffusive amounts
-        med_viral_total = virus_secretor.totalFieldIntegral() / self.dim.z
-        med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
-        med_cyt_lymph = self.rr["Cl"] * self.scale_by_volume
-        # Plot total diffusive viral amount if requested
-        if med_viral_total > 0:
-            self.med_diff_data_win.add_data_point("MedViral", mcs, med_viral_total)
-        if med_cyt_total > 0:
-            self.med_diff_data_win.add_data_point("MedCytLocal", mcs, med_cyt_total)
-        if med_cyt_lymph > 0:
-            self.med_diff_data_win.add_data_point("MedCytLymph", mcs, med_cyt_lymph)
-
         med_viral_total = self.rr_ode["V"] * self.scale_by_volume
         med_cyt_total = self.rr_ode["C"] * self.scale_by_volume
         med_cyt_lymph = self.rr_ode["Cl"] * self.scale_by_volume
@@ -516,20 +524,10 @@ class ModelSteppable(SteppableBasePy):
 
         # Death mechanism data tracking
 
-        num_viral = self.death_mech['viral']
-        num_contact = self.death_mech['contact']
-
-        # Plot death data if requested
-        min_thresh = 0.1
-        if num_viral > min_thresh:
-            self.death_data_win.add_data_point("Viral", mcs, num_viral)
-        if num_contact > min_thresh:
-            self.death_data_win.add_data_point("Contact", mcs, num_contact)
-
         num_viral = self.rr_ode['viralDeath'] * self.scale_by_volume
         num_contact = self.rr_ode['cd8Death'] * self.scale_by_volume
 
-        # Plot death data if requested
+        min_thresh = 0.1
         if num_viral > min_thresh:
             self.death_data_win.add_data_point("ViralODE", mcs, num_viral)
         if num_contact > min_thresh:
