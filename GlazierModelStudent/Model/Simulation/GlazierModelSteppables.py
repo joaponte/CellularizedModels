@@ -5,27 +5,19 @@ import random
 
 # Conversion Factors
 s_to_mcs = 5 * 60  # s/mcs
-um_to_lat_width = 2.0  # um/lattice_length
-
-# Experimental Parameters
-exp_cell_diameter = 10.0  # um
-
-exp_virus_dc = 0.025  # um^2/s
-
-exp_cytokine_dc_cyto = 0.1  # um^2/s; estimated diffusion constant in cytoplasm (B)
-# ^ the  /10 is not experimental; added because of relative small area and because virus D is (or was) slowed down
 
 # =============================
 # CompuCell Parameters
 # cell
-cell_diameter = exp_cell_diameter / um_to_lat_width
+cell_diameter = 5.0
 cell_volume = cell_diameter ** 2
 volume_lm = 9
 
 # virus diffusion
-virus_dc = exp_virus_dc * s_to_mcs / (um_to_lat_width ** 2)  # virus diffusion constant
+virus_dc = 1.875
 
-cytokine_dc = exp_cytokine_dc_cyto * s_to_mcs / (um_to_lat_width ** 2)  # CK diff cst
+# cytokine diffusion
+cytokine_dc = 7.5
 
 # Lambda Chemotaxis
 lamda_chemotaxis = 1E5
