@@ -157,21 +157,17 @@ class ModelSteppable(SteppableBasePy):
                 cell.targetVolume = cell_volume
                 cell.lambdaVolume = volume_lm
 
-        # Infect a cell
+        # Infect some cells
         num_ecs = len(self.cell_list_by_type(self.UNINFECTED, self.INFECTED, self.VIRUSRELEASING, self.DEAD))
-        if init_infect == 0:
-            cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
-            cell.type = self.INFECTED
-        else:
-            num_to_infect = int(init_infect * num_ecs)
-            num_infected = 0
-            while num_infected < num_to_infect:
-                xi = random.randint(0, self.dim.x)
-                yi = random.randint(0, self.dim.y)
-                cell = self.cell_field[xi, yi, 0]
-                if cell is not None and cell.type == self.UNINFECTED:
-                    cell.type = self.INFECTED
-                    num_infected += 1
+        num_to_infect = int(init_infect * num_ecs)
+        num_infected = 0
+        while num_infected < num_to_infect:
+            xi = random.randint(0, self.dim.x)
+            yi = random.randint(0, self.dim.y)
+            cell = self.cell_field[xi, yi, 0]
+            if cell is not None and cell.type == self.UNINFECTED:
+                cell.type = self.INFECTED
+                num_infected += 1
 
         # Step: initialize ODEs
 
