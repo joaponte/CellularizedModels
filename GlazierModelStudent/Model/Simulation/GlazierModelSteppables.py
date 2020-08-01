@@ -374,27 +374,24 @@ class ModelSteppable(SteppableBasePy):
 
         # Calculate inflow
         num_add = 0
-        add_rate = (self.sbml.LymphNodeModel["El"] * self.sbml.LymphNodeModel["ke"] * self.scale_by_time * self.scale_by_volume)
+        add_rate = self.sbml.LymphNodeModel["El"] * self.sbml.LymphNodeModel["ke"] * self.scale_by_time * self.scale_by_volume
         exp_term = math.exp(-add_rate)
         sum_term = 1.0
         while random.random() < 1 - exp_term * sum_term:
             num_add += 1.0
             sum_term += add_rate ** num_add / math.factorial(num_add)
 
+        # Try to seed as many immune cells as calculated for inflow
         for _ in range(int(num_add)):
-            sample_frac = 0.01  # Number of sites to sample
-            n_sites = self.dim.x * self.dim.y
-            n_sites_frac = int(n_sites * sample_frac)
-
-            max_concentration = 0
-            x_seed = None
-            y_seed = None
-            sites_sampled = 0
-
+            # Get medium sites and shuffle (needs medium tracking!)
             med_pixel_set = [ptd.pixel for ptd in self.pixel_tracker_plugin.getMediumPixelSet()]
             random.shuffle(med_pixel_set)
 
+            # Open space selection; seeding location goes in (x_seed, y_seed) if we can find open space
+            x_seed = None
+            y_seed = None
             for pixel in med_pixel_set:
+                # Candidate seeding site
                 xi = pixel.x
                 yi = pixel.y
 
@@ -402,25 +399,26 @@ class ModelSteppable(SteppableBasePy):
                 if xi + int(cell_diameter / 2) >= self.dim.x or yi + int(cell_diameter / 2) >= self.dim.y:
                     continue
 
+                # Check for open space
                 open_space = True
                 for x in range(xi, xi + int(cell_diameter / 2)):
                     for y in range(yi, yi + int(cell_diameter / 2)):
                         if self.cell_field[x, y, 1]:
                             open_space = False
-                            break
+
+                # Accept candidate seeding site if space is open
                 if open_space:
-                    concentration_iteration = self.field.cytokine[xi, yi, 1]
-                    sites_sampled += 1
-                    if concentration_iteration >= max_concentration:
-                        max_concentration = concentration_iteration
-                        x_seed = xi
-                        y_seed = yi
-                if sites_sampled == n_sites_frac:
+                    x_seed = xi
+                    y_seed = yi
                     break
+
+            # Add immune cell if open space was found
             if x_seed is not None:
+                # Create new immune cell
                 cell = self.new_cell(self.CD8LOCAL)
-                self.cell_field[x_seed:x_seed + int(cell_diameter / 2), y_seed:y_seed + int(cell_diameter / 2), 1] = \
-                    cell
+                # Place new immune cell
+                self.cell_field[x_seed:x_seed + int(cell_diameter / 2), y_seed:y_seed + int(cell_diameter / 2), 1] = cell
+                # Set volume parameters
                 cell.targetVolume = cell_volume
                 cell.lambdaVolume = volume_lm
 
