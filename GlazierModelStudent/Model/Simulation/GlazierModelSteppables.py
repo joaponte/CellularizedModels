@@ -363,7 +363,7 @@ class ModelSteppable(SteppableBasePy):
         self.sbml.LymphNodeModel["C"] = cytokine_secretor.totalFieldIntegral() / self.dim.z / self.scale_by_volume
 
         # Integrate ODEs
-        self.sbml.LymphNodeModel.timestep()
+        self.timestep_sbml()
 
         # Calculate outflow
         remove_rate = self.sbml.LymphNodeModel["dE"] * self.scale_by_time
@@ -425,9 +425,10 @@ class ModelSteppable(SteppableBasePy):
         # Plot immune cell population data
         num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
         num_cells_immune_l = self.sbml.ODEModel["El"] * self.scale_by_volume
+        min_thresh = 0.1
         if num_cells_immune > 0:
             self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
-        if num_cells_immune_l > 0:
+        if num_cells_immune_l > min_thresh:
             self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
         # Step: Update chemotaxis
@@ -463,9 +464,7 @@ class ModelSteppable(SteppableBasePy):
         if med_cyt_lymph > 0:
             self.med_diff_data_win.add_data_point("MedCytLymph", mcs, med_cyt_lymph)
 
-        # Step: Update ODE data and tracking
-
-        self.sbml.ODEModel.timestep()
+        # Step: Update ODE data tracking
 
         # Population data tracking
 
