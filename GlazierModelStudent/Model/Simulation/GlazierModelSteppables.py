@@ -32,7 +32,7 @@ init_infect = 0.05
 # Option to use local or ODE virus
 use_local_virus = True
 
-ode_model_string = f'''model ODEModel()
+ode_model_string = '''model ODEModel()
     //Equations
     E1: T -> I1 ; beta*T*V ; //Infection rate
     E2: I1 -> I2 ; k*I1 ; //Infection rate
@@ -85,7 +85,7 @@ ode_model_string = f'''model ODEModel()
     El = 0.0
     end'''
 
-lymph_node_model_string = f'''model LymphNodeModel()
+lymph_node_model_string = '''model LymphNodeModel()
     //Equations
     E8: -> Cl ; kc * C // Cytokine transport to the lymph node
     E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
