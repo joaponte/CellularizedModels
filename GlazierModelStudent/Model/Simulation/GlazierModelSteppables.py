@@ -3,12 +3,6 @@ from cc3d.core.PySteppables import *
 import math
 import random
 
-# Data control options
-plot_pop_data_freq = 10  # Plot population data frequency (disable with 0)
-plot_med_diff_data_freq = 10  # Plot total diffusive field amount frequency (disable with 0)
-plot_spat_data_freq = 0  # Plot spatial data frequency (disable with 0)
-plot_death_data_freq = 10  # Plot death data frequency (disable with 0)
-
 # Conversion Factors
 s_to_mcs = 5 * 60  # s/mcs
 um_to_lat_width = 2.0  # um/lattice_length
@@ -144,24 +138,12 @@ class ModelSteppable(SteppableBasePy):
 
         # Population data window and path
         self.pop_data_win = None
-        self.pop_data_path = None
 
         # Diffusion data window and path
         self.med_diff_data_win = None
-        self.med_diff_data_path = None
 
         # Death data window and path
         self.death_data_win = None
-        self.death_data_path = None
-
-        # Controls for population data
-        self.plot_pop_data = plot_pop_data_freq > 0
-
-        # Controls for difusion data
-        self.plot_med_diff_data = plot_med_diff_data_freq > 0
-
-        # Controls for death data
-        self.plot_death_data = plot_death_data_freq > 0
 
         # Cell death mechanism tracking
         self.death_mech = {'viral': 0,
@@ -239,60 +221,63 @@ class ModelSteppable(SteppableBasePy):
         dot_size = 5
         line_size = 3
 
-        if self.plot_pop_data:
-            self.pop_data_win = self.add_new_plot_window(title='Population data',
-                                                         x_axis_title='MCS',
-                                                         y_axis_title='Numer of cells',
-                                                         x_scale_type='linear',
-                                                         y_scale_type='log',
-                                                         grid=True,
-                                                         config_options={'legend': True})
+        # Population data tracking plot setup
 
-            self.pop_data_win.add_plot("Uninfected", style='Dots', color='blue', size=dot_size)
-            self.pop_data_win.add_plot("Infected", style='Dots', color='red', size=dot_size)
-            self.pop_data_win.add_plot("VirusReleasing", style='Dots', color='green', size=dot_size)
-            self.pop_data_win.add_plot("Dead", style='Dots', color='yellow', size=dot_size)
-            self.pop_data_win.add_plot("CD8Local", style='Dots', color='white', size=dot_size)
-            self.pop_data_win.add_plot("CD8Lymph", style='Dots', color='purple', size=dot_size)
+        self.pop_data_win = self.add_new_plot_window(title='Population data',
+                                                     x_axis_title='MCS',
+                                                     y_axis_title='Numer of cells',
+                                                     x_scale_type='linear',
+                                                     y_scale_type='log',
+                                                     grid=True,
+                                                     config_options={'legend': True})
 
-            self.pop_data_win.add_plot("UninfectedODE", style='Lines', color='blue', size=line_size)
-            self.pop_data_win.add_plot("InfectedODE", style='Lines', color='red', size=line_size)
-            self.pop_data_win.add_plot("VirusReleasingODE", style='Lines', color='green', size=line_size)
-            self.pop_data_win.add_plot("DeadODE", style='Lines', color='yellow', size=line_size)
-            self.pop_data_win.add_plot("CD8LocalODE", style='Lines', color='white', size=line_size)
-            self.pop_data_win.add_plot("CD8LymphODE", style='Lines', color='purple', size=line_size)
+        self.pop_data_win.add_plot("Uninfected", style='Dots', color='blue', size=dot_size)
+        self.pop_data_win.add_plot("Infected", style='Dots', color='red', size=dot_size)
+        self.pop_data_win.add_plot("VirusReleasing", style='Dots', color='green', size=dot_size)
+        self.pop_data_win.add_plot("Dead", style='Dots', color='yellow', size=dot_size)
+        self.pop_data_win.add_plot("CD8Local", style='Dots', color='white', size=dot_size)
+        self.pop_data_win.add_plot("CD8Lymph", style='Dots', color='purple', size=dot_size)
 
-        if self.plot_med_diff_data:
-            self.med_diff_data_win = self.add_new_plot_window(title='Total diffusive species',
-                                                              x_axis_title='MCS',
-                                                              y_axis_title='Number of diffusive species per volume',
-                                                              x_scale_type='linear',
-                                                              y_scale_type='log',
-                                                              grid=True,
-                                                              config_options={'legend': True})
+        self.pop_data_win.add_plot("UninfectedODE", style='Lines', color='blue', size=line_size)
+        self.pop_data_win.add_plot("InfectedODE", style='Lines', color='red', size=line_size)
+        self.pop_data_win.add_plot("VirusReleasingODE", style='Lines', color='green', size=line_size)
+        self.pop_data_win.add_plot("DeadODE", style='Lines', color='yellow', size=line_size)
+        self.pop_data_win.add_plot("CD8LocalODE", style='Lines', color='white', size=line_size)
+        self.pop_data_win.add_plot("CD8LymphODE", style='Lines', color='purple', size=line_size)
 
-            self.med_diff_data_win.add_plot("MedViral", style='Dots', color='red', size=dot_size)
-            self.med_diff_data_win.add_plot("MedCytLocal", style='Dots', color='blue', size=dot_size)
-            self.med_diff_data_win.add_plot("MedCytLymph", style='Dots', color='green', size=dot_size)
+        # Diffusive field data tracking setup
 
-            self.med_diff_data_win.add_plot("MedViralODE", style='Lines', color='red', size=line_size)
-            self.med_diff_data_win.add_plot("MedCytLocalODE", style='Lines', color='blue', size=line_size)
-            self.med_diff_data_win.add_plot("MedCytLymphODE", style='Lines', color='green', size=line_size)
+        self.med_diff_data_win = self.add_new_plot_window(title='Total diffusive species',
+                                                          x_axis_title='MCS',
+                                                          y_axis_title='Number of diffusive species per volume',
+                                                          x_scale_type='linear',
+                                                          y_scale_type='log',
+                                                          grid=True,
+                                                          config_options={'legend': True})
 
-        if self.plot_death_data:
-            self.death_data_win = self.add_new_plot_window(title='Death data',
-                                                           x_axis_title='MCS',
-                                                           y_axis_title='Numer of cells',
-                                                           x_scale_type='linear',
-                                                           y_scale_type='log',
-                                                           grid=True,
-                                                           config_options={'legend': True})
+        self.med_diff_data_win.add_plot("MedViral", style='Dots', color='red', size=dot_size)
+        self.med_diff_data_win.add_plot("MedCytLocal", style='Dots', color='blue', size=dot_size)
+        self.med_diff_data_win.add_plot("MedCytLymph", style='Dots', color='green', size=dot_size)
 
-            self.death_data_win.add_plot("Viral", style='Dots', color='blue', size=5)
-            self.death_data_win.add_plot("Contact", style='Dots', color='green', size=5)
+        self.med_diff_data_win.add_plot("MedViralODE", style='Lines', color='red', size=line_size)
+        self.med_diff_data_win.add_plot("MedCytLocalODE", style='Lines', color='blue', size=line_size)
+        self.med_diff_data_win.add_plot("MedCytLymphODE", style='Lines', color='green', size=line_size)
 
-            self.death_data_win.add_plot("ViralODE", style='Lines', color='blue', size=line_size)
-            self.death_data_win.add_plot("ContactODE", style='Lines', color='green', size=line_size)
+        # Death mechanism data tracking setup
+
+        self.death_data_win = self.add_new_plot_window(title='Death data',
+                                                       x_axis_title='MCS',
+                                                       y_axis_title='Numer of cells',
+                                                       x_scale_type='linear',
+                                                       y_scale_type='log',
+                                                       grid=True,
+                                                       config_options={'legend': True})
+
+        self.death_data_win.add_plot("Viral", style='Dots', color='blue', size=5)
+        self.death_data_win.add_plot("Contact", style='Dots', color='green', size=5)
+
+        self.death_data_win.add_plot("ViralODE", style='Lines', color='blue', size=line_size)
+        self.death_data_win.add_plot("ContactODE", style='Lines', color='green', size=line_size)
 
         #   Generate solver instance
         self.add_free_floating_antimony(model_string=ode_model_string,
@@ -467,105 +452,94 @@ class ModelSteppable(SteppableBasePy):
 
         self.rr_ode.timestep()
 
-        # Check if plotting/writing
-        plot_pop_data = self.plot_pop_data and mcs % plot_pop_data_freq == 0
-        plot_med_diff_data = self.plot_med_diff_data and mcs % plot_med_diff_data_freq == 0
-        plot_death_data = self.plot_death_data and mcs % plot_death_data_freq == 0
-
         # Population data tracking
 
-        if plot_pop_data:
+        # Gather population data
+        num_cells_uninfected = len(self.cell_list_by_type(self.UNINFECTED))
+        num_cells_infected = len(self.cell_list_by_type(self.INFECTED))
+        num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
+        num_cells_dead = len(self.cell_list_by_type(self.DEAD))
+        num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
+        num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
 
-            # Gather population data
-            num_cells_uninfected = len(self.cell_list_by_type(self.UNINFECTED))
-            num_cells_infected = len(self.cell_list_by_type(self.INFECTED))
-            num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
-            num_cells_dead = len(self.cell_list_by_type(self.DEAD))
-            num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
-            num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
+        # Plot population data plot if requested
+        min_thresh = 0.1
+        if num_cells_uninfected > min_thresh:
+            self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
+        if num_cells_infected > min_thresh:
+            self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
+        if num_cells_virusreleasing > min_thresh:
+            self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
+        if num_cells_dead > min_thresh:
+            self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
+        if num_cells_immune > min_thresh:
+            self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
+        if num_cells_immune_l > min_thresh:
+            self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
-            # Plot population data plot if requested
-            min_thresh = 0.1
-            if num_cells_uninfected > min_thresh:
-                self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
-            if num_cells_infected > min_thresh:
-                self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
-            if num_cells_virusreleasing > min_thresh:
-                self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
-            if num_cells_dead > min_thresh:
-                self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
-            if num_cells_immune > min_thresh:
-                self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
-            if num_cells_immune_l > min_thresh:
-                self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
+        num_cells_uninfected = self.rr_ode["T"] * self.scale_by_volume
+        num_cells_infected = self.rr_ode["I1"] * self.scale_by_volume
+        num_cells_virusreleasing = self.rr_ode["I2"] * self.scale_by_volume
+        num_cells_dead = self.rr_ode["D"] * self.scale_by_volume
+        num_cells_immune = self.rr_ode["E"] * self.scale_by_volume
+        num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
 
-            num_cells_uninfected = self.rr_ode["T"] * self.scale_by_volume
-            num_cells_infected = self.rr_ode["I1"] * self.scale_by_volume
-            num_cells_virusreleasing = self.rr_ode["I2"] * self.scale_by_volume
-            num_cells_dead = self.rr_ode["D"] * self.scale_by_volume
-            num_cells_immune = self.rr_ode["E"] * self.scale_by_volume
-            num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
-
-            if num_cells_uninfected > min_thresh:
-                self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
-            if num_cells_infected > min_thresh:
-                self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
-            if num_cells_virusreleasing > min_thresh:
-                self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
-            if num_cells_dead > min_thresh:
-                self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
-            if num_cells_immune > min_thresh:
-                self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
-            if num_cells_immune_l > min_thresh:
-                self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
+        if num_cells_uninfected > min_thresh:
+            self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
+        if num_cells_infected > min_thresh:
+            self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
+        if num_cells_virusreleasing > min_thresh:
+            self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
+        if num_cells_dead > min_thresh:
+            self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
+        if num_cells_immune > min_thresh:
+            self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
+        if num_cells_immune_l > min_thresh:
+            self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
 
         # Diffusive field data tracking
 
-        if plot_med_diff_data:
+        # Gather total diffusive amounts
+        med_viral_total = virus_secretor.totalFieldIntegral() / self.dim.z
+        med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
+        med_cyt_lymph = self.rr["Cl"] * self.scale_by_volume
+        # Plot total diffusive viral amount if requested
+        if med_viral_total > 0:
+            self.med_diff_data_win.add_data_point("MedViral", mcs, med_viral_total)
+        if med_cyt_total > 0:
+            self.med_diff_data_win.add_data_point("MedCytLocal", mcs, med_cyt_total)
+        if med_cyt_lymph > 0:
+            self.med_diff_data_win.add_data_point("MedCytLymph", mcs, med_cyt_lymph)
 
-            # Gather total diffusive amounts
-            med_viral_total = virus_secretor.totalFieldIntegral() / self.dim.z
-            med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
-            med_cyt_lymph = self.rr["Cl"] * self.scale_by_volume
-            # Plot total diffusive viral amount if requested
-            if med_viral_total > 0:
-                self.med_diff_data_win.add_data_point("MedViral", mcs, med_viral_total)
-            if med_cyt_total > 0:
-                self.med_diff_data_win.add_data_point("MedCytLocal", mcs, med_cyt_total)
-            if med_cyt_lymph > 0:
-                self.med_diff_data_win.add_data_point("MedCytLymph", mcs, med_cyt_lymph)
+        med_viral_total = self.rr_ode["V"] * self.scale_by_volume
+        med_cyt_total = self.rr_ode["C"] * self.scale_by_volume
+        med_cyt_lymph = self.rr_ode["Cl"] * self.scale_by_volume
 
-            med_viral_total = self.rr_ode["V"] * self.scale_by_volume
-            med_cyt_total = self.rr_ode["C"] * self.scale_by_volume
-            med_cyt_lymph = self.rr_ode["Cl"] * self.scale_by_volume
-
-            if med_viral_total > 0:
-                self.med_diff_data_win.add_data_point("MedViralODE", mcs, med_viral_total)
-            if med_cyt_total > 0:
-                self.med_diff_data_win.add_data_point("MedCytLocalODE", mcs, med_cyt_total)
-            if med_cyt_lymph > 0:
-                self.med_diff_data_win.add_data_point("MedCytLymphODE", mcs, med_cyt_lymph)
+        if med_viral_total > 0:
+            self.med_diff_data_win.add_data_point("MedViralODE", mcs, med_viral_total)
+        if med_cyt_total > 0:
+            self.med_diff_data_win.add_data_point("MedCytLocalODE", mcs, med_cyt_total)
+        if med_cyt_lymph > 0:
+            self.med_diff_data_win.add_data_point("MedCytLymphODE", mcs, med_cyt_lymph)
 
         # Death mechanism data tracking
 
-        if plot_death_data:
-            num_viral = self.death_mech['viral']
-            num_contact = self.death_mech['contact']
+        num_viral = self.death_mech['viral']
+        num_contact = self.death_mech['contact']
 
-            # Plot death data if requested
-            min_thresh = 0.1
-            if num_viral > min_thresh:
-                self.death_data_win.add_data_point("Viral", mcs, num_viral)
-            if num_contact > min_thresh:
-                self.death_data_win.add_data_point("Contact", mcs, num_contact)
+        # Plot death data if requested
+        min_thresh = 0.1
+        if num_viral > min_thresh:
+            self.death_data_win.add_data_point("Viral", mcs, num_viral)
+        if num_contact > min_thresh:
+            self.death_data_win.add_data_point("Contact", mcs, num_contact)
 
-            num_viral = self.rr_ode['viralDeath'] * self.scale_by_volume
-            num_contact = self.rr_ode['cd8Death'] * self.scale_by_volume
+        num_viral = self.rr_ode['viralDeath'] * self.scale_by_volume
+        num_contact = self.rr_ode['cd8Death'] * self.scale_by_volume
 
-            # Plot death data if requested
-            if plot_death_data:
-                if num_viral > min_thresh:
-                    self.death_data_win.add_data_point("ViralODE", mcs, num_viral)
-                if num_contact > min_thresh:
-                    self.death_data_win.add_data_point("ContactODE", mcs, num_contact)
+        # Plot death data if requested
+        if num_viral > min_thresh:
+            self.death_data_win.add_data_point("ViralODE", mcs, num_viral)
+        if num_contact > min_thresh:
+            self.death_data_win.add_data_point("ContactODE", mcs, num_contact)
 
