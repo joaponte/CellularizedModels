@@ -84,7 +84,7 @@ ode_model_string = f'''model ODEModel()
     El = 0.0
     end'''
 
-lymph_node_model_string = f'''model LymphNodeMode()
+lymph_node_model_string = f'''model LymphNodeModel()
     //Equations
     E8: -> Cl ; kc * C // Cytokine transport to the lymph node
     E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
@@ -121,12 +121,6 @@ lymph_node_model_string = f'''model LymphNodeMode()
 class ModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
-
-        # Reference to ODE model solver
-        self.rr = None
-
-        # Reference to ODE model solver without spatialization
-        self.rr_ode = None
 
         # Population data window and path
         self.pop_data_win = None
@@ -182,29 +176,24 @@ class ModelSteppable(SteppableBasePy):
 
         #   Generate solver instance
         self.add_free_floating_antimony(model_string=lymph_node_model_string,
-                                        model_name='LymphNodeMode',
+                                        model_name='LymphNodeModel',
                                         step_size=sbml_step_size)
 
-        #   Get reference to solver
-        from cc3d.CompuCellSetup import persistent_globals as pg
-        for model_name, rr in pg.free_floating_sbml_simulators.items():
-            if model_name == 'LymphNodeMode':
-                self.rr = rr
-
         # Step: calculate scaling coefficients
-        self.scale_by_volume = num_ecs / self.rr["T0"]
-        self.scale_by_voxel = 1 / self.rr["T0"] / cell_volume
+        self.scale_by_volume = num_ecs / self.sbml.LymphNodeModel["T0"]
+        self.scale_by_voxel = 1 / self.sbml.LymphNodeModel["T0"] / cell_volume
         self.scale_by_time = s_to_mcs / 60 / 60 / 24
 
         # Step: load secretion values from ODEs into XML
 
         #   Extracellular virus: diffusion and decay
         self.get_xml_element('virus_dc').cdata = virus_dc
-        self.get_xml_element('virus_decay').cdata = self.rr["c"] * self.scale_by_time
+        self.get_xml_element('virus_decay').cdata = self.sbml.LymphNodeModel["c"] * self.scale_by_time
 
         #   Local cytokine: diffusion and decay
         self.get_xml_element('cytokine_dc').cdata = cytokine_dc
-        self.get_xml_element('cytokine_decay').cdata = (self.rr["cc"] + self.rr["kc"]) * self.scale_by_time
+        self.get_xml_element('cytokine_decay').cdata = (self.sbml.LymphNodeModel["cc"] +
+                                                        self.sbml.LymphNodeModel["kc"]) * self.scale_by_time
 
         # Step: data tracking setup
 
@@ -276,17 +265,11 @@ class ModelSteppable(SteppableBasePy):
                                         model_name='ODEModel',
                                         step_size=sbml_step_size)
 
-        #   Get reference to solver
-        from cc3d.CompuCellSetup import persistent_globals as pg
-        for model_name, rr in pg.free_floating_sbml_simulators.items():
-            if model_name == 'ODEModel':
-                self.rr_ode = rr
-
         #   Apply initial conditions
-        self.rr_ode["T"] = len(self.cell_list_by_type(self.UNINFECTED)) / self.scale_by_volume
-        self.rr_ode["I1"] = len(self.cell_list_by_type(self.INFECTED)) / self.scale_by_volume
-        self.rr_ode["I2"] = len(self.cell_list_by_type(self.VIRUSRELEASING)) / self.scale_by_volume
-        self.rr_ode["D"] = len(self.cell_list_by_type(self.DEAD)) / self.scale_by_volume
+        self.sbml.ODEModel["T"] = len(self.cell_list_by_type(self.UNINFECTED)) / self.scale_by_volume
+        self.sbml.ODEModel["I1"] = len(self.cell_list_by_type(self.INFECTED)) / self.scale_by_volume
+        self.sbml.ODEModel["I2"] = len(self.cell_list_by_type(self.VIRUSRELEASING)) / self.scale_by_volume
+        self.sbml.ODEModel["D"] = len(self.cell_list_by_type(self.DEAD)) / self.scale_by_volume
 
     def step(self, mcs):
         # Prep stuff
@@ -295,7 +278,7 @@ class ModelSteppable(SteppableBasePy):
         cytokine_secretor = self.get_field_secretor("cytokine")
 
         # Step: Immune cell killing
-        dei2 = self.rr["dei2"] * self.scale_by_time / self.scale_by_volume
+        dei2 = self.sbml.LymphNodeModel["dei2"] * self.scale_by_time / self.scale_by_volume
 
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             cd8_area = 0
@@ -322,7 +305,7 @@ class ModelSteppable(SteppableBasePy):
 
         # Step: Viral killing
 
-        death_rate = self.rr["d"] * self.scale_by_time
+        death_rate = self.sbml.LymphNodeModel["d"] * self.scale_by_time
         pr_death = 1 - math.exp(-death_rate)
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             if random.random() < pr_death:
@@ -336,7 +319,7 @@ class ModelSteppable(SteppableBasePy):
         # Step: Viral life cycle
 
         # Infected -> Virus releasing
-        release_rate = self.rr["k"] * self.scale_by_time
+        release_rate = self.sbml.LymphNodeModel["k"] * self.scale_by_time
         pr_release = 1 - math.exp(-release_rate)
         for cell in self.cell_list_by_type(self.INFECTED):
             if random.random() < pr_release:
@@ -344,7 +327,7 @@ class ModelSteppable(SteppableBasePy):
 
         # Internalization
         if use_local_virus:
-            beta = self.rr["beta"] * self.scale_by_time / self.scale_by_voxel  # * num_ecs
+            beta = self.sbml.LymphNodeModel["beta"] * self.scale_by_time / self.scale_by_voxel  # * num_ecs
             for cell in self.cell_list_by_type(self.UNINFECTED):
                 seen_amount = virus_secretor.amountSeenByCell(cell) / cell.volume * self.dim.z
                 infect_rate = beta * seen_amount
@@ -352,8 +335,8 @@ class ModelSteppable(SteppableBasePy):
                 if random.random() < pr_infect:
                     cell.type = self.INFECTED
         else:
-            beta = self.rr["beta"] * self.scale_by_time
-            infect_rate = beta * self.rr_ode["V"]
+            beta = self.sbml.LymphNodeModel["beta"] * self.scale_by_time
+            infect_rate = beta * self.sbml.ODEModel["V"]
             pr_infect = 1 - math.exp(-infect_rate)
             for cell in self.cell_list_by_type(self.UNINFECTED):
                 if random.random() < pr_infect:
@@ -377,13 +360,13 @@ class ModelSteppable(SteppableBasePy):
         # Step: Immune recruitment
 
         # Pass spatial information to ODEs
-        self.rr["C"] = cytokine_secretor.totalFieldIntegral() / self.dim.z / self.scale_by_volume
+        self.sbml.LymphNodeModel["C"] = cytokine_secretor.totalFieldIntegral() / self.dim.z / self.scale_by_volume
 
         # Integrate ODEs
-        self.rr.timestep()
+        self.sbml.LymphNodeModel.timestep()
 
         # Calculate outflow
-        remove_rate = self.rr["dE"] * self.scale_by_time
+        remove_rate = self.sbml.LymphNodeModel["dE"] * self.scale_by_time
         pr_remove = 1 - math.exp(-remove_rate)
         for cell in self.cell_list_by_type(self.CD8LOCAL):
             if random.random() < pr_remove:
@@ -391,7 +374,7 @@ class ModelSteppable(SteppableBasePy):
 
         # Calculate inflow
         num_add = 0
-        add_rate = self.rr["El"] * self.rr["ke"] * self.scale_by_time * self.scale_by_volume
+        add_rate = (self.sbml.LymphNodeModel["El"] * self.sbml.LymphNodeModel["ke"] * self.scale_by_time * self.scale_by_volume)
         exp_term = math.exp(-add_rate)
         sum_term = 1.0
         while random.random() < 1 - exp_term * sum_term:
@@ -443,7 +426,7 @@ class ModelSteppable(SteppableBasePy):
 
         # Plot immune cell population data
         num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
-        num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
+        num_cells_immune_l = self.sbml.ODEModel["El"] * self.scale_by_volume
         if num_cells_immune > 0:
             self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
         if num_cells_immune_l > 0:
@@ -462,19 +445,19 @@ class ModelSteppable(SteppableBasePy):
         # Step: Secretion
 
         #   Extracellular virus: secretion by virus-releasing cells
-        secr_amount = self.rr["p"] * self.scale_by_time
+        secr_amount = self.sbml.LymphNodeModel["p"] * self.scale_by_time
         for cell in self.cell_list_by_type(self.VIRUSRELEASING):
             virus_secretor.secreteInsideCellTotalCount(cell, secr_amount / cell.volume)
 
         #   Local cytokine: secretion by infected and virus-releasing cells
-        secr_amount = self.rr["pc"] * self.scale_by_time
+        secr_amount = self.sbml.LymphNodeModel["pc"] * self.scale_by_time
         for cell in self.cell_list_by_type(self.INFECTED, self.VIRUSRELEASING):
             cytokine_secretor.secreteInsideCellTotalCount(cell, secr_amount / cell.volume)
 
         # Plot total diffusive viral amount
         med_viral_total = virus_secretor.totalFieldIntegral() / self.dim.z
         med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
-        med_cyt_lymph = self.rr["Cl"] * self.scale_by_volume
+        med_cyt_lymph = self.sbml.LymphNodeModel["Cl"] * self.scale_by_volume
         if med_viral_total > 0:
             self.med_diff_data_win.add_data_point("MedViral", mcs, med_viral_total)
         if med_cyt_total > 0:
@@ -484,16 +467,16 @@ class ModelSteppable(SteppableBasePy):
 
         # Step: Update ODE data and tracking
 
-        self.rr_ode.timestep()
+        self.sbml.ODEModel.timestep()
 
         # Population data tracking
 
-        num_cells_uninfected = self.rr_ode["T"] * self.scale_by_volume
-        num_cells_infected = self.rr_ode["I1"] * self.scale_by_volume
-        num_cells_virusreleasing = self.rr_ode["I2"] * self.scale_by_volume
-        num_cells_dead = self.rr_ode["D"] * self.scale_by_volume
-        num_cells_immune = self.rr_ode["E"] * self.scale_by_volume
-        num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
+        num_cells_uninfected = self.sbml.ODEModel["T"] * self.scale_by_volume
+        num_cells_infected = self.sbml.ODEModel["I1"] * self.scale_by_volume
+        num_cells_virusreleasing = self.sbml.ODEModel["I2"] * self.scale_by_volume
+        num_cells_dead = self.sbml.ODEModel["D"] * self.scale_by_volume
+        num_cells_immune = self.sbml.ODEModel["E"] * self.scale_by_volume
+        num_cells_immune_l = self.sbml.ODEModel["El"] * self.scale_by_volume
 
         min_thresh = 0.1
         if num_cells_uninfected > min_thresh:
@@ -511,9 +494,9 @@ class ModelSteppable(SteppableBasePy):
 
         # Diffusive field data tracking
 
-        med_viral_total = self.rr_ode["V"] * self.scale_by_volume
-        med_cyt_total = self.rr_ode["C"] * self.scale_by_volume
-        med_cyt_lymph = self.rr_ode["Cl"] * self.scale_by_volume
+        med_viral_total = self.sbml.ODEModel["V"] * self.scale_by_volume
+        med_cyt_total = self.sbml.ODEModel["C"] * self.scale_by_volume
+        med_cyt_lymph = self.sbml.ODEModel["Cl"] * self.scale_by_volume
 
         if med_viral_total > 0:
             self.med_diff_data_win.add_data_point("MedViralODE", mcs, med_viral_total)
@@ -524,8 +507,8 @@ class ModelSteppable(SteppableBasePy):
 
         # Death mechanism data tracking
 
-        num_viral = self.rr_ode['viralDeath'] * self.scale_by_volume
-        num_contact = self.rr_ode['cd8Death'] * self.scale_by_volume
+        num_viral = self.sbml.ODEModel['viralDeath'] * self.scale_by_volume
+        num_contact = self.sbml.ODEModel['cd8Death'] * self.scale_by_volume
 
         min_thresh = 0.1
         if num_viral > min_thresh:
