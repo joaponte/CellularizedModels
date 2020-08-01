@@ -385,7 +385,7 @@ class ModelSteppable(SteppableBasePy):
                 open_space = True
                 for x in range(xi, xi + int(cell_diameter / 2)):
                     for y in range(yi, yi + int(cell_diameter / 2)):
-                        if self.cell_field[x, y, 1]:
+                        if self.cell_field[x, y, 1] is not None:
                             open_space = False
 
                 # Accept candidate seeding site if space is open
