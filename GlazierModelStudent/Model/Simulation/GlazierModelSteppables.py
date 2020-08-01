@@ -321,10 +321,10 @@ class ModelSteppable(SteppableBasePy):
                 with open(self.death_data_path, 'w'):
                     pass
 
-            #   Generate solver instance
-            self.add_free_floating_antimony(model_string=ode_model_string,
-                                            model_name='ODEModel',
-                                            step_size=sbml_step_size)
+        #   Generate solver instance
+        self.add_free_floating_antimony(model_string=ode_model_string,
+                                        model_name='ODEModel',
+                                        step_size=sbml_step_size)
 
         #   Get reference to solver
         from cc3d.CompuCellSetup import persistent_globals as pg
