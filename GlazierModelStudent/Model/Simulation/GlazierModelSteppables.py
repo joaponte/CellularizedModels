@@ -5,6 +5,7 @@ import random
 
 # Conversion Factors
 s_to_mcs = 5 * 60  # s/mcs
+days_to_mcs = s_to_mcs / 60 / 60 / 24  # days/mcs
 
 # =============================
 # CompuCell Parameters
@@ -205,7 +206,7 @@ class ModelSteppable(SteppableBasePy):
         # Population data tracking plot setup
 
         self.pop_data_win = self.add_new_plot_window(title='Population data',
-                                                     x_axis_title='MCS',
+                                                     x_axis_title='Time (days)',
                                                      y_axis_title='Numer of cells',
                                                      x_scale_type='linear',
                                                      y_scale_type='linear',
@@ -229,7 +230,7 @@ class ModelSteppable(SteppableBasePy):
         # Diffusive field data tracking setup
 
         self.med_diff_data_win = self.add_new_plot_window(title='Total diffusive species',
-                                                          x_axis_title='MCS',
+                                                          x_axis_title='Time (days)',
                                                           y_axis_title='Number of diffusive species per volume',
                                                           x_scale_type='linear',
                                                           y_scale_type='log',
@@ -247,7 +248,7 @@ class ModelSteppable(SteppableBasePy):
         # Death mechanism data tracking setup
 
         self.death_data_win = self.add_new_plot_window(title='Death data',
-                                                       x_axis_title='MCS',
+                                                       x_axis_title='Time (days)',
                                                        y_axis_title='Numer of cells',
                                                        x_scale_type='linear',
                                                        y_scale_type='linear',
@@ -301,7 +302,7 @@ class ModelSteppable(SteppableBasePy):
 
         # Plot contact death data
         if self.death_mech['contact'] > 0:
-            self.death_data_win.add_data_point("Contact", mcs, self.death_mech['contact'])
+            self.death_data_win.add_data_point("Contact", mcs * days_to_mcs, self.death_mech['contact'])
 
         # Step: Viral killing
 
@@ -312,9 +313,12 @@ class ModelSteppable(SteppableBasePy):
                 cell.type = self.DEAD
                 self.death_mech['viral'] += 1
 
+        num_cells_dead = len(self.cell_list_by_type(self.DEAD))
+        self.pop_data_win.add_data_point('Dead', mcs * days_to_mcs, num_cells_dead)
+
         # Plot viral death data
         if self.death_mech['viral'] > 0:
-            self.death_data_win.add_data_point("Viral", mcs, self.death_mech['viral'])
+            self.death_data_win.add_data_point("Viral", mcs * days_to_mcs, self.death_mech['viral'])
 
         # Step: Viral life cycle
 
@@ -324,6 +328,9 @@ class ModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.INFECTED):
             if random.random() < pr_release:
                 cell.type = self.VIRUSRELEASING
+
+        num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
+        self.pop_data_win.add_data_point('VirusReleasing', mcs * days_to_mcs, num_cells_virusreleasing)
 
         # Internalization
         if use_local_virus:
@@ -342,16 +349,10 @@ class ModelSteppable(SteppableBasePy):
                 if random.random() < pr_infect:
                     cell.type = self.INFECTED
 
-        # Plot epithelial population data
-
         num_cells_uninfected = len(self.cell_list_by_type(self.UNINFECTED))
         num_cells_infected = len(self.cell_list_by_type(self.INFECTED))
-        num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
-        num_cells_dead = len(self.cell_list_by_type(self.DEAD))
-        self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
-        self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
-        self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
-        self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
+        self.pop_data_win.add_data_point('Uninfected', mcs * days_to_mcs, num_cells_uninfected)
+        self.pop_data_win.add_data_point('Infected', mcs * days_to_mcs, num_cells_infected)
 
         # Step: Immune recruitment
 
@@ -421,8 +422,8 @@ class ModelSteppable(SteppableBasePy):
         # Plot immune cell population data
         num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
         num_cells_immune_l = self.sbml.ODEModel["El"] * self.scale_by_volume
-        self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
-        self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
+        self.pop_data_win.add_data_point('CD8Local', mcs * days_to_mcs, num_cells_immune)
+        self.pop_data_win.add_data_point('CD8Lymph', mcs * days_to_mcs, num_cells_immune_l)
 
         # Step: Update chemotaxis
 
@@ -451,11 +452,11 @@ class ModelSteppable(SteppableBasePy):
         med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
         med_cyt_lymph = self.sbml.LymphNodeModel["Cl"] * self.scale_by_volume
         if med_viral_total > 0:
-            self.med_diff_data_win.add_data_point("MedViral", mcs, med_viral_total)
+            self.med_diff_data_win.add_data_point("MedViral", mcs * days_to_mcs, med_viral_total)
         if med_cyt_total > 0:
-            self.med_diff_data_win.add_data_point("MedCytLocal", mcs, med_cyt_total)
+            self.med_diff_data_win.add_data_point("MedCytLocal", mcs * days_to_mcs, med_cyt_total)
         if med_cyt_lymph > 0:
-            self.med_diff_data_win.add_data_point("MedCytLymph", mcs, med_cyt_lymph)
+            self.med_diff_data_win.add_data_point("MedCytLymph", mcs * days_to_mcs, med_cyt_lymph)
 
         # Step: Update ODE data tracking
 
@@ -468,12 +469,12 @@ class ModelSteppable(SteppableBasePy):
         num_cells_immune = self.sbml.ODEModel["E"] * self.scale_by_volume
         num_cells_immune_l = self.sbml.ODEModel["El"] * self.scale_by_volume
 
-        self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
-        self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
-        self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
-        self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
-        self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
-        self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
+        self.pop_data_win.add_data_point('UninfectedODE', mcs * days_to_mcs, num_cells_uninfected)
+        self.pop_data_win.add_data_point('InfectedODE', mcs * days_to_mcs, num_cells_infected)
+        self.pop_data_win.add_data_point('VirusReleasingODE', mcs * days_to_mcs, num_cells_virusreleasing)
+        self.pop_data_win.add_data_point('DeadODE', mcs * days_to_mcs, num_cells_dead)
+        self.pop_data_win.add_data_point('CD8LocalODE', mcs * days_to_mcs, num_cells_immune)
+        self.pop_data_win.add_data_point('CD8LymphODE', mcs * days_to_mcs, num_cells_immune_l)
 
         # Diffusive field data tracking
 
@@ -482,17 +483,17 @@ class ModelSteppable(SteppableBasePy):
         med_cyt_lymph = self.sbml.ODEModel["Cl"] * self.scale_by_volume
 
         if med_viral_total > 0:
-            self.med_diff_data_win.add_data_point("MedViralODE", mcs, med_viral_total)
+            self.med_diff_data_win.add_data_point("MedViralODE", mcs * days_to_mcs, med_viral_total)
         if med_cyt_total > 0:
-            self.med_diff_data_win.add_data_point("MedCytLocalODE", mcs, med_cyt_total)
+            self.med_diff_data_win.add_data_point("MedCytLocalODE", mcs * days_to_mcs, med_cyt_total)
         if med_cyt_lymph > 0:
-            self.med_diff_data_win.add_data_point("MedCytLymphODE", mcs, med_cyt_lymph)
+            self.med_diff_data_win.add_data_point("MedCytLymphODE", mcs * days_to_mcs, med_cyt_lymph)
 
         # Death mechanism data tracking
 
         num_viral = self.sbml.ODEModel['viralDeath'] * self.scale_by_volume
         num_contact = self.sbml.ODEModel['cd8Death'] * self.scale_by_volume
 
-        self.death_data_win.add_data_point("ViralODE", mcs, num_viral)
-        self.death_data_win.add_data_point("ContactODE", mcs, num_contact)
+        self.death_data_win.add_data_point("ViralODE", mcs * days_to_mcs, num_viral)
+        self.death_data_win.add_data_point("ContactODE", mcs * days_to_mcs, num_contact)
 
