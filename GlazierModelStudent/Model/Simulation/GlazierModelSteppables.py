@@ -5,13 +5,9 @@ import random
 
 # Data control options
 plot_pop_data_freq = 10  # Plot population data frequency (disable with 0)
-write_pop_data_freq = 0  # Write population data to simulation directory frequency (disable with 0)
 plot_med_diff_data_freq = 10  # Plot total diffusive field amount frequency (disable with 0)
-write_med_diff_data_freq = 0  # Write total diffusive field amount frequency (disable with 0)
 plot_spat_data_freq = 0  # Plot spatial data frequency (disable with 0)
-write_spat_data_freq = 0  # Write spatial data to simulation directory frequency (disable with 0)
 plot_death_data_freq = 10  # Plot death data frequency (disable with 0)
-write_death_data_freq = 0  # Write death data to simulation directory frequency (disable with 0)
 
 plot_ode_sol = True  # Set to True to instantiate ODE model and plot, for comparison with spatial model
 
@@ -162,15 +158,12 @@ class ModelSteppable(SteppableBasePy):
 
         # Controls for population data
         self.plot_pop_data = plot_pop_data_freq > 0
-        self.write_pop_data = write_pop_data_freq > 0
 
         # Controls for difusion data
         self.plot_med_diff_data = plot_med_diff_data_freq > 0
-        self.write_med_diff_data = write_med_diff_data_freq > 0
 
         # Controls for death data
         self.plot_death_data = plot_death_data_freq > 0
-        self.write_death_data = write_death_data_freq > 0
 
         # Cell death mechanism tracking
         self.death_mech = {'viral': 0,
@@ -302,24 +295,6 @@ class ModelSteppable(SteppableBasePy):
 
             self.death_data_win.add_plot("ViralODE", style='Lines', color='blue', size=line_size)
             self.death_data_win.add_plot("ContactODE", style='Lines', color='green', size=line_size)
-
-        # Check that output directory is available
-        if self.output_dir is not None:
-            from pathlib import Path
-            if self.write_pop_data:
-                self.pop_data_path = Path(self.output_dir).joinpath('pop_data.dat')
-                with open(self.pop_data_path, 'w'):
-                    pass
-
-            if self.write_med_diff_data:
-                self.med_diff_data_path = Path(self.output_dir).joinpath('med_diff_data.dat')
-                with open(self.med_diff_data_path, 'w'):
-                    pass
-
-            if self.write_death_data:
-                self.death_data_path = Path(self.output_dir).joinpath('death_data.dat')
-                with open(self.death_data_path, 'w'):
-                    pass
 
         #   Generate solver instance
         self.add_free_floating_antimony(model_string=ode_model_string,
@@ -500,19 +475,9 @@ class ModelSteppable(SteppableBasePy):
         plot_med_diff_data = self.plot_med_diff_data and mcs % plot_med_diff_data_freq == 0
         plot_death_data = self.plot_death_data and mcs % plot_death_data_freq == 0
 
-        # Check for existence of output directory and disable writing if necessary
-        if self.output_dir is not None:
-            write_pop_data = self.write_pop_data and mcs % write_pop_data_freq == 0
-            write_med_diff_data = self.write_med_diff_data and mcs % write_med_diff_data_freq == 0
-            write_death_data = self.write_death_data and mcs % write_death_data_freq == 0
-        else:
-            write_pop_data = False
-            write_med_diff_data = False
-            write_death_data = False
-
         # Population data tracking
 
-        if plot_pop_data or write_pop_data:
+        if plot_pop_data:
 
             # Gather population data
             num_cells_uninfected = len(self.cell_list_by_type(self.UNINFECTED))
@@ -524,105 +489,80 @@ class ModelSteppable(SteppableBasePy):
 
             # Plot population data plot if requested
             min_thresh = 0.1
-            if plot_pop_data:
+            if num_cells_uninfected > min_thresh:
+                self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
+            if num_cells_infected > min_thresh:
+                self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
+            if num_cells_virusreleasing > min_thresh:
+                self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
+            if num_cells_dead > min_thresh:
+                self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
+            if num_cells_immune > min_thresh:
+                self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
+            if num_cells_immune_l > min_thresh:
+                self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
+
+            if plot_ode_sol:
+                num_cells_uninfected = self.rr_ode["T"] * self.scale_by_volume
+                num_cells_infected = self.rr_ode["I1"] * self.scale_by_volume
+                num_cells_virusreleasing = self.rr_ode["I2"] * self.scale_by_volume
+                num_cells_dead = self.rr_ode["D"] * self.scale_by_volume
+                num_cells_immune = self.rr_ode["E"] * self.scale_by_volume
+                num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
+
                 if num_cells_uninfected > min_thresh:
-                    self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
+                    self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
                 if num_cells_infected > min_thresh:
-                    self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
+                    self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
                 if num_cells_virusreleasing > min_thresh:
-                    self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
+                    self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
                 if num_cells_dead > min_thresh:
-                    self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
+                    self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
                 if num_cells_immune > min_thresh:
-                    self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
+                    self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
                 if num_cells_immune_l > min_thresh:
-                    self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
-
-                if plot_ode_sol:
-                    num_cells_uninfected = self.rr_ode["T"] * self.scale_by_volume
-                    num_cells_infected = self.rr_ode["I1"] * self.scale_by_volume
-                    num_cells_virusreleasing = self.rr_ode["I2"] * self.scale_by_volume
-                    num_cells_dead = self.rr_ode["D"] * self.scale_by_volume
-                    num_cells_immune = self.rr_ode["E"] * self.scale_by_volume
-                    num_cells_immune_l = self.rr_ode["El"] * self.scale_by_volume
-
-                    if num_cells_uninfected > min_thresh:
-                        self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
-                    if num_cells_infected > min_thresh:
-                        self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
-                    if num_cells_virusreleasing > min_thresh:
-                        self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
-                    if num_cells_dead > min_thresh:
-                        self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
-                    if num_cells_immune > min_thresh:
-                        self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
-                    if num_cells_immune_l > min_thresh:
-                        self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
-
-            # Write population data to file if requested
-            if write_pop_data:
-                with open(self.pop_data_path, 'a') as fout:
-                    fout.write('{}, {}, {}, {}, {}, {}\n'.format(mcs,
-                                                                 num_cells_uninfected,
-                                                                 num_cells_infected,
-                                                                 num_cells_virusreleasing,
-                                                                 num_cells_dead,
-                                                                 num_cells_immune))
+                    self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
 
         # Diffusive field data tracking
 
-        if plot_med_diff_data or write_med_diff_data:
+        if plot_med_diff_data:
 
             # Gather total diffusive amounts
             med_viral_total = virus_secretor.totalFieldIntegral() / self.dim.z
             med_cyt_total = cytokine_secretor.totalFieldIntegral() / self.dim.z
             med_cyt_lymph = self.rr["Cl"] * self.scale_by_volume
             # Plot total diffusive viral amount if requested
-            if plot_med_diff_data:
-                if med_viral_total > 0:
-                    self.med_diff_data_win.add_data_point("MedViral", mcs, med_viral_total)
-                if med_cyt_total > 0:
-                    self.med_diff_data_win.add_data_point("MedCytLocal", mcs, med_cyt_total)
-                if med_cyt_lymph > 0:
-                    self.med_diff_data_win.add_data_point("MedCytLymph", mcs, med_cyt_lymph)
-
-            # Write total diffusive viral amount if requested
-            if write_med_diff_data:
-                with open(self.med_diff_data_path, 'a') as fout:
-                    fout.write('{}, {}, {}, {}\n'.format(mcs, med_viral_total, med_cyt_total, med_cyt_lymph))
+            if med_viral_total > 0:
+                self.med_diff_data_win.add_data_point("MedViral", mcs, med_viral_total)
+            if med_cyt_total > 0:
+                self.med_diff_data_win.add_data_point("MedCytLocal", mcs, med_cyt_total)
+            if med_cyt_lymph > 0:
+                self.med_diff_data_win.add_data_point("MedCytLymph", mcs, med_cyt_lymph)
 
             if plot_ode_sol:
                 med_viral_total = self.rr_ode["V"] * self.scale_by_volume
                 med_cyt_total = self.rr_ode["C"] * self.scale_by_volume
                 med_cyt_lymph = self.rr_ode["Cl"] * self.scale_by_volume
 
-                # Plot total diffusive viral amount if requested
-                if plot_med_diff_data:
-                    if med_viral_total > 0:
-                        self.med_diff_data_win.add_data_point("MedViralODE", mcs, med_viral_total)
-                    if med_cyt_total > 0:
-                        self.med_diff_data_win.add_data_point("MedCytLocalODE", mcs, med_cyt_total)
-                    if med_cyt_lymph > 0:
-                        self.med_diff_data_win.add_data_point("MedCytLymphODE", mcs, med_cyt_lymph)
+                if med_viral_total > 0:
+                    self.med_diff_data_win.add_data_point("MedViralODE", mcs, med_viral_total)
+                if med_cyt_total > 0:
+                    self.med_diff_data_win.add_data_point("MedCytLocalODE", mcs, med_cyt_total)
+                if med_cyt_lymph > 0:
+                    self.med_diff_data_win.add_data_point("MedCytLymphODE", mcs, med_cyt_lymph)
 
         # Death mechanism data tracking
 
-        if plot_death_data or write_death_data:
+        if plot_death_data:
             num_viral = self.death_mech['viral']
             num_contact = self.death_mech['contact']
 
             # Plot death data if requested
             min_thresh = 0.1
-            if plot_death_data:
-                if num_viral > min_thresh:
-                    self.death_data_win.add_data_point("Viral", mcs, num_viral)
-                if num_contact > min_thresh:
-                    self.death_data_win.add_data_point("Contact", mcs, num_contact)
-
-            # Write death data if requested
-            if write_death_data:
-                with open(self.death_data_path, 'a') as fout:
-                    fout.write(f'{mcs}, {num_viral}, {num_contact}\n')
+            if num_viral > min_thresh:
+                self.death_data_win.add_data_point("Viral", mcs, num_viral)
+            if num_contact > min_thresh:
+                self.death_data_win.add_data_point("Contact", mcs, num_contact)
 
             if plot_ode_sol:
                 num_viral = self.rr_ode['viralDeath'] * self.scale_by_volume
