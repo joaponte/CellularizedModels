@@ -208,7 +208,7 @@ class ModelSteppable(SteppableBasePy):
                                                      x_axis_title='MCS',
                                                      y_axis_title='Numer of cells',
                                                      x_scale_type='linear',
-                                                     y_scale_type='log',
+                                                     y_scale_type='linear',
                                                      grid=True,
                                                      config_options={'legend': True})
 
@@ -250,7 +250,7 @@ class ModelSteppable(SteppableBasePy):
                                                        x_axis_title='MCS',
                                                        y_axis_title='Numer of cells',
                                                        x_scale_type='linear',
-                                                       y_scale_type='log',
+                                                       y_scale_type='linear',
                                                        grid=True,
                                                        config_options={'legend': True})
 
@@ -348,14 +348,10 @@ class ModelSteppable(SteppableBasePy):
         num_cells_infected = len(self.cell_list_by_type(self.INFECTED))
         num_cells_virusreleasing = len(self.cell_list_by_type(self.VIRUSRELEASING))
         num_cells_dead = len(self.cell_list_by_type(self.DEAD))
-        if num_cells_uninfected > 0:
-            self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
-        if num_cells_infected > 0:
-            self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
-        if num_cells_virusreleasing > 0:
-            self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
-        if num_cells_dead > 0:
-            self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
+        self.pop_data_win.add_data_point('Uninfected', mcs, num_cells_uninfected)
+        self.pop_data_win.add_data_point('Infected', mcs, num_cells_infected)
+        self.pop_data_win.add_data_point('VirusReleasing', mcs, num_cells_virusreleasing)
+        self.pop_data_win.add_data_point('Dead', mcs, num_cells_dead)
 
         # Step: Immune recruitment
 
@@ -425,11 +421,8 @@ class ModelSteppable(SteppableBasePy):
         # Plot immune cell population data
         num_cells_immune = len(self.cell_list_by_type(self.CD8LOCAL))
         num_cells_immune_l = self.sbml.ODEModel["El"] * self.scale_by_volume
-        min_thresh = 0.1
-        if num_cells_immune > 0:
-            self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
-        if num_cells_immune_l > min_thresh:
-            self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
+        self.pop_data_win.add_data_point('CD8Local', mcs, num_cells_immune)
+        self.pop_data_win.add_data_point('CD8Lymph', mcs, num_cells_immune_l)
 
         # Step: Update chemotaxis
 
@@ -475,19 +468,12 @@ class ModelSteppable(SteppableBasePy):
         num_cells_immune = self.sbml.ODEModel["E"] * self.scale_by_volume
         num_cells_immune_l = self.sbml.ODEModel["El"] * self.scale_by_volume
 
-        min_thresh = 0.1
-        if num_cells_uninfected > min_thresh:
-            self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
-        if num_cells_infected > min_thresh:
-            self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
-        if num_cells_virusreleasing > min_thresh:
-            self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
-        if num_cells_dead > min_thresh:
-            self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
-        if num_cells_immune > min_thresh:
-            self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
-        if num_cells_immune_l > min_thresh:
-            self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
+        self.pop_data_win.add_data_point('UninfectedODE', mcs, num_cells_uninfected)
+        self.pop_data_win.add_data_point('InfectedODE', mcs, num_cells_infected)
+        self.pop_data_win.add_data_point('VirusReleasingODE', mcs, num_cells_virusreleasing)
+        self.pop_data_win.add_data_point('DeadODE', mcs, num_cells_dead)
+        self.pop_data_win.add_data_point('CD8LocalODE', mcs, num_cells_immune)
+        self.pop_data_win.add_data_point('CD8LymphODE', mcs, num_cells_immune_l)
 
         # Diffusive field data tracking
 
@@ -507,9 +493,6 @@ class ModelSteppable(SteppableBasePy):
         num_viral = self.sbml.ODEModel['viralDeath'] * self.scale_by_volume
         num_contact = self.sbml.ODEModel['cd8Death'] * self.scale_by_volume
 
-        min_thresh = 0.1
-        if num_viral > min_thresh:
-            self.death_data_win.add_data_point("ViralODE", mcs, num_viral)
-        if num_contact > min_thresh:
-            self.death_data_win.add_data_point("ContactODE", mcs, num_contact)
+        self.death_data_win.add_data_point("ViralODE", mcs, num_viral)
+        self.death_data_win.add_data_point("ContactODE", mcs, num_contact)
 
