@@ -166,7 +166,7 @@ class ModelSteppable(SteppableBasePy):
         # Step: calculate scaling coefficients
         self.scale_by_volume = num_ecs / self.sbml.ODEModel["T0"]
         self.scale_by_voxel = 1 / self.sbml.ODEModel["T0"] / cell_volume
-        self.scale_by_time = s_to_mcs / 60 / 60 / 24
+        self.scale_by_time = days_to_mcs
 
         #   Apply initial conditions
         self.sbml.ODEModel["T"] = len(self.cell_list_by_type(self.UNINFECTED)) / self.scale_by_volume
