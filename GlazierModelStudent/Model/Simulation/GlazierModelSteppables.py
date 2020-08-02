@@ -24,7 +24,7 @@ cytokine_dc = 7.5
 lamda_chemotaxis = 1E5
 
 # Antimony/SBML model step size
-sbml_step_size = s_to_mcs / 60 / 60 / 24
+sbml_step_size = days_to_mcs
 
 # Initial fraction of infected cells
 init_infect = 0.05
@@ -195,12 +195,10 @@ class ModelSteppable(SteppableBasePy):
         # Step: data tracking setup
 
         # Initialize windows and paths if requested
-
         dot_size = 5
         line_size = 3
 
         # Population data tracking plot setup
-
         self.pop_data_win = self.add_new_plot_window(title='Population data',
                                                      x_axis_title='Time (days)',
                                                      y_axis_title='Numer of cells',
