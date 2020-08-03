@@ -30,8 +30,6 @@
 
     <Plugin Name="CenterOfMass"/>
 
-    <Plugin Name="NeighborTracker"/>
-
    <Plugin Name="Secretion"/>
 
    <Steppable Type="DiffusionSolverFE">
