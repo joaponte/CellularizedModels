@@ -93,8 +93,7 @@ class GlazierModelSteppable(SteppableBasePy):
         self.med_diff_data_win = None
         
         # Cell death mechanism tracking
-        self.death_mech = {'viral': 0,
-                           'contact': 0}
+        self.death_mech = {'viral': 0}
         
         # Scaling coefficients
         self.scale_by_volume = None
