@@ -32,10 +32,6 @@
 
     <Plugin Name="NeighborTracker"/>
 
-   <Plugin Name="Chemotaxis">
-        <ChemicalField Name="cytokine"/>
-   </Plugin>
-
    <Plugin Name="Secretion"/>
 
    <Plugin Name="PixelTracker">
