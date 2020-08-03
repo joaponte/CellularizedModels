@@ -1,0 +1,52 @@
+ode_model_string = '''model ODEModel()
+    //Equations
+    E1: T -> I1 ; beta*T*V ; //Infection rate
+    E2: I1 -> I2 ; k*I1 ; //Infection rate
+    E3: -> V ; p*I2 ; //Virus Production
+    E4: V -> ; c*V ; // Virus Decay
+    E5: I2 -> D ; d*I2 ; // Infected Cell Clearance (apopotosis + innate immune response)
+    E6: -> C ; pc*(I1+I2) ; // Cytokine production
+    E7: C -> ; cc*C ; // Cytokine decay
+    E8: C -> Cl ; kc * C // Cytokine transport to the lymph node
+    E9: Cl -> ; ccl * Cl // Lymph node cytokine decay
+    E10: -> El ; pel*Cl + rel*Kel*Cl*El/(Kel + El) ;
+    E11: El -> E; ke*El   ;
+    E12: E ->  ; dE*E     ;
+    E13: I2 -> D ; kei2*dei2*E/(E+kei2+I2)*I2 ;
+
+
+    //Parameters
+    beta = 6.2E-5 ; // 1.0/(TCID*day)
+    k = 4.0 ; // 1.0/day
+    p = 1.0 ; // TCID/cell/day
+    c = 9.4 ; // 1.0/day
+    d = 2.4E-1; // 1.0/day
+    pc = 1.0 ;
+    cc = 2.0 ; // 1.0/day
+    kc = 0.5 ; // 1.0/day
+    ccl = 0.5 ; // 1.0/day
+    pel = 1E-4 ;
+    rel = 0.005 ;
+    Kel = 100 ;
+    ke = 0.1 ;
+    dE = 0.5 ;
+    dei2 = 1E-2 ; //15E3
+    kei2 = 5E2 ;
+
+    //Killing mechanisms
+    -> viralDeath ; d*I2
+    -> cd8Death ; kei2*dei2*E/(E+kei2+I2)*I2
+    viralDeath = 0 ;
+    cd8Death = 0 ; 
+
+    //Inputs
+    V = 0.0
+
+    //Initial Conditions
+    T0 = 1E7
+    T = T0
+    I1 = 75 
+    C = 0.0
+    E = 0.0
+    El = 0.0
+    end'''
