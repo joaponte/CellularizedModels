@@ -12,7 +12,6 @@ days_to_mcs = s_to_mcs / 60.0 / 60.0 / 24.0  # days/mcs
 # cell
 cell_diameter = 5.0
 cell_volume = cell_diameter ** 2
-volume_lm = 9
 
 # virus diffusion
 virus_dc = 1.875
