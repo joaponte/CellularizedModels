@@ -32,32 +32,6 @@
 
     <Plugin Name="NeighborTracker"/>
 
-    <Plugin Name="Contact">
-        <!-- Specification of adhesion energies -->
-        <Energy Type1="Medium" Type2="Medium">10.0</Energy>
-        <Energy Type1="Medium" Type2="Uninfected">25.0</Energy>
-        <Energy Type1="Medium" Type2="Infected">25.0</Energy>
-        <Energy Type1="Medium" Type2="VirusReleasing">25.0</Energy>
-        <Energy Type1="Medium" Type2="Dead">25.0</Energy>
-        <Energy Type1="Medium" Type2="CD8Local">20.0</Energy>
-        <Energy Type1="Uninfected" Type2="Uninfected">5.0</Energy>
-        <Energy Type1="Uninfected" Type2="Infected">5.0</Energy>
-        <Energy Type1="Uninfected" Type2="VirusReleasing">5.0</Energy>
-        <Energy Type1="Uninfected" Type2="Dead">5.0</Energy>
-        <Energy Type1="Uninfected" Type2="CD8Local">20.0</Energy>
-        <Energy Type1="Infected" Type2="Infected">5.0</Energy>
-        <Energy Type1="Infected" Type2="VirusReleasing">5.0</Energy>
-        <Energy Type1="Infected" Type2="Dead">5.0</Energy>
-        <Energy Type1="Infected" Type2="CD8Local">20.0</Energy>
-        <Energy Type1="VirusReleasing" Type2="VirusReleasing">5.0</Energy>
-        <Energy Type1="VirusReleasing" Type2="Dead">5.0</Energy>
-        <Energy Type1="VirusReleasing" Type2="CD8Local">20.0</Energy>
-        <Energy Type1="Dead" Type2="Dead">5.0</Energy>
-        <Energy Type1="Dead" Type2="CD8Local">20.0</Energy>
-        <Energy Type1="CD8Local" Type2="CD8Local">25.0</Energy>
-        <NeighborOrder>3</NeighborOrder>
-    </Plugin>
-
    <Plugin Name="Chemotaxis">
         <ChemicalField Name="cytokine"/>
    </Plugin>
