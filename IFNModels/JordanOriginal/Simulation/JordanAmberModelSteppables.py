@@ -3,7 +3,7 @@ import numpy as np
 
 plot_ODEModel = True
 plot_CellModel = True
-how_to_determine_IFNe = 2 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
+how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs

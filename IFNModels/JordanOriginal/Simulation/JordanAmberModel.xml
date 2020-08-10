@@ -36,7 +36,7 @@
       <DiffusionField Name="IFNe">
          <DiffusionData>
             <FieldName>IFNe</FieldName>
-            <GlobalDiffusionConstant id = "IFNe_dc">0.0</GlobalDiffusionConstant>
+            <GlobalDiffusionConstant id = "IFNe_dc">0.1</GlobalDiffusionConstant>
             <GlobalDecayConstant id = "IFNe_decay">0.0</GlobalDecayConstant>
          </DiffusionData>
          <BoundaryConditions>
