@@ -2,17 +2,17 @@ from cc3d.core.PySteppables import *
 import numpy as np
 
 plot_ODEModel = False
-plot_CellModel = False
+plot_CellModel = True
 plot_PlaqueAssay = True
 
 couple_Models = True
-how_to_determine_V = 3
-feedback_IFNModel = False # Determines the IFNe from the ODE model (False) or from field (True)
+how_to_determine_V = 2 # Determines the V from the ODE model (1) or from field (2)
+how_to_determine_IFNe = 2 # Determines the IFNe from the ODE model (1) or from field (2)
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-days_to_simulate = 10.0  # 10 in the original model
+hours_to_simulate = 50.0  # 10 in the original model
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -56,7 +56,7 @@ IFNModel_string = '''
     E6a: -> IRF7P       ; P*k51*IRF7                                        ;
     E6b: IRF7P ->       ; t5*IRF7P                                          ;
     E7a: P ->           ; P*k61*V                                           ;
-    E8a: -> V           ; P*(k71*V)/(1.0+k72*IFN*7E-5)                      ;
+    E8a: -> V           ; P*(k71*V)/(1.0+k72*IFNe*7E-5)                     ;
     E8b: V ->           ; k73*V                                             ;
 
     //Parameters
@@ -91,7 +91,7 @@ IFNModel_string = '''
 # Viral Replication Model
 viral_model_string = '''
     E7a: P ->           ; P*k61*V                     ;
-    E8a: -> V           ; P*k71*V/(1.0+k72*IFN*7E-5)  ;
+    E8a: -> V           ; P*k71*V/(1.0+k72*IFNe*7E-5) ;
     E8b: V ->           ; k73*V                       ;
 
     //Parameters
@@ -105,7 +105,7 @@ viral_model_string = '''
     V    =  0.0     ; 
     
     //Inputs
-    IFN  =  0.0     ;
+    IFNe  =  0.0     ;
 '''
 
 IFN_model_string = '''
@@ -123,9 +123,9 @@ IFN_model_string = '''
     k12 = 9.746     ; 
     k13 = 12.511    ; 
     k14 = 13.562    ;
-    k21 = 10.385    ;
+    k21 = 10.385    ; // CHANGED
     t2  = 3.481     ;
-    k31 = 45.922    ;
+    k31 = 45.922  * 100.0  ; // CHANGED
     k32 = 5.464     ;
     k33 = 0.068     ;
     t3  = 0.3       ;
@@ -149,17 +149,17 @@ class ODEModelSteppable(SteppableBasePy):
     def start(self):
         self.shared_steppable_vars['InitialNumberCells'] = len(self.cell_list_by_type(self.U))
 
-        self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
+        self.get_xml_element('simulation_steps').cdata = hours_to_simulate / hours_to_mcs
 
         # Adding free floating antimony model
         self.add_free_floating_antimony(model_string=FluModel_string, model_name='FluModel',
                                         step_size=days_to_mcs)
 
         # Changing initial values according to discussions with Amber Smith
-        self.sbml.FluModel['I1'] = 0.0
-        self.sbml.FluModel['V'] = 75.0
-        # self.sbml.FluModel['I1'] = 1.0 / self.shared_steppable_vars['InitialNumberCells']
-        # self.sbml.FluModel['V'] = 0.0
+        # self.sbml.FluModel['I1'] = 0.0
+        # self.sbml.FluModel['V'] = 75.0
+        self.sbml.FluModel['I1'] = 1.0 / self.shared_steppable_vars['InitialNumberCells']
+        self.sbml.FluModel['V'] = 0.0
 
         self.add_free_floating_antimony(model_string=IFNModel_string, model_name='IFNModel',
                                         step_size=hours_to_mcs)
@@ -205,12 +205,8 @@ class CellularModelSteppable(SteppableBasePy):
             if how_to_determine_V == 1:
                 b = self.sbml.FluModel['beta'] * self.sbml.FluModel['T0'] * days_to_mcs
                 V = self.sbml.FluModel['V'] / self.sbml.FluModel['T0']
-            # Determine V from scalar virus from the cellular model
-            if how_to_determine_V == 2:
-                b = self.sbml.FluModel['beta'] * self.shared_steppable_vars['InitialNumberCells']* days_to_mcs
-                V = self.ExtracellularVirus / self.shared_steppable_vars['InitialNumberCells']
             # Determine V from the virus field
-            if how_to_determine_V == 3:
+            if how_to_determine_V == 2:
                 b = self.sbml.FluModel['beta'] * self.shared_steppable_vars['InitialNumberCells'] * days_to_mcs
                 V = secretorV.amountSeenByCell(cell)
             p_UtoI1 = b * V
@@ -243,21 +239,21 @@ class CellularModelSteppable(SteppableBasePy):
                 cell.sbml.IModel['P'] = cell.sbml.VModel['P']
                 IFNe = secretorIFN.amountSeenByCell(cell)
                 cell.sbml.IModel['IFNe'] = IFNe
-                cell.sbml.VModel['IFN'] = cell.sbml.IModel['IFN']
+                cell.sbml.VModel['IFNe'] = IFNe
             if not couple_Models:
-                if feedback_IFNModel:
+                if how_to_determine_IFNe == 2:
                     cell.sbml.IModel['V'] = cell.sbml.VModel['V']
                     cell.sbml.IModel['P'] = cell.sbml.VModel['P']
                     IFNe = secretorIFN.amountSeenByCell(cell)
                     cell.sbml.IModel['IFNe'] = IFNe
-                    cell.sbml.VModel['IFN'] = cell.sbml.IModel['IFN']
-                if not feedback_IFNModel:
+                    cell.sbml.VModel['IFNe'] = IFNe
+                if how_to_determine_IFNe == 1:
                     ## Inputs to the INF model
                     cell.sbml.IModel['V'] = self.sbml.IFNModel['V']
                     cell.sbml.IModel['P'] = self.sbml.IFNModel['P']
                     cell.sbml.IModel['IFNe'] = self.sbml.IFNModel['IFNe']
                     ## Inputs to the Virus model
-                    cell.sbml.VModel['IFN'] = self.sbml.IFNModel['IFN']
+                    cell.sbml.VModel['IFNe'] = self.sbml.IFNModel['IFNe']
 
         ## Production of extracellular IFN - Jordan Model
         # E2b: IFN -> IFNe; k21 * IFN ;

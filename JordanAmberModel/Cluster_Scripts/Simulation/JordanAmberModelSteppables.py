@@ -11,12 +11,12 @@ hours_to_simulate = 50.0  # 10 in the original model
 Replicate = Parameters.R
 Multiplier = Parameters.M
 
-def Virus_Model(H,V,IFN):
+def Virus_Model(H,V,IFNe):
     k61 = 0.635
     k71 = 1.537
     k72 = 47.883
     k73 = 0.197
-    dV = H*(k71*V)/(1.0+k72*IFN*7E-5) - k73*V
+    dV = H*(k71*V)/(1.0+k72*IFNe*7E-5) - k73*V
     dH = -H*k61*V
     return(dH,dV)
 
@@ -38,7 +38,7 @@ def IFN_Model(H,V, IFNe,STATP,IRF7,IRF7P,IFN):
     dSTATP = H*k31*IFNe/(k32+k33*IFNe)-t3*STATP
     dIRF7 = H*(k41*STATP+k42*IRF7P)-t4*IRF7
     dIRF7P = H*k51*IRF7-t5*IRF7P
-    dIFN = H*(k12*(V**n)/(k13+(V**n))+k14*IRF7P) - k21*IFN
+    dIFN = H*(k12*(V**n)/(k13+V**n)+k14*IRF7P) - k21*IFN
     return(dSTATP,dIRF7,dIRF7P,dIFN)
 
 class ModelSteppable(SteppableBasePy):
