@@ -7,7 +7,7 @@ plot_CellModel = True
 plot_ODEModel = True
 plot_PlaqueAssay = True
 
-min_to_mcs = 10.0  # min/mcs
+min_to_mcs = 1.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0 # days/mcs
 hours_to_simulate = 50.0
@@ -15,7 +15,8 @@ hours_to_simulate = 50.0
 Replicate = Parameters.R
 Multiplier = Parameters.M
 
-
+virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
+IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 
 FluModel_string = '''        
         model FluModel()
@@ -155,9 +156,11 @@ class CellularModelSteppable(SteppableBasePy):
         self.InitialNumberCells = len(self.cell_list)
 
         # Set IFNe diffusion parameters
+        self.get_xml_element('IFNe_dc').cdata = IFNe_diffusion_coefficient  * min_to_mcs
         self.get_xml_element('IFNe_decay').cdata = t2 * hours_to_mcs
 
         # Set Virus diffusion parameters
+        self.get_xml_element('virus_dc').cdata = virus_diffusion_coefficient * min_to_mcs
         self.get_xml_element('virus_decay').cdata = c * days_to_mcs
 
         # Set Max Simulation Steps
@@ -182,6 +185,8 @@ class CellularModelSteppable(SteppableBasePy):
         cell.dict['V'] = 6.9e-8
 
     def step(self, mcs):
+        print('Virus', diffusion_coefficient * min_to_mcs)
+
         ## Production of IFNe
         # E2b: IFN -> IFNe; k21 * IFN ;
         k21C = k21 * hours_to_mcs

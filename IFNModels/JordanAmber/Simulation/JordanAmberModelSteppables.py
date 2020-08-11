@@ -12,6 +12,9 @@ hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 hours_to_simulate = 50.0  # 10 in the original model
 
+virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
+IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
+
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
 
@@ -176,10 +179,12 @@ class CellularModelSteppable(SteppableBasePy):
 
     def start(self):
         # Set IFNe diffusion parameters
+        self.get_xml_element('IFNe_dc').cdata = IFNe_diffusion_coefficient  * min_to_mcs
         self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['t2'] * hours_to_mcs
         self.shared_steppable_vars['ExtracellularIFN_Scalar'] = self.sbml.IFNModel['IFNe']
 
         # Set Virus diffusion parameters
+        self.get_xml_element('virus_dc').cdata = virus_diffusion_coefficient * min_to_mcs
         self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs
         self.shared_steppable_vars['ExtracellularVirus_Scalar'] = self.sbml.FluModel['V']
 

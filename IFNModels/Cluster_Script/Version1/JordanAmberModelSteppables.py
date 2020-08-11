@@ -9,6 +9,8 @@ min_to_mcs = 1  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 hours_to_simulate = 50.0
 
+IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
+
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
 
@@ -117,6 +119,7 @@ class CellularModelSteppable(SteppableBasePy):
         self.ExtracellularIFN_Scalar = 0.0
 
         # Set IFNe diffusion parameters
+        self.get_xml_element('IFNe_dc').cdata = IFNe_diffusion_coefficient * min_to_mcs
         self.get_xml_element('IFNe_decay').cdata = t2 * hours_to_mcs
 
         # Set Max Simulation Steps
