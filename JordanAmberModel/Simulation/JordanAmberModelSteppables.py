@@ -12,7 +12,9 @@ how_to_determine_IFNe = 2 # Determines the IFNe from the ODE model (1) or from f
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-hours_to_simulate = 50.0  # 10 in the original model
+hours_to_simulate = 144.0  # 10 in the original model
+
+IFNWash = False #Whether the plate is prestimulated with IFNe before infection
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -123,9 +125,9 @@ IFN_model_string = '''
     k12 = 9.746     ; 
     k13 = 12.511    ; 
     k14 = 13.562    ;
-    k21 = 10.385    ; // CHANGED
+    k21 = 10.385    ;
     t2  = 3.481     ;
-    k31 = 45.922  * 100.0  ; // CHANGED
+    k31 = 45.922    ;
     k32 = 5.464     ;
     k33 = 0.068     ;
     t3  = 0.3       ;
@@ -137,7 +139,7 @@ IFN_model_string = '''
     n   = 3.0       ;
 
     // Inputs
-    P    = 0.0      ;
+    P    = 1.0      ;
     V    = 0.0      ;
     IFNe = 0.0      ;
 '''
@@ -174,6 +176,13 @@ class ODEModelSteppable(SteppableBasePy):
         cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
         cell.type = self.I1
         cell.sbml.VModel['V'] = 6.9e-8
+        #Set prestimulated internal protein values
+        if IFNWash:
+            for cell in self.cell_list_by_type(self.U,self.I1):
+                cell.sbml.IModel['IFN'] = 0.035
+                cell.sbml.IModel['IRF7'] = 0.097
+                cell.sbml.IModel['IRF7P'] = 0.028
+                cell.sbml.IModel['STATP'] = 0.714                
         if not couple_Models:
             self.get_xml_element('IFNe_dc').cdata = 0.0
             for cell in self.cell_list_by_type(self.U,self.I1):
@@ -475,8 +484,8 @@ class FluPlotSteppable(SteppableBasePy):
                                                  len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
                     self.plot_win9.add_data_point("CC3DD", mcs * days_to_mcs * 24.0,
                                                  len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
-                    self.plot_win10.add_data_point("CC3DV", mcs * days_to_mcs * 24.0,
-                                                  np.log10(self.shared_steppable_vars['ExtracellularVirus_Field']))
+                    #self.plot_win10.add_data_point("CC3DV", mcs * days_to_mcs * 24.0,
+                                                  #np.log10(self.shared_steppable_vars['ExtracellularVirus_Field']))
 
 class PlaqueAssaySteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -496,7 +505,7 @@ class PlaqueAssaySteppable(SteppableBasePy):
             self.plot_win12 = self.add_new_plot_window(title='Effective Infectivity',
                                                        x_axis_title='Hours',
                                                        y_axis_title='Effective Infectivity', x_scale_type='linear',
-                                                       y_scale_type='log',
+                                                       y_scale_type='linear',
                                                        grid=False, config_options={'legend': True})
             self.plot_win12.add_plot("ODEB", style='Dots', color='blue', size=5)
             self.plot_win12.add_plot("CC3DBeff", style='Lines', color='blue', size=5)
