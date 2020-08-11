@@ -1,5 +1,7 @@
 from cc3d.core.PySteppables import *
 import numpy as np
+import Parameters
+import os
 
 plot_CellModel = True
 plot_ODEModel = True
@@ -9,6 +11,11 @@ min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0 # days/mcs
 hours_to_simulate = 50.0
+
+Replicate = Parameters.R
+Multiplier = Parameters.M
+
+
 
 FluModel_string = '''        
         model FluModel()
@@ -81,12 +88,8 @@ IFNModel_string = '''
 
 ## Flu Model Parameters
 beta = 2.4*10**(-4)
-p = 1.6
 c = 13.0
 k = 4.0
-delta_d = 1.6 * 10**6
-K_delta = 4.5 * 10**5
-T0 = 1.0*10**7
 
 ##IFN Model Parameters
 k11 = 0.0
@@ -137,8 +140,8 @@ class ODEModelSteppable(SteppableBasePy):
         # Load Original FLU ODE Model
         self.add_free_floating_antimony(model_string=FluModel_string, model_name='FluModel',
                                         step_size=days_to_mcs)
-        self.sbml.FluModel['I1'] = 0.0
-        self.sbml.FluModel['V'] = 75.0
+        self.sbml.FluModel['I1'] = 1.0 / self.InitialNumberCells
+        self.sbml.FluModel['V'] = 0.0
 
     def step(self,mcs):
         self.timestep_sbml()
@@ -177,8 +180,6 @@ class CellularModelSteppable(SteppableBasePy):
         cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
         cell.type = self.I1
         cell.dict['V'] = 6.9e-8
-        self.sbml.FluModel['I1'] = 1.0 / self.InitialNumberCells
-        self.sbml.FluModel['V'] = 0.0
 
     def step(self, mcs):
         ## Production of IFNe
@@ -544,3 +545,64 @@ class PlaqueAssaySteppable(SteppableBasePy):
 
             self.plot_win12.add_data_point("ODEB", mcs * hours_to_mcs,beta * days_to_mcs / hours_to_mcs)
             self.plot_win12.add_data_point("CC3DBeff", mcs * hours_to_mcs, Beff)
+
+class OutputPlaqueAssaySteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        folder_path = '/Users/Josua/Data/'
+        # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        file_name = 'PlaqueAssay_%s_%.3f_%i.txt' % ('Parameter',Multiplier,Replicate)
+        self.output = open(folder_path + file_name, 'w')
+        self.output.write("%s,%s,%s,%s,%s\n" % ('Time','avgI1rd', 'avgI2rd', 'avgDrd', 'Beff'))
+        self.output.flush()
+
+        # Parameters for Measuring Effective Infectivity
+        self.previousT = 0.0
+
+        # Set Secretors
+        self.secretorV = self.get_field_secretor("Virus")
+
+    def step(self, mcs):
+        avgI1rd = 0.0
+        num_I1 = len(self.cell_list_by_type(self.I1))
+        for cell in self.cell_list_by_type(self.I1):
+            xCOM = cell.xCOM
+            yCOM = cell.yCOM
+            avgI1rd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_I1
+
+        avgI2rd = 0.0
+        num_I2 = len(self.cell_list_by_type(self.I2))
+        for cell in self.cell_list_by_type(self.I2):
+            xCOM = cell.xCOM
+            yCOM = cell.yCOM
+            avgI2rd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_I2
+
+        avgDrd = 0.0
+        num_D = len(self.cell_list_by_type(self.DEAD))
+        for cell in self.cell_list_by_type(self.DEAD):
+            xCOM = cell.xCOM
+            yCOM = cell.yCOM
+            avgDrd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_D
+
+        Beff = 0.0
+        num_T = len(self.cell_list_by_type(self.U))
+        dT = abs(num_T - self.previousT)
+        self.previousT = num_T
+        self.ExtracellularVirus_Field = 0.0
+        for cell in self.cell_list:
+            uptake_probability = 0.0000001
+            uptake = self.secretorV.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+            self.ExtracellularVirus_Field += abs(uptake.tot_amount) / uptake_probability
+            self.secretorV.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+        if self.ExtracellularVirus_Field:
+            Beff = dT / (num_T*self.ExtracellularVirus_Field*hours_to_mcs)
+
+        h = mcs * hours_to_mcs
+        Bode = beta * days_to_mcs / hours_to_mcs
+        self.output.write("%.2f,%.2f,%.2f,%.2f,%f,%f\n" % (h, avgI1rd , avgI2rd , avgDrd, Bode,Beff))
+        self.output.flush()
