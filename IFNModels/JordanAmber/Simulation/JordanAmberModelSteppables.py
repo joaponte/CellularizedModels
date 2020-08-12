@@ -251,6 +251,12 @@ class CellularModelSteppable(SteppableBasePy):
             if np.random.random() < p_I2toD:
                 cell.type = self.DEAD
 
+        ## Additional Death Mechanism
+        for cell in self.cell_list_by_type(self.I2):
+            cell.dict['lifetime'] -= hours_to_mcs
+            if cell.dict['lifetime'] <= 0.0:
+                cell.type = self.DEAD
+
         ## I1 to I2 transition
         # E2: I1 -> I2 ; k * I1
         for cell in self.cell_list_by_type(self.I1):
@@ -259,6 +265,7 @@ class CellularModelSteppable(SteppableBasePy):
             p_T1oI2 = 1.0 - np.exp(-r)
             if np.random.random() < p_T1oI2:
                 cell.type = self.I2
+                cell.dict['lifetime'] = np.random.normal(24, 2)
 
         ## U to I1 transition
         # E1: T -> I1 ; beta * V * T

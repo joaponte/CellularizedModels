@@ -177,6 +177,7 @@ class CellularModelSteppable(SteppableBasePy):
             cell.dict['IRF7'] = 0.0
             cell.dict['IRF7P'] = 0.0
             cell.dict['IFN'] = 0.0
+            cell.dict['lifetime'] = np.random.normal(24, 2)
 
         # Initial conditions: infected cell in the center
         cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
@@ -210,6 +211,12 @@ class CellularModelSteppable(SteppableBasePy):
             r = k61C * V * (1-H)
             p_I2toD = 1.0 - np.exp(-r)
             if np.random.random() < p_I2toD:
+                cell.type = self.DEAD
+
+        ## Additional Death Mechanism
+        for cell in self.cell_list_by_type(self.I2):
+            cell.dict['lifetime'] -= hours_to_mcs
+            if cell.dict['lifetime'] <= 0.0:
                 cell.type = self.DEAD
 
         ## I1 to I2 transition

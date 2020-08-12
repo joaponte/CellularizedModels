@@ -178,6 +178,7 @@ class CellularModelSteppable(SteppableBasePy):
             cell.dict['IRF7'] = 0.0
             cell.dict['IRF7P'] = 0.0
             cell.dict['IFN'] = 0.0
+            cell.dict['lifetime'] = np.random.normal(24, 2)
 
         # Initial conditions: infected cell in the center
         cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
@@ -185,8 +186,6 @@ class CellularModelSteppable(SteppableBasePy):
         cell.dict['V'] = 6.9e-8
 
     def step(self, mcs):
-        print('Virus', diffusion_coefficient * min_to_mcs)
-
         ## Production of IFNe
         # E2b: IFN -> IFNe; k21 * IFN ;
         k21C = k21 * hours_to_mcs
@@ -221,6 +220,12 @@ class CellularModelSteppable(SteppableBasePy):
             p_T1oI2 = 1.0 - np.exp(-r)
             if np.random.random() < p_T1oI2:
                 cell.type = self.I2
+
+        ## Additional Death Mechanism
+        for cell in self.cell_list_by_type(self.I2):
+            cell.dict['lifetime'] -= hours_to_mcs
+            if cell.dict['lifetime'] <= 0.0:
+                cell.type = self.DEAD
 
         ## U to I1 transition
         # E1: T -> I1 ; beta * V * T

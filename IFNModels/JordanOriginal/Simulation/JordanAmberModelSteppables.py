@@ -149,6 +149,10 @@ class CellularModelSteppable(SteppableBasePy):
         # Set secretors
         self.secretorIFN = self.get_field_secretor("IFNe")
 
+        # Assign cell lifetime
+        for cell in self.cell_list:
+            cell.dict['lifetime'] = np.random.normal(24,2)
+
     def step(self, mcs):
         ## Measure amount of IFNe in the Field
         self.shared_steppable_vars['ExtracellularIFN_Field'] = 0
@@ -176,12 +180,18 @@ class CellularModelSteppable(SteppableBasePy):
         ## P to D transition
         # E7a: P -> ; P * k61 * V;
         for cell in self.cell_list_by_type(self.I2):
-            k61 = cell.sbml.VModel['k61'] * hours_to_mcs
+            k61 = cell.sbml.VModel['k61'] * hours_to_mcs * 0.0
             V = cell.sbml.VModel['V']
             H = cell.sbml.VModel['H']
             r = k61 * V * (1-H)
             p_I2toD = 1.0 - np.exp(-r)
             if np.random.random() < p_I2toD:
+                cell.type = self.DEAD
+
+        ## Additional Death Mechanism
+        for cell in self.cell_list_by_type(self.I2):
+            cell.dict['lifetime'] -= hours_to_mcs
+            if cell.dict['lifetime'] <= 0.0:
                 cell.type = self.DEAD
 
         ## Updating Cellular Models
