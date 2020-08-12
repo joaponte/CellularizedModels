@@ -6,7 +6,7 @@ days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 30.0
 
 virus_infection_feedback = 1
-use_LymphModel_outputs = False
+use_LymphModel_outputs = True
 
 contact_cytotoxicity = True
 
@@ -22,6 +22,9 @@ plot_current_virus_decay = True
 
 # TODO: add graphs for all state variables
 
+
+# changed J6, added drt = 30;
+
 model_string = '''
 // Equations
 J1: D -> E; dE*D;
@@ -29,7 +32,9 @@ J2: E -> D; dE*E;
 J3: E -> Ev; bE*V*E;
 J4: Ev -> E; aE*Ev;
 J5: Ev -> D; dE*Ev;
-J6: Ev -> D; kE*g*Ev*Tc;
+//J6: Ev -> D; kE*g*Ev*Tc;
+//J6: Ev -> D; drt * g * Tc * Ev / (Ev + g * Tc)
+J6: Ev -> D; drt * g * Tc * Ev / (1000 + Ev + g * Tc); 
 J7: -> V; pV*Ev;
 J8: V ->; cV*V; # v0 -> v1; v1 =cV*v0
 
@@ -89,12 +94,12 @@ J46: sIgG ->; dG*sIgG;
 J47: nIgM ->; dM*nIgM;
 J48: nIgG ->; dG*nIgG; 
 // feed back to tissue
-J49: Ev -> D; eE*Ev*nIgM; // reevaluate these set (49-52) due to anti-bodies being consumed 
-J50: Ev -> D; eE*Ev*nIgG;
-J51: V  ->; eV*V*sIgM; # v1->v2; v2= sIgM * eV * v1 = sIgM * eV *cV *  v0
-//J51: V + sIgM ->; eV*V*sIgM;
-J52: V  ->; eV*V*sIgG;
-//J52: V + sIgG ->; eV*V*sIgG;
+J49: Ev + nIgM -> D; eE*Ev*nIgM; // reevaluate these set (49-52) due to anti-bodies being consumed 
+J50: Ev + nIgG -> D; eE*Ev*nIgG;
+//J51: V  ->; eV*V*sIgM; # v1->v2; v2= sIgM * eV * v1 = sIgM * eV *cV *  v0
+J51: V + sIgM ->; eV*V*sIgM;
+//J52: V  ->; eV*V*sIgG;
+J52: V + sIgG ->; eV*V*sIgG;
 
 
 // Parameters
@@ -105,8 +110,9 @@ aE=5.0*10^-2;
 V0=10;
 pV=19;
 cV=1;
-kE=1.19*10^-3 / 9; // 900 rescaling for non-0 T cell pop in tissue
-g=0.15 * 9;
+kE=1.19*10^-3 / 900; // 900 rescaling for non-0 T cell pop in tissue
+g=0.15 * 900;
+drt = 30;
 tC=0.5;// not included in the model
 eE=0.05;
 eV=16;
@@ -151,6 +157,7 @@ E = E0;
 V = 10;
 Th1=10;
 Th2=10;
+drt = 30;
 '''
 
 lymph_node_string = '''
@@ -202,10 +209,11 @@ J47: nIgM ->; dM*nIgM;
 J48: nIgG ->; dG*nIgG; 
 
 // feed back to tissue
-J49: Ev -> D; eE*Ev*nIgM;
-J50: Ev -> D; eE*Ev*nIgG;
-J51: V ->; eV*V*sIgM;
-J52: V ->; eV*V*sIgG;
+J49: Ev + nIgM -> D; eE*Ev*nIgM; // reevaluate these set (49-52) due to anti-bodies being consumed 
+J50: Ev + nIgG -> D; eE*Ev*nIgG;
+J51: V + sIgM ->; eV*V*sIgM;
+//J52: V  ->; eV*V*sIgG;
+J52: V + sIgG ->; eV*V*sIgG;
 
 // Parameters
 dE=10^-3;
@@ -256,6 +264,7 @@ dG=0.04;
 dM=0.2;
 pT2=600;
 v = 0.5;
+drt = 30;
 
 // Initial Conditions
 E = E0;
@@ -292,8 +301,8 @@ class TarunsModelSteppable(SteppableBasePy):
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
-        lattice_factor = .08
-        self.max_virus_gamma = .25 * float(self.get_xml_element("virus_D").cdata) / lattice_factor
+        lattice_factor = .14
+        self.max_virus_gamma = .75 * float(self.get_xml_element("virus_D").cdata) / lattice_factor
         self.scalar_virus = self.sbml.FullModel['V']
         self.shared_steppable_vars['CC3D_lymph_APC_count'] = 0.0
         self.shared_steppable_vars['Active_APCs'] = 0.0
@@ -368,9 +377,15 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def J6_EvtoD(self, cell, Tc):
         ## Transition from Ev to D
-        # J6: Ev -> D; kE * g * Ev * Tc;
-        kE = self.sbml.FullModel['kE'] * days_to_mcs
-        p_EvtoD = kE * Tc
+        # OLD: J6: Ev -> D; kE * g * Ev * Tc;
+        # J6: Ev -> D; drt * g * Tc * Ev / (1000 + Ev + g * Tc);
+        # drt = 30;
+
+        p_EvtoD = self.sbml.FullModel['drt'] * Tc * 1 / (1000 + 1 + Tc)
+
+        # kE = self.sbml.FullModel['kE'] * days_to_mcs * 900
+        # p_EvtoD = kE * Tc
+
         if p_EvtoD > np.random.random():
             if not contact_cytotoxicity:
                 cell.type = self.D
@@ -381,7 +396,7 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.EV):
             ## Virus Production
             # J7: -> V; pV*Ev;
-            pV = self.sbml.FullModel['pV'] * days_to_mcs / self.initial_uninfected * self.sbml.FullModel['E0']
+            pV = self.sbml.FullModel['pV'] * days_to_mcs * self.sbml.FullModel['E0'] / self.initial_uninfected
             release = self.virus_secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
             virus_production += abs(release.tot_amount)
         return virus_production
@@ -477,14 +492,17 @@ class TarunsModelSteppable(SteppableBasePy):
     def J14_Tcell_clearance(self):
         ## Clearance of Tcells
         # J14: Tc ->; dc*Tc;
+
         for cell in self.cell_list_by_type(self.TCELL):
             dc = self.sbml.FullModel['dC'] * days_to_mcs
             if dc > np.random.random():
                 cell.targetVolume = 0.0
 
     def J15a_Tcell_inflamatory_seeding(self):
+        return
         ## Tcell seeding
         # J15a: Dm -> Tc; Dm ;
+        # J15a:  -> Tc; Dm ;
         g = self.sbml.FullModel['g']
         # TODO: replace FullModel with LymphModel where appropriate
 
@@ -507,7 +525,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def J15b_Tcell_inflamatory_seeding(self):
         ## Tcell seeding
-        # J15b: Dm -> Tc; rT1 * Dm * Tc / (Dm + pT2)
+        # J15b:  -> Tc; rT1 * Dm * Tc / (Dm + pT2)
         # TODO: replace FullModel with LymphModel where appropriate
 
         rT1 = self.sbml.FullModel['rT1'] * days_to_mcs
@@ -532,7 +550,7 @@ class TarunsModelSteppable(SteppableBasePy):
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
 
     def J15_Tcell_inflamatory_seeding(self):
-        self.J15a_Tcell_inflamatory_seeding()
+        # self.J15a_Tcell_inflamatory_seeding()
         self.J15b_Tcell_inflamatory_seeding()
 
     def J16_Tcell_clearance(self):
@@ -555,7 +573,7 @@ class TarunsModelSteppable(SteppableBasePy):
         else:
             nIgM = self.sbml.FullModel['nIgM']
             eE = self.sbml.FullModel['eE']
-        p_Ev2D = nIgM * eE
+        p_Ev2D = nIgM * eE * days_to_mcs  # * self.initial_uninfected / self.sbml.FullModel['E0']
         if p_Ev2D > np.random.random():
             cell.type = self.D
         return
@@ -568,7 +586,7 @@ class TarunsModelSteppable(SteppableBasePy):
         else:
             nIgG = self.sbml.FullModel['nIgG']
             eE = self.sbml.FullModel['eE']
-        p_Ev2D = nIgG * eE
+        p_Ev2D = nIgG * eE * days_to_mcs  # * self.initial_uninfected / self.sbml.FullModel['E0']
         if p_Ev2D > np.random.random():
             cell.type = self.D
         return
@@ -584,6 +602,9 @@ class TarunsModelSteppable(SteppableBasePy):
         gamma_sIgM = eV * sIgM
         return gamma_sIgM
 
+        ode_g = (self.sbml.FullModel['eV'] * (self.sbml.FullModel['sIgM'] + self.sbml.FullModel['nIgM']) +
+                 self.sbml.FullModel['cV']) * days_to_mcs
+
     def J52_virus_decay_from_sIgG(self):
         # J52: V ->; eV * V * sIgG;
         if use_LymphModel_outputs:
@@ -598,10 +619,20 @@ class TarunsModelSteppable(SteppableBasePy):
         # J8: V ->; cV*V;
         # J51: V ->; eV * V * sIgM;
         # J52: V ->; eV * V * sIgG;
-        gamma_sIgM = self.J51_virus_decay_from_sIgM()
-        gamma_sIgG = self.J52_virus_decay_from_sIgG()
 
-        effective_gamma = min(self.max_virus_gamma, (gamma_sIgM + gamma_sIgG + self.sbml.FullModel['cV']) * days_to_mcs)
+        # gamma_sIgM = self.J51_virus_decay_from_sIgM()
+        # gamma_sIgG = self.J52_virus_decay_from_sIgG()
+
+        if use_LymphModel_outputs:
+            gamma = (self.sbml.LymphModel['eV'] * (self.sbml.LymphModel['sIgM'] + self.sbml.LymphModel['nIgM']) +
+                     self.sbml.LymphModel['cV']) * days_to_mcs
+        else:
+            gamma = (self.sbml.FullModel['eV'] * (self.sbml.FullModel['sIgM'] + self.sbml.FullModel['nIgM']) +
+                     self.sbml.FullModel['cV']) * days_to_mcs
+
+        # effective_gamma = min(self.max_virus_gamma, (gamma_sIgM + gamma_sIgG + self.sbml.FullModel['cV']) *
+        # days_to_mcs)
+        effective_gamma = min(self.max_virus_gamma, gamma)
         # effective_gamma = (gamma_sIgM + gamma_sIgG + self.sbml.FullModel['cV']) * days_to_mcs
         self.get_xml_element('virus_decay').cdata = effective_gamma
 
@@ -666,7 +697,6 @@ class TarunsModelSteppable(SteppableBasePy):
 
         for cell in self.cell_list_by_type(self.EV):
             self.J50_Ev2D_from_nIgG(cell)
-
 
         virus_production = self.J7_virus_production()
 
@@ -741,10 +771,10 @@ class PlotsSteppable(SteppableBasePy):
         if plot_Virus:
             self.plot_win2 = self.add_new_plot_window(title='Virus',
                                                       x_axis_title='Time (days)',
-                                                      y_axis_title='Virus', x_scale_type='linear', y_scale_type='log',
+                                                      y_axis_title='Virus', x_scale_type='linear', y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win2.add_plot("ODEV", style='Dots', color='red', size=5)
+            self.plot_win2.add_plot("ODEV", style='Dots', color='yellow', size=5)
             self.plot_win2.add_plot("CC3DV", style='Lines', color='red', size=5)
 
         if plot_Tcells:
@@ -754,7 +784,7 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win3.add_plot("ODETc", style='Dots', color='red', size=5)
+            self.plot_win3.add_plot("ODETc", style='Dots', color='yellow', size=5)
             self.plot_win3.add_plot("CC3DTc", style='Lines', color='red', size=5)
 
         if plot_APC:
@@ -764,7 +794,7 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win4.add_plot("ODEAPC", style='Dots', color='red', size=5)
+            self.plot_win4.add_plot("ODEAPC", style='Dots', color='yellow', size=5)
             self.plot_win4.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
             self.plot_win4.add_plot("CC3DAPC", style='Lines', color='red', size=5)
 
@@ -775,7 +805,7 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win5.add_plot("ODEAPC", style='Dots', color='red', size=5)
+            self.plot_win5.add_plot("ODEAPC", style='Dots', color='yellow', size=5)
             # self.plot_win5.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
 
             self.plot_win5.add_plot("CC3DAPC", style='Lines', color='red', size=5)
@@ -787,7 +817,7 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win6.add_plot("ODECC", style='Dots', color='red', size=5)
+            self.plot_win6.add_plot("ODECC", style='Dots', color='yellow', size=5)
             self.plot_win6.add_plot("CC3DCC", style='Lines', color='red', size=5)
         if plot_viral_antibodies:
             self.plot_win7 = self.add_new_plot_window(title='Viral Anti-Bodies',
@@ -840,12 +870,12 @@ class PlotsSteppable(SteppableBasePy):
         if plot_Virus:
             secretor = self.get_field_secretor("Virus")
             self.field_virus = 0.0
-            for cell in self.cell_list:
+            for cell in self.cell_list_by_type(self.E, self.EV, self.D):
                 self.field_virus += secretor.amountSeenByCell(cell)
             self.plot_win2.add_data_point("ODEV", mcs * days_to_mcs,
                                           self.sbml.FullModel['V'])
-            self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs,
-                                          self.field_virus)
+            # self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs, 2 * self.field_virus)
+            self.plot_win2.add_data_point("CC3DV", mcs * days_to_mcs, self.shared_steppable_vars['scalar_virus'])
 
         if plot_Tcells:
             self.plot_win3.add_data_point("CC3DTc", mcs * days_to_mcs,
@@ -872,7 +902,7 @@ class PlotsSteppable(SteppableBasePy):
                                           self.sbml.LymphModel['Dm'] / self.sbml.FullModel['E0'])
 
         if contact_cytotoxicity and plot_Contact_Cytotoxicity:
-            self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.sbml.FullModel['J6'])
+            # self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.sbml.FullModel['J6'])
             # self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.shared_steppable_vars['ODE_Killing'])
             self.plot_win6.add_data_point("CC3DCC", mcs * days_to_mcs, self.shared_steppable_vars['Contact_Killing'])
 
@@ -889,8 +919,8 @@ class PlotsSteppable(SteppableBasePy):
             self.plot_win8.add_data_point("nIgM CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['nIgM'])
             self.plot_win8.add_data_point("nIgG CC3D SBML", mcs * days_to_mcs, self.sbml.LymphModel['nIgG'])
         if plot_current_virus_decay:
-            ode_g = (self.sbml.FullModel['eV'] * (self.sbml.FullModel['sIgM'] + self.sbml.FullModel['nIgM'])) *\
-                    self.sbml.FullModel['cV'] * days_to_mcs
+            ode_g = (self.sbml.FullModel['eV'] * (self.sbml.FullModel['sIgM'] + self.sbml.FullModel['nIgM']) +
+                     self.sbml.FullModel['cV']) * days_to_mcs
             if ode_g != 0:
                 self.plot_win9.add_data_point('ODE effective decay', mcs * days_to_mcs, ode_g)
             cc3d_g = self.get_xml_element('virus_decay').cdata
