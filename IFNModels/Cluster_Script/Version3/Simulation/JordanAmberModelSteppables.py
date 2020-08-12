@@ -552,7 +552,8 @@ class PlaqueAssaySteppable(SteppableBasePy):
             self.previousT = num_T
 
             if self.ExtracellularVirus_Field:
-                Beff = dT / (num_T*self.ExtracellularVirus_Field*hours_to_mcs)
+                if num_T:
+                    Beff = dT / (num_T*self.ExtracellularVirus_Field*hours_to_mcs)
 
             self.plot_win12.add_data_point("ODEB", mcs * hours_to_mcs,beta * days_to_mcs / hours_to_mcs)
             self.plot_win12.add_data_point("CC3DBeff", mcs * hours_to_mcs, Beff)

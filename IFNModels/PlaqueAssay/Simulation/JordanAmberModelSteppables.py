@@ -545,7 +545,8 @@ class PlaqueAssaySteppable(SteppableBasePy):
             dT = abs(num_T - self.previousT)
             self.previousT = num_T
             if self.shared_steppable_vars['ExtracellularVirus_Field']:
-                Beff = dT / (num_T*self.shared_steppable_vars['ExtracellularVirus_Field']*hours_to_mcs)
+                if num_T:
+                    Beff = dT / (num_T*self.shared_steppable_vars['ExtracellularVirus_Field']*hours_to_mcs)
 
             self.plot_win12.add_data_point("ODEB", mcs * hours_to_mcs,self.sbml.FluModel['beta']
                                            * days_to_mcs / hours_to_mcs)

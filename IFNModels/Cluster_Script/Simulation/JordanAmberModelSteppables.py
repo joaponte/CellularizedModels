@@ -610,7 +610,8 @@ class OutputPlaqueAssaySteppable(SteppableBasePy):
             self.secretorV.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
 
         if self.ExtracellularVirus_Field:
-            Beff = dT / (num_T*self.ExtracellularVirus_Field*hours_to_mcs)
+            if num_T:
+                Beff = dT / (num_T*self.ExtracellularVirus_Field*hours_to_mcs)
 
         h = mcs * hours_to_mcs
         Bode = beta * days_to_mcs / hours_to_mcs
