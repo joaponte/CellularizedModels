@@ -2,8 +2,10 @@ from cc3d.core.PySteppables import *
 import numpy as np
 
 plot_ODEModel = False
-plot_CellModel = False
+plot_CellModel = True
 plot_PlaqueAssay = True
+
+IFNWash = False #Whether the plate is prestimulated with IFNe before infection
 
 how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
 how_to_determine_V = 3 # Determines the Virus from the ODE model (1) or from field (3)
@@ -11,7 +13,7 @@ how_to_determine_V = 3 # Determines the Virus from the ODE model (1) or from fie
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-hours_to_simulate = 50.0  # 10 in the original model
+hours_to_simulate = 48.0  # 10 in the original model
 
 virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
@@ -127,7 +129,7 @@ IFN_model_string = '''
     k13 = 12.511    ; 
     k14 = 13.562    ;
     k21 = 10.385    ;
-    k31 = 45.922    ; 
+    k31 = 45.922    ;
     k32 = 5.464     ;
     k33 = 0.068     ;
     t3  = 0.3       ;
@@ -178,6 +180,14 @@ class ODEModelSteppable(SteppableBasePy):
         cell.sbml.VModel['V'] = 6.9e-8
         self.sbml.FluModel['I1'] = 1.0 / self.shared_steppable_vars['InitialNumberCells']
         self.sbml.FluModel['V'] = 0.0
+        
+        #Set prestimulated internal protein values
+        if IFNWash:
+            for cell in self.cell_list_by_type(self.U,self.I1):
+                cell.sbml.IModel['IFN'] = 0.035
+                cell.sbml.IModel['IRF7'] = 0.097
+                cell.sbml.IModel['IRF7P'] = 0.028
+                cell.sbml.IModel['STATP'] = 0.714   
 
 class CellularModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
@@ -500,7 +510,7 @@ class PlaqueAssaySteppable(SteppableBasePy):
             self.plot_win12 = self.add_new_plot_window(title='Effective Infectivity',
                                                        x_axis_title='Hours',
                                                        y_axis_title='Effective Infectivity', x_scale_type='linear',
-                                                       y_scale_type='log',
+                                                       y_scale_type='linear',
                                                        grid=False, config_options={'legend': True})
             self.plot_win12.add_plot("ODEB", style='Dots', color='blue', size=5)
             self.plot_win12.add_plot("CC3DBeff", style='Lines', color='blue', size=5)
