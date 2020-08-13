@@ -205,9 +205,8 @@ class CellularModelSteppable(SteppableBasePy):
         # E7a: P -> ; P * k61 * V;
         for cell in self.cell_list_by_type(self.I2):
             k61C = k61 * hours_to_mcs
-            V = cell.dict['V']
             H = cell.dict['H']
-            r = k61C * V * (1-H)
+            r = k61C * (1-H)
             p_I2toD = 1.0 - np.exp(-r)
             if np.random.random() < p_I2toD:
                 cell.type = self.DEAD

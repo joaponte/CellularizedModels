@@ -250,17 +250,10 @@ class CellularModelSteppable(SteppableBasePy):
         # E7a: P -> ; P * k61 * V;
         for cell in self.cell_list_by_type(self.I2):
             k61 = cell.sbml.VModel['k61'] * hours_to_mcs
-            V = cell.sbml.VModel['V']
             H = cell.sbml.VModel['H']
-            r = k61 * V * (1-H)
+            r = k61 * (1-H)
             p_I2toD = 1.0 - np.exp(-r)
             if np.random.random() < p_I2toD:
-                cell.type = self.DEAD
-
-        ## Additional Death Mechanism
-        for cell in self.cell_list_by_type(self.I2):
-            cell.dict['lifetime'] -= hours_to_mcs
-            if cell.dict['lifetime'] <= 0.0:
                 cell.type = self.DEAD
 
         ## I1 to I2 transition
