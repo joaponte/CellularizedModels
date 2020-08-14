@@ -4,10 +4,10 @@ import os
 import Parameters
 
 plot_ODEModel = False
-plot_CellModel = True
+plot_CellModel = False
 OutputData = True
 
-how_to_determine_IFNe = 2 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
+how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
 
 min_to_mcs = 1  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
@@ -166,7 +166,8 @@ class CellularModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.I2):
             k61C = k61 * hours_to_mcs
             H = cell.dict['H']
-            r = k61C * (1-H)
+            V = cell.dict['V']
+            r = k61C * V * (1-H)
             p_I2toD = 1.0 - np.exp(-r)
             if np.random.random() < p_I2toD:
                 cell.type = self.DEAD
@@ -422,7 +423,7 @@ class OutputSteppable(SteppableBasePy):
                 CC3DIRF7P += cell.dict['IRF7P'] / L
                 CC3DIFN += cell.dict['IFN'] / L
             CC3DIFNe_Scalar = self.ExtracellularIFN_Scalar/self.InitialNumberCells
-            CC3DIFNe_Field = self.ExtracellularIFN_Field//self.InitialNumberCells
+            CC3DIFNe_Field = self.ExtracellularIFN_Field/self.InitialNumberCells
             self.output2.write("%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n" %
                                (Time,CC3DV,CC3DH,CC3DP,CC3DIFNe_Scalar,CC3DIFNe_Field,CC3DSTATP,CC3DIRF7,
                                CC3DIRF7P,CC3DIFN))

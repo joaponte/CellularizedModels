@@ -2,17 +2,19 @@ from cc3d.core.PySteppables import *
 import numpy as np
 import os
 
-plot_ODEModel = True
-plot_CellModel = True
+plot_ODEModel = False
+plot_CellModel = False
 OutputData = True
 
-how_to_determine_IFNe = 2 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
+how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 hours_to_simulate = 30.0
 
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
+
+Replicate = 1
 
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
@@ -346,7 +348,6 @@ class OutputSteppable(SteppableBasePy):
             # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
-            Replicate = 1
             # Output ODE Data
             file_name1 = 'JordanOriginalODE_%i.txt' % Replicate
             self.output1 = open(folder_path + file_name1, 'w')
@@ -374,7 +375,7 @@ class OutputSteppable(SteppableBasePy):
             ODEIRF7 =  self.sbml.IFNModel['IRF7']
             ODEIRF7P =  self.sbml.IFNModel['IRF7P']
             ODEIFN =  self.sbml.IFNModel['IFN']
-            self.output1.write("%f,%f,%f,%f,%f,%f,%f,%f,%f\n" %
+            self.output1.write("%e,%e,%e,%e,%e,%e,%e,%e,%e\n" %
                                (Time,ODEV,ODEH,ODEP,ODEIFNe,ODESTATP,ODEIRF7,ODEIRF7P,ODEIFN))
             self.output1.flush()
 
@@ -397,7 +398,7 @@ class OutputSteppable(SteppableBasePy):
                               / self.shared_steppable_vars['InitialNumberCells']
             CC3DIFNe_Field = self.shared_steppable_vars['ExtracellularIFN_Field'] \
                               / self.shared_steppable_vars['InitialNumberCells']
-            self.output2.write("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n" %
+            self.output2.write("%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n" %
                                (Time,CC3DV,CC3DH,CC3DP,CC3DIFNe_Scalar,CC3DIFNe_Field,CC3DSTATP,CC3DIRF7,
                                CC3DIRF7P,CC3DIFN))
             self.output2.flush()

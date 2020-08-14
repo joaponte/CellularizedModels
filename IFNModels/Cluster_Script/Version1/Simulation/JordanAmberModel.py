@@ -1,8 +1,8 @@
 
 from cc3d import CompuCellSetup
         
-# from JordanAmberModelSteppables import ODEModelSteppable
-# CompuCellSetup.register_steppable(steppable=ODEModelSteppable(frequency=1))
+from JordanAmberModelSteppables import ODEModelSteppable
+CompuCellSetup.register_steppable(steppable=ODEModelSteppable(frequency=1))
 
 from JordanAmberModelSteppables import CellularModelSteppable
 CompuCellSetup.register_steppable(steppable=CellularModelSteppable(frequency=1))
