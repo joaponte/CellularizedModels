@@ -1,15 +1,21 @@
 from cc3d.core.PySteppables import *
 import numpy as np
+import os
+import Parameters
 
-plot_ODEModel = True
+plot_ODEModel = False
 plot_CellModel = True
-how_to_determine_IFNe = 1 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
+OutputData = True
+
+how_to_determine_IFNe = 2 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
 
 min_to_mcs = 1  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
-hours_to_simulate = 50.0
+hours_to_simulate = 30.0
 
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
+
+Replicate = Parameters.R
 
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
@@ -345,3 +351,79 @@ class IFNPlotSteppable(SteppableBasePy):
             self.plot_win6.add_data_point("CC3DIRF7", mcs * hours_to_mcs, avgIRF7)
             self.plot_win7.add_data_point("CC3DIRF7P", mcs * hours_to_mcs, avgIRF7P)
             self.plot_win8.add_data_point("CC3DIFN", mcs * hours_to_mcs, avgIFN)
+
+class OutputSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        if OutputData:
+            folder_path = '/Users/Josua/Data/'
+            # folder_path = '/N/u/joaponte/Carbonate/JordanOriginalModel/Output/'
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+
+            # Output CC3D Data
+            file_name2 = 'JordanOriginalCC3D_%i.txt' % Replicate
+            self.output2 = open(folder_path + file_name2, 'w')
+            self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %
+                              ('Time','CC3DV','CC3DH','CC3DP','CC3DIFNe_Scalar','CC3DIFNe_Field','CC3DSTATP','CC3DIRF7',
+                               'CC3DIRF7P','CC3DIFN'))
+            self.output2.flush()
+
+            # Store Initial Number of Cells
+            self.InitialNumberCells = len(self.cell_list)
+
+            # Measure IFNe Scalar
+            self.ExtracellularIFN_Scalar = 0.0
+
+            # Set secretors
+            self.secretorIFN = self.get_field_secretor("IFNe")
+
+    def step(self, mcs):
+        if OutputData:
+            ## Production of IFNe
+            # E2b: IFN -> IFNe; k21 * IFN ;
+            self.total_IFNe_production = 0.0
+            k21C = k21 * hours_to_mcs
+            for cell in self.cell_list_by_type(self.I2):
+                intracellularIFN = cell.dict['IFN']
+                self.total_IFNe_production += k21C * intracellularIFN
+
+            ## Decay of IFNe
+            # E3a: IFNe -> ; t2*IFNe ;
+            I = self.ExtracellularIFN_Scalar
+            t2C = t2 * hours_to_mcs
+            self.total_decay = t2C * I
+            ## Update Scalar IFNe
+            self.ExtracellularIFN_Scalar += self.total_IFNe_production - self.total_decay
+
+            self.ExtracellularIFN_Field = 0.0
+            for cell in self.cell_list:
+                uptake_probability = 0.0000001
+                uptake = self.secretorIFN.uptakeInsideCellTotalCount(cell, 1E6, uptake_probability)
+                self.ExtracellularIFN_Field += abs(uptake.tot_amount) / uptake_probability
+                self.secretorIFN.secreteInsideCellTotalCount(cell, abs(uptake.tot_amount) / cell.volume)
+
+            Time = mcs * hours_to_mcs
+            L = len(self.cell_list_by_type(self.I2))
+            CC3DP =  L / self.InitialNumberCells
+            CC3DV = 0.0
+            CC3DH = 0.0
+            CC3DSTATP = 0.0
+            CC3DIRF7 = 0.0
+            CC3DIRF7P = 0.0
+            CC3DIFN = 0.0
+            for cell in self.cell_list_by_type(self.I2):
+                CC3DV += cell.dict['V'] / L
+                CC3DH += cell.dict['H'] / L
+                CC3DSTATP += cell.dict['STATP'] / L
+                CC3DIRF7 += cell.dict['IRF7'] / L
+                CC3DIRF7P += cell.dict['IRF7P'] / L
+                CC3DIFN += cell.dict['IFN'] / L
+            CC3DIFNe_Scalar = self.ExtracellularIFN_Scalar/self.InitialNumberCells
+            CC3DIFNe_Field = self.ExtracellularIFN_Field//self.InitialNumberCells
+            self.output2.write("%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n" %
+                               (Time,CC3DV,CC3DH,CC3DP,CC3DIFNe_Scalar,CC3DIFNe_Field,CC3DSTATP,CC3DIRF7,
+                               CC3DIRF7P,CC3DIFN))
+            self.output2.flush()

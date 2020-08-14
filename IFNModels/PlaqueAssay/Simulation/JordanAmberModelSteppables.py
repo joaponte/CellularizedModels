@@ -1,7 +1,7 @@
 from cc3d.core.PySteppables import *
 import numpy as np
 
-plot_ODEModel = False
+plot_ODEModel = True
 plot_CellModel = True
 plot_PlaqueAssay = True
 
@@ -208,10 +208,6 @@ class CellularModelSteppable(SteppableBasePy):
         self.secretorIFN = self.get_field_secretor("IFNe")
         self.secretorV = self.get_field_secretor("Virus")
 
-        # Assign cell lifetime
-        for cell in self.cell_list:
-            cell.dict['lifetime'] = np.random.normal(24,2)
-
     def step(self, mcs):
         ## Measure amount of IFNe in the Field
         self.shared_steppable_vars['ExtracellularIFN_Field'] = 0
@@ -273,7 +269,7 @@ class CellularModelSteppable(SteppableBasePy):
 
         ## Addtiional P to D transition
         # E7a: P -> ; P * k61 * V;
-        for cell in self.cell_list:
+        for cell in self.cell_list_by_type(self.I2):
             cell.dict['lifetime'] -= hours_to_mcs
             if cell.dict['lifetime'] <= 0.0:
                 cell.type = self.DEAD

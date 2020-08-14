@@ -1,13 +1,16 @@
 from cc3d.core.PySteppables import *
 import numpy as np
+import os
 
 plot_ODEModel = True
 plot_CellModel = True
-how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
+OutputData = True
+
+how_to_determine_IFNe = 2 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
-hours_to_simulate = 50.0
+hours_to_simulate = 30.0
 
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 
@@ -142,7 +145,7 @@ class CellularModelSteppable(SteppableBasePy):
 
     def start(self):
         # Set IFNe diffusion parameters
-        self.get_xml_element('IFNe_dc').cdata = IFNe_diffusion_coefficient  * min_to_mcs
+        self.get_xml_element('IFNe_dc').cdata = IFNe_diffusion_coefficient * min_to_mcs
         self.get_xml_element('IFNe_decay').cdata = self.sbml.IFNModel['t2'] * hours_to_mcs
         self.shared_steppable_vars['ExtracellularIFN_Scalar'] = self.sbml.IFNModel['IFNe']
 
@@ -332,3 +335,69 @@ class IFNPlotSteppable(SteppableBasePy):
             self.plot_win6.add_data_point("CC3DIRF7", mcs * hours_to_mcs, avgIRF7)
             self.plot_win7.add_data_point("CC3DIRF7P", mcs * hours_to_mcs, avgIRF7P)
             self.plot_win8.add_data_point("CC3DIFN", mcs * hours_to_mcs, avgIFN)
+
+class OutputSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        if OutputData:
+            folder_path = '/Users/Josua/Data/'
+            # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+            Replicate = 1
+            # Output ODE Data
+            file_name1 = 'JordanOriginalODE_%i.txt' % Replicate
+            self.output1 = open(folder_path + file_name1, 'w')
+            self.output1.write("%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %
+                              ('Time','ODEV', 'ODEH', 'ODEP', 'ODEIFNe','ODESTATP','ODEIRF7','ODEIRF7P','ODEIFN'))
+            self.output1.flush()
+
+            # Output CC3D Data
+            file_name2 = 'JordanOriginalCC3D_%i.txt' % Replicate
+            self.output2 = open(folder_path + file_name2, 'w')
+            self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %
+                              ('Time','CC3DV','CC3DH','CC3DP','CC3DIFNe_Scalar','CC3DIFNe_Field','CC3DSTATP','CC3DIRF7',
+                               'CC3DIRF7P','CC3DIFN'))
+            self.output2.flush()
+
+    def step(self, mcs):
+        if OutputData:
+            P = len(self.cell_list_by_type(self.I2))/self.shared_steppable_vars['InitialNumberCells']
+            Time = mcs * hours_to_mcs
+            ODEV = self.sbml.IFNModel['V']
+            ODEH =  self.sbml.IFNModel['P']
+            ODEP = self.sbml.IFNModel['P']
+            ODEIFNe = self.sbml.IFNModel['IFNe'] * P
+            ODESTATP = self.sbml.IFNModel['STATP']
+            ODEIRF7 =  self.sbml.IFNModel['IRF7']
+            ODEIRF7P =  self.sbml.IFNModel['IRF7P']
+            ODEIFN =  self.sbml.IFNModel['IFN']
+            self.output1.write("%f,%f,%f,%f,%f,%f,%f,%f,%f\n" %
+                               (Time,ODEV,ODEH,ODEP,ODEIFNe,ODESTATP,ODEIRF7,ODEIRF7P,ODEIFN))
+            self.output1.flush()
+
+            L = len(self.cell_list_by_type(self.I2))
+            CC3DP =  L / self.shared_steppable_vars['InitialNumberCells']
+            CC3DV = 0.0
+            CC3DH = 0.0
+            CC3DSTATP = 0.0
+            CC3DIRF7 = 0.0
+            CC3DIRF7P = 0.0
+            CC3DIFN = 0.0
+            for cell in self.cell_list_by_type(self.I2):
+                CC3DV += cell.sbml.VModel['V'] / L
+                CC3DH += cell.sbml.VModel['H'] / L
+                CC3DSTATP += cell.sbml.IModel['STATP'] / L
+                CC3DIRF7 += cell.sbml.IModel['IRF7'] / L
+                CC3DIRF7P += cell.sbml.IModel['IRF7P'] / L
+                CC3DIFN += cell.sbml.IModel['IFN'] / L
+            CC3DIFNe_Scalar = self.shared_steppable_vars['ExtracellularIFN_Scalar']\
+                              / self.shared_steppable_vars['InitialNumberCells']
+            CC3DIFNe_Field = self.shared_steppable_vars['ExtracellularIFN_Field'] \
+                              / self.shared_steppable_vars['InitialNumberCells']
+            self.output2.write("%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n" %
+                               (Time,CC3DV,CC3DH,CC3DP,CC3DIFNe_Scalar,CC3DIFNe_Field,CC3DSTATP,CC3DIRF7,
+                               CC3DIRF7P,CC3DIFN))
+            self.output2.flush()
