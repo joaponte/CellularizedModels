@@ -13,4 +13,7 @@ CompuCellSetup.register_steppable(steppable=IFNPlotSteppable(frequency=1))
 from JordanAmberModelSteppables import FluPlotSteppable
 CompuCellSetup.register_steppable(steppable=FluPlotSteppable(frequency=1))
 
+from JordanAmberModelSteppables import OutputSteppable
+CompuCellSetup.register_steppable(steppable=OutputSteppable(frequency=1))
+
 CompuCellSetup.run()

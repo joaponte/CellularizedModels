@@ -1,8 +1,10 @@
 from cc3d.core.PySteppables import *
 import numpy as np
+import os
 
-plot_ODEModel = True
-plot_CellModel = True
+plot_ODEModel = False
+plot_CellModel = False
+OutputData = True
 
 how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
 how_to_determine_V = 3 # Determines the Virus from the ODE model (1) or from field (3)
@@ -14,6 +16,8 @@ hours_to_simulate = 50.0  # 10 in the original model
 
 virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
+
+Replicate = 1
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -257,7 +261,7 @@ class CellularModelSteppable(SteppableBasePy):
 
         ## Addtiional P to D transition
         # E7a: P -> ; P * k61 * V;
-        for cell in self.cell_list:
+        for cell in self.cell_list_by_type(self.I2):
             cell.dict['lifetime'] -= hours_to_mcs
             if cell.dict['lifetime'] <= 0.0:
                 cell.type = self.DEAD
@@ -434,7 +438,6 @@ class FluPlotSteppable(SteppableBasePy):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
-        self.initial_uninfected = len(self.cell_list_by_type(self.U))
         if (plot_ODEModel == True) or (plot_CellModel == True):
             self.plot_win9 = self.add_new_plot_window(title='Flu Model Cells',
                                                      x_axis_title='Hours',
@@ -478,12 +481,72 @@ class FluPlotSteppable(SteppableBasePy):
 
             if plot_CellModel == True:
                 self.plot_win9.add_data_point("CC3DT", mcs * days_to_mcs * 24.0,
-                                             len(self.cell_list_by_type(self.U)) / self.initial_uninfected)
+                                             len(self.cell_list_by_type(self.U)) / self.shared_steppable_vars['InitialNumberCells'])
                 self.plot_win9.add_data_point("CC3DI1", mcs * days_to_mcs * 24.0,
-                                             len(self.cell_list_by_type(self.I1)) / self.initial_uninfected)
+                                             len(self.cell_list_by_type(self.I1)) / self.shared_steppable_vars['InitialNumberCells'])
                 self.plot_win9.add_data_point("CC3DI2", mcs * days_to_mcs * 24.0,
-                                             len(self.cell_list_by_type(self.I2)) / self.initial_uninfected)
+                                             len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells'])
                 self.plot_win9.add_data_point("CC3DD", mcs * days_to_mcs * 24.0,
-                                             len(self.cell_list_by_type(self.DEAD)) / self.initial_uninfected)
+                                             len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells'])
                 self.plot_win10.add_data_point("CC3DV", mcs * days_to_mcs * 24.0,
                                               np.log10(self.shared_steppable_vars['ExtracellularVirus_Field']))
+
+class OutputSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        if OutputData:
+            folder_path = '/Users/Josua/Data/'
+            # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+            # Output ODE Data
+            file_name1 = 'FullModelCellular_%i.txt' % Replicate
+            self.output1 = open(folder_path + file_name1, 'w')
+            self.output1.write("%s,%s,%s,%s,%s,%s\n" %('Time','U','I1','I2','D','Ve'))
+            self.output1.flush()
+
+            # Output CC3D Data
+            file_name2 = 'FullModelIntracellular_%i.txt' % Replicate
+            self.output2 = open(folder_path + file_name2, 'w')
+            self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %
+                              ('Time','CC3DV','CC3DH','CC3DP','CC3DIFNe_Scalar','CC3DIFNe_Field','CC3DSTATP','CC3DIRF7',
+                               'CC3DIRF7P','CC3DIFN'))
+            self.output2.flush()
+
+    def step(self, mcs):
+        if OutputData:
+            Time = mcs * hours_to_mcs
+            U = len(self.cell_list_by_type(self.U)) / self.shared_steppable_vars['InitialNumberCells']
+            I1 =  len(self.cell_list_by_type(self.I1)) / self.shared_steppable_vars['InitialNumberCells']
+            I2 = len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells']
+            D =  len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells']
+            Ve = np.log10(self.shared_steppable_vars['ExtracellularVirus_Field'])
+            self.output1.write("%e,%e,%e,%e,%e,%e\n" %
+                               (Time,U,I1,I2,D,Ve))
+            self.output1.flush()
+
+            L = len(self.cell_list_by_type(self.U,self.I1,self.I2))
+            CC3DP =  L / self.shared_steppable_vars['InitialNumberCells']
+            CC3DV = 0.0
+            CC3DH = 0.0
+            CC3DSTATP = 0.0
+            CC3DIRF7 = 0.0
+            CC3DIRF7P = 0.0
+            CC3DIFN = 0.0
+            for cell in self.cell_list_by_type(self.U,self.I1,self.I2):
+                CC3DV += cell.sbml.VModel['V'] / L
+                CC3DH += cell.sbml.VModel['H'] / L
+                CC3DSTATP += cell.sbml.IModel['STATP'] / L
+                CC3DIRF7 += cell.sbml.IModel['IRF7'] / L
+                CC3DIRF7P += cell.sbml.IModel['IRF7P'] / L
+                CC3DIFN += cell.sbml.IModel['IFN'] / L
+            CC3DIFNe_Scalar = self.shared_steppable_vars['ExtracellularIFN_Scalar']\
+                              / self.shared_steppable_vars['InitialNumberCells']
+            CC3DIFNe_Field = self.shared_steppable_vars['ExtracellularIFN_Field'] \
+                              / self.shared_steppable_vars['InitialNumberCells']
+            self.output2.write("%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n" %
+                               (Time,CC3DV,CC3DH,CC3DP,CC3DIFNe_Scalar,CC3DIFNe_Field,CC3DSTATP,CC3DIRF7,
+                               CC3DIRF7P,CC3DIFN))
+            self.output2.flush()
