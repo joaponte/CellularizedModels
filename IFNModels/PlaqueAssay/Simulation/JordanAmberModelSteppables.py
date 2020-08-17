@@ -1,9 +1,11 @@
 from cc3d.core.PySteppables import *
 import numpy as np
+import os
 
-plot_ODEModel = True
-plot_CellModel = True
-plot_PlaqueAssay = True
+plot_ODEModel = False
+plot_CellModel = False
+plot_PlaqueAssay = False
+OutputData = True
 
 IFNWash = False #Whether the plate is prestimulated with IFNe before infection
 
@@ -13,10 +15,12 @@ how_to_determine_V = 3 # Determines the Virus from the ODE model (1) or from fie
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-hours_to_simulate = 48.0  # 10 in the original model
+hours_to_simulate = 50.0  # 10 in the original model
 
 virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
+
+Replicate = 1.0
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -500,11 +504,84 @@ class FluPlotSteppable(SteppableBasePy):
                 self.plot_win10.add_data_point("CC3DV", mcs * days_to_mcs * 24.0,
                                               np.log10(self.shared_steppable_vars['ExtracellularVirus_Field']))
 
+class OutputSteppable(SteppableBasePy):
+    def __init__(self, frequency=1):
+        SteppableBasePy.__init__(self, frequency)
+
+    def start(self):
+        if OutputData:
+            folder_path = '/Users/Josua/Data/'
+            # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+            # Output ODE Data
+            file_name1 = 'FullModelCellular_%i.txt' % Replicate
+            self.output1 = open(folder_path + file_name1, 'w')
+            self.output1.write("%s,%s,%s,%s,%s,%s\n" %('Time','U','I1','I2','D','Ve'))
+            self.output1.flush()
+
+            # Output CC3D Data
+            file_name2 = 'FullModelIntracellular_%i.txt' % Replicate
+            self.output2 = open(folder_path + file_name2, 'w')
+            self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %
+                              ('Time','CC3DV','CC3DH','CC3DP','CC3DIFNe_Scalar','CC3DIFNe_Field','CC3DSTATP','CC3DIRF7',
+                               'CC3DIRF7P','CC3DIFN'))
+            self.output2.flush()
+
+    def step(self, mcs):
+        if OutputData:
+            Time = mcs * hours_to_mcs
+            U = len(self.cell_list_by_type(self.U)) / self.shared_steppable_vars['InitialNumberCells']
+            I1 =  len(self.cell_list_by_type(self.I1)) / self.shared_steppable_vars['InitialNumberCells']
+            I2 = len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells']
+            D =  len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells']
+            Ve = np.log10(self.shared_steppable_vars['ExtracellularVirus_Field'])
+            self.output1.write("%e,%e,%e,%e,%e,%e\n" %
+                               (Time,U,I1,I2,D,Ve))
+            self.output1.flush()
+
+            L = len(self.cell_list_by_type(self.U,self.I1,self.I2))
+            CC3DP =  L / self.shared_steppable_vars['InitialNumberCells']
+            CC3DV = 0.0
+            CC3DH = 0.0
+            CC3DSTATP = 0.0
+            CC3DIRF7 = 0.0
+            CC3DIRF7P = 0.0
+            CC3DIFN = 0.0
+            for cell in self.cell_list_by_type(self.U,self.I1,self.I2):
+                CC3DV += cell.sbml.VModel['V'] / L
+                CC3DH += cell.sbml.VModel['H'] / L
+                CC3DSTATP += cell.sbml.IModel['STATP'] / L
+                CC3DIRF7 += cell.sbml.IModel['IRF7'] / L
+                CC3DIRF7P += cell.sbml.IModel['IRF7P'] / L
+                CC3DIFN += cell.sbml.IModel['IFN'] / L
+            CC3DIFNe_Scalar = self.shared_steppable_vars['ExtracellularIFN_Scalar']\
+                              / self.shared_steppable_vars['InitialNumberCells']
+            CC3DIFNe_Field = self.shared_steppable_vars['ExtracellularIFN_Field'] \
+                              / self.shared_steppable_vars['InitialNumberCells']
+            self.output2.write("%e,%e,%e,%e,%e,%e,%e,%e,%e,%e\n" %
+                               (Time,CC3DV,CC3DH,CC3DP,CC3DIFNe_Scalar,CC3DIFNe_Field,CC3DSTATP,CC3DIRF7,
+                               CC3DIRF7P,CC3DIFN))
+            self.output2.flush()
+
 class PlaqueAssaySteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
 
     def start(self):
+        if OutputData:
+            folder_path = '/Users/Josua/Data/'
+            # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+            file_name = 'PlaqueAssay_%i.txt' % Replicate
+            self.output3 = open(folder_path + file_name, 'w')
+            self.output3.write("%s,%s,%s,%s,%s,%s\n" % ('Time', 'avgI1rd', 'avgI2rd', 'avgDrd', 'Beta','Beff'))
+            self.output3.flush()
+
+            # Parameters for Measuring Effective Infectivity
+            self.previousT = 0.0
+
         if plot_PlaqueAssay == True:
             self.plot_win11 = self.add_new_plot_window(title='Plaque Growth',
                                                        x_axis_title='Hours',
@@ -522,10 +599,12 @@ class PlaqueAssaySteppable(SteppableBasePy):
                                                        grid=False, config_options={'legend': True})
             self.plot_win12.add_plot("ODEB", style='Dots', color='blue', size=5)
             self.plot_win12.add_plot("CC3DBeff", style='Lines', color='blue', size=5)
+
+            # Parameters for Measuring Effective Infectivity
             self.previousT = 0.0
 
     def step(self, mcs):
-        if plot_PlaqueAssay == True:
+        if (plot_PlaqueAssay == True) or (OutputData == True):
             avgI1rd = 0.0
             num_I1 = len(self.cell_list_by_type(self.I1))
             for cell in self.cell_list_by_type(self.I1):
@@ -547,10 +626,6 @@ class PlaqueAssaySteppable(SteppableBasePy):
                 yCOM = cell.yCOM
                 avgDrd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_D
 
-            self.plot_win11.add_data_point("rdI1", mcs * hours_to_mcs, avgI1rd)
-            self.plot_win11.add_data_point("rdI2", mcs * hours_to_mcs, avgI2rd)
-            self.plot_win11.add_data_point("rdD", mcs * hours_to_mcs, avgDrd)
-
             Beff = 0.0
             num_T = len(self.cell_list_by_type(self.U))
             dT = abs(num_T - self.previousT)
@@ -559,6 +634,17 @@ class PlaqueAssaySteppable(SteppableBasePy):
                 if num_T:
                     Beff = dT / (num_T*self.shared_steppable_vars['ExtracellularVirus_Field']*hours_to_mcs)
 
-            self.plot_win12.add_data_point("ODEB", mcs * hours_to_mcs,self.sbml.FluModel['beta']
-                                           * days_to_mcs / hours_to_mcs)
-            self.plot_win12.add_data_point("CC3DBeff", mcs * hours_to_mcs, Beff)
+            if plot_PlaqueAssay == True:
+                self.plot_win11.add_data_point("rdI1", mcs * hours_to_mcs, avgI1rd)
+                self.plot_win11.add_data_point("rdI2", mcs * hours_to_mcs, avgI2rd)
+                self.plot_win11.add_data_point("rdD", mcs * hours_to_mcs, avgDrd)
+
+                self.plot_win12.add_data_point("ODEB", mcs * hours_to_mcs,self.sbml.FluModel['beta']
+                                               * days_to_mcs / hours_to_mcs)
+                self.plot_win12.add_data_point("CC3DBeff", mcs * hours_to_mcs, Beff)
+
+            if OutputData:
+                Time = mcs * hours_to_mcs
+                Beta = self.sbml.FluModel['beta'] * days_to_mcs / hours_to_mcs
+                self.output3.write("%e,%e,%e,%e,%e.%e\n" % (Time, avgI1rd, avgI2rd, avgDrd, Beta, Beff))
+                self.output3.flush()
