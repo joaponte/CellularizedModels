@@ -646,5 +646,5 @@ class PlaqueAssaySteppable(SteppableBasePy):
             if OutputData:
                 Time = mcs * hours_to_mcs
                 Beta = self.sbml.FluModel['beta'] * days_to_mcs / hours_to_mcs
-                self.output3.write("%e,%e,%e,%e,%e.%e\n" % (Time, avgI1rd, avgI2rd, avgDrd, Beta, Beff))
+                self.output3.write("%e,%e,%e,%e,%e,%e\n" % (Time, avgI1rd, avgI2rd, avgDrd, Beta, Beff))
                 self.output3.flush()

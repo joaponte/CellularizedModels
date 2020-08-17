@@ -5,8 +5,9 @@ CC3Dnames = ['Time','CC3DV','CC3DH','CC3DP','CC3DIFNe_Scalar','CC3DIFNe_Field','
 CC3Dts = 300
 
 #Plot Virus
-V = np.zeros((CC3Dts, 20))
-for r in range(1,21):
+replicates = 20
+V = np.zeros((CC3Dts, replicates))
+for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelIntracellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CC3Dnames,
                       max_rows = CC3Dts)
     T = f['Time']
@@ -19,8 +20,8 @@ plt.savefig('Fig.V.pdf')
 plt.clf()
 
 # Plot Cell Viability
-H = np.zeros((CC3Dts, 20))
-for r in range(1,21):
+H = np.zeros((CC3Dts, replicates))
+for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelIntracellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CC3Dnames,
                       max_rows = CC3Dts)
     T = f['Time']
@@ -33,8 +34,8 @@ plt.savefig('Fig.H.pdf')
 plt.clf()
 
 # Plot Live Cells
-P = np.zeros((CC3Dts, 20))
-for r in range(1,21):
+P = np.zeros((CC3Dts, replicates))
+for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelIntracellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CC3Dnames,
                       max_rows = CC3Dts)
     T = f['Time']
@@ -47,8 +48,8 @@ plt.savefig('Fig.P.pdf')
 plt.clf()
 
 # Plot Live Cells
-IFNe = np.zeros((CC3Dts, 20))
-for r in range(1,21):
+IFNe = np.zeros((CC3Dts, replicates))
+for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelIntracellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CC3Dnames,
                       max_rows = CC3Dts)
     T = f['Time']
@@ -61,8 +62,8 @@ plt.savefig('Fig.IFNe.pdf')
 plt.clf()
 
 # Plot STATP
-STATP = np.zeros((CC3Dts, 20))
-for r in range(1,21):
+STATP = np.zeros((CC3Dts, replicates))
+for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelIntracellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CC3Dnames,
                       max_rows = CC3Dts)
     T = f['Time']
@@ -75,8 +76,8 @@ plt.savefig('Fig.STATP.pdf')
 plt.clf()
 
 # Plot IRF7
-IRF7 = np.zeros((CC3Dts, 20))
-for r in range(1,21):
+IRF7 = np.zeros((CC3Dts, replicates))
+for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelIntracellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CC3Dnames,
                       max_rows = CC3Dts)
     T = f['Time']
@@ -89,8 +90,8 @@ plt.savefig('Fig.IRF7.pdf')
 plt.clf()
 
 # Plot IRF7P
-IRF7P = np.zeros((CC3Dts, 20))
-for r in range(1,21):
+IRF7P = np.zeros((CC3Dts, replicates))
+for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelIntracellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CC3Dnames,
                       max_rows = CC3Dts)
     T = f['Time']
@@ -103,8 +104,8 @@ plt.savefig('Fig.IRF7P.pdf')
 plt.clf()
 
 # Plot INF
-IFN = np.zeros((CC3Dts, 20))
-for r in range(1,21):
+IFN = np.zeros((CC3Dts,replicates))
+for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelIntracellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CC3Dnames,
                       max_rows = CC3Dts)
     T = f['Time']

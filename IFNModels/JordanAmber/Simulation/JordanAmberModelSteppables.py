@@ -522,7 +522,10 @@ class OutputSteppable(SteppableBasePy):
             I1 =  len(self.cell_list_by_type(self.I1)) / self.shared_steppable_vars['InitialNumberCells']
             I2 = len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells']
             D =  len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells']
-            Ve = np.log10(self.shared_steppable_vars['ExtracellularVirus_Field'])
+            if not self.shared_steppable_vars['ExtracellularVirus_Field']:
+                Ve = 0.0
+            else:
+                Ve = np.log10(self.shared_steppable_vars['ExtracellularVirus_Field'])
             self.output1.write("%e,%e,%e,%e,%e,%e\n" %
                                (Time,U,I1,I2,D,Ve))
             self.output1.flush()
