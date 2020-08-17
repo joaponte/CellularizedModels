@@ -1,6 +1,7 @@
 from cc3d.core.PySteppables import *
 import numpy as np
 import os
+import Parameters
 
 plot_ODEModel = False
 plot_CellModel = False
@@ -20,7 +21,7 @@ hours_to_simulate = 50.0  # 10 in the original model
 virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 
-Replicate = 1.0
+Replicate = Parameters.R
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -511,7 +512,7 @@ class OutputSteppable(SteppableBasePy):
     def start(self):
         if OutputData:
             folder_path = '/Users/Josua/Data/'
-            # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
+            # folder_path = '/N/u/joaponte/Carbonate/PlaqueAssay/Output/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
             # Output ODE Data
@@ -535,7 +536,7 @@ class OutputSteppable(SteppableBasePy):
             I1 =  len(self.cell_list_by_type(self.I1)) / self.shared_steppable_vars['InitialNumberCells']
             I2 = len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells']
             D =  len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells']
-            Ve = np.log10(self.shared_steppable_vars['ExtracellularVirus_Field'])
+            Ve = self.shared_steppable_vars['ExtracellularVirus_Field']
             self.output1.write("%e,%e,%e,%e,%e,%e\n" %
                                (Time,U,I1,I2,D,Ve))
             self.output1.flush()
@@ -571,7 +572,7 @@ class PlaqueAssaySteppable(SteppableBasePy):
     def start(self):
         if OutputData:
             folder_path = '/Users/Josua/Data/'
-            # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
+            # folder_path = '/N/u/joaponte/Carbonate/PlaqueAssay/Output/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
             file_name = 'PlaqueAssay_%i.txt' % Replicate
