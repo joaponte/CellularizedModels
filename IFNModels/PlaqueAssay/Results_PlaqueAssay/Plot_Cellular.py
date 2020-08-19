@@ -29,8 +29,9 @@ plt.clf()
 Ve = np.zeros((ts, replicates))
 for r in range(1,replicates+1):
     f = np.genfromtxt('FullModelCellular_%i.txt' % (r), skip_header=1, delimiter=',', names=CellNames,max_rows = ts)
-    plt.plot(f['Time'], f['Ve'], color='black',linewidth = 4.0, alpha=0.1)
+    plt.plot(f['Time'], np.log10(f['Ve']), color='black',linewidth = 4.0, alpha=0.1)
     Ve[:, r - 1] = f['Ve']
-plt.plot(f['Time'],np.mean(Ve,1),color='black',linewidth = 3.0,label='Viral Load')
+plt.plot(f['Time'],np.log10(np.mean(Ve,1)),color='black',linewidth = 3.0,label='Viral Load')
+plt.ylim([1,None])
 plt.legend(loc=2)
 plt.savefig('Fig.ViralLoad.pdf')
