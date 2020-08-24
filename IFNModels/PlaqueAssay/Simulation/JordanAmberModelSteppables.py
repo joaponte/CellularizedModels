@@ -16,7 +16,7 @@ how_to_determine_V = 3 # Determines the Virus from the ODE model (1) or from fie
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
-hours_to_simulate = 50.0  # 10 in the original model
+hours_to_simulate = 80.0  # 10 in the original model
 
 virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
@@ -272,13 +272,6 @@ class CellularModelSteppable(SteppableBasePy):
             if np.random.random() < p_I2toD:
                 cell.type = self.DEAD
 
-        ## Addtiional P to D transition
-        # E7a: P -> ; P * k61 * V;
-        for cell in self.cell_list_by_type(self.I2):
-            cell.dict['lifetime'] -= hours_to_mcs
-            if cell.dict['lifetime'] <= 0.0:
-                cell.type = self.DEAD
-
         ## I1 to I2 transition
         # E2: I1 -> I2 ; k * I1
         for cell in self.cell_list_by_type(self.I1):
@@ -518,7 +511,7 @@ class OutputSteppable(SteppableBasePy):
             # Output ODE Data
             file_name1 = 'FullModelCellular_%i.txt' % Replicate
             self.output1 = open(folder_path + file_name1, 'w')
-            self.output1.write("%s,%s,%s,%s,%s,%s\n" %('Time','U','I1','I2','D','Ve'))
+            self.output1.write("%s,%s,%s,%s,%s,%s,%s\n" %('Time','U','I1','I2','D','Ve','IFNe'))
             self.output1.flush()
 
             # Output CC3D Data
@@ -537,8 +530,9 @@ class OutputSteppable(SteppableBasePy):
             I2 = len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells']
             D =  len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells']
             Ve = self.shared_steppable_vars['ExtracellularVirus_Field']
-            self.output1.write("%e,%e,%e,%e,%e,%e\n" %
-                               (Time,U,I1,I2,D,Ve))
+            IFNe = self.shared_steppable_vars['ExtracellularIFN_Field']
+
+            self.output1.write("%e,%e,%e,%e,%e,%e,%e\n" % (Time,U,I1,I2,D,Ve,IFNe))
             self.output1.flush()
 
             L = len(self.cell_list_by_type(self.U,self.I1,self.I2))
@@ -606,34 +600,29 @@ class PlaqueAssaySteppable(SteppableBasePy):
 
     def step(self, mcs):
         if (plot_PlaqueAssay == True) or (OutputData == True):
-            avgI1rd = 0.0
-            num_I1 = len(self.cell_list_by_type(self.I1))
-            for cell in self.cell_list_by_type(self.I1):
-                xCOM = cell.xCOM
-                yCOM = cell.yCOM
-                avgI1rd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_I1
-
-            avgI2rd = 0.0
-            num_I2 = len(self.cell_list_by_type(self.I2))
-            for cell in self.cell_list_by_type(self.I2):
-                xCOM = cell.xCOM
-                yCOM = cell.yCOM
-                avgI2rd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_I2
-
-            avgDrd = 0.0
-            num_D = len(self.cell_list_by_type(self.DEAD))
+            # Measure area occupied by D cells and assume its a circle
+            volume_D = 0.0
             for cell in self.cell_list_by_type(self.DEAD):
-                xCOM = cell.xCOM
-                yCOM = cell.yCOM
-                avgDrd += sqrt((self.dim.x/2.0 - xCOM)**2 + (self.dim.y/2.0-yCOM)**2) / num_D
+                volume_D += cell.volume
+            avgDrd = np.sqrt(volume_D/np.pi)
+
+            volume_I2 = 0.0
+            for cell in self.cell_list_by_type(self.I2):
+                volume_I2 += cell.volume
+            avgI2rd = np.sqrt((volume_D+volume_I2)/np.pi)
+
+            volume_I1 = 0.0
+            for cell in self.cell_list_by_type(self.I1):
+                volume_I1 += cell.volume
+            avgI1rd = np.sqrt((volume_D+volume_I2+volume_I1)/np.pi)
 
             Beff = 0.0
-            num_T = len(self.cell_list_by_type(self.U))
-            dT = abs(num_T - self.previousT)
-            self.previousT = num_T
+            num_U = len(self.cell_list_by_type(self.U))
+            dT = abs(num_U - self.previousT)
+            self.previousT = num_U
             if self.shared_steppable_vars['ExtracellularVirus_Field']:
-                if num_T:
-                    Beff = dT / (num_T*self.shared_steppable_vars['ExtracellularVirus_Field']*hours_to_mcs)
+                if num_U:
+                    Beff = dT / (num_U*self.shared_steppable_vars['ExtracellularVirus_Field']*hours_to_mcs)
 
             if plot_PlaqueAssay == True:
                 self.plot_win11.add_data_point("rdI1", mcs * hours_to_mcs, avgI1rd)

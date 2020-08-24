@@ -1,6 +1,7 @@
 from cc3d.core.PySteppables import *
 import numpy as np
 import os
+import Parameters
 
 plot_ODEModel = False
 plot_CellModel = False
@@ -13,11 +14,12 @@ min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 hours_to_simulate = 50.0  # 10 in the original model
+um_to_vl = 3.0 # um/vl
 
 virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 
-Replicate = 1
+Replicate = Parameters.R
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -166,8 +168,6 @@ class ODEModelSteppable(SteppableBasePy):
         # Load Original FLU ODE Model
         self.add_free_floating_antimony(model_string=FluModel_string, model_name='FluModel',
                                         step_size=days_to_mcs)
-        self.sbml.FluModel['I1'] = 0.0
-        self.sbml.FluModel['V'] = 75.0
 
         # Load Viral Model inside Cells
         self.add_antimony_to_cell_types(model_string=viral_model_string, model_name='VModel',
@@ -196,9 +196,12 @@ class CellularModelSteppable(SteppableBasePy):
         self.secretorIFN = self.get_field_secretor("IFNe")
         self.secretorV = self.get_field_secretor("Virus")
 
-        # Assign cell lifetime
-        for cell in self.cell_list:
-            cell.dict['lifetime'] = np.random.normal(24,2)
+        #Choose random cells (2 for MOI 2E-5)
+        initial_infected = 2
+        for i in range(initial_infected):
+            cell = self.cell_field[np.random.randint(0,self.dim.x), np.random.randint(0,self.dim.x), 0]
+            cell.type = self.I1
+            cell.sbml.VModel['V'] = 6.9e-8
 
     def step(self, mcs):
         ## Measure amount of IFNe in the Field
@@ -240,7 +243,7 @@ class CellularModelSteppable(SteppableBasePy):
             release = self.secretorV.secreteInsideCellTotalCount(cell, p / cell.volume)
             self.total_virus_production += release.tot_amount
 
-        ## Decay of IFNe
+        ## Decay of Virus
         # V -> ; c * V
         V = self.shared_steppable_vars['ExtracellularVirus_Scalar']
         c = self.sbml.FluModel['c'] * days_to_mcs
@@ -257,13 +260,6 @@ class CellularModelSteppable(SteppableBasePy):
             r = k61 * V * (1-H)
             p_I2toD = 1.0 - np.exp(-r)
             if np.random.random() < p_I2toD:
-                cell.type = self.DEAD
-
-        ## Addtiional P to D transition
-        # E7a: P -> ; P * k61 * V;
-        for cell in self.cell_list_by_type(self.I2):
-            cell.dict['lifetime'] -= hours_to_mcs
-            if cell.dict['lifetime'] <= 0.0:
                 cell.type = self.DEAD
 
         ## I1 to I2 transition
@@ -309,7 +305,6 @@ class CellularModelSteppable(SteppableBasePy):
                 cell.sbml.IModel['IFNe'] = self.secretorIFN.amountSeenByCell(cell)
             cell.sbml.IModel['H'] = cell.sbml.VModel['H']
             cell.sbml.IModel['V'] = cell.sbml.VModel['V']
-
         self.timestep_sbml()
 
 class IFNPlotSteppable(SteppableBasePy):
@@ -498,13 +493,13 @@ class OutputSteppable(SteppableBasePy):
     def start(self):
         if OutputData:
             folder_path = '/Users/Josua/Data/'
-            # folder_path = '/N/u/joaponte/Carbonate/FluModel/Output/'
+            # folder_path = '/N/u/joaponte/Carbonate/JordanAmber/Output/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
             # Output ODE Data
             file_name1 = 'FullModelCellular_%i.txt' % Replicate
             self.output1 = open(folder_path + file_name1, 'w')
-            self.output1.write("%s,%s,%s,%s,%s,%s\n" %('Time','U','I1','I2','D','Ve'))
+            self.output1.write("%s,%s,%s,%s,%s,%s,%s\n" %('Time','U','I1','I2','D','Ve','IFNe'))
             self.output1.flush()
 
             # Output CC3D Data
@@ -522,12 +517,10 @@ class OutputSteppable(SteppableBasePy):
             I1 =  len(self.cell_list_by_type(self.I1)) / self.shared_steppable_vars['InitialNumberCells']
             I2 = len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells']
             D =  len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells']
-            if not self.shared_steppable_vars['ExtracellularVirus_Field']:
-                Ve = 0.0
-            else:
-                Ve = np.log10(self.shared_steppable_vars['ExtracellularVirus_Field'])
-            self.output1.write("%e,%e,%e,%e,%e,%e\n" %
-                               (Time,U,I1,I2,D,Ve))
+            Ve = self.shared_steppable_vars['ExtracellularVirus_Field']
+            IFNe = self.shared_steppable_vars['ExtracellularIFN_Field']
+
+            self.output1.write("%e,%e,%e,%e,%e,%e,%e\n" % (Time,U,I1,I2,D,Ve,IFNe))
             self.output1.flush()
 
             L = len(self.cell_list_by_type(self.U,self.I1,self.I2))

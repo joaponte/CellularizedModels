@@ -1,6 +1,7 @@
 from cc3d.core.PySteppables import *
 import numpy as np
 import os
+import Parameters
 
 plot_ODEModel = False
 plot_CellModel = False
@@ -10,11 +11,12 @@ how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell
 
 min_to_mcs = 10.0  # min/mcs
 hours_to_mcs = min_to_mcs / 60.0 # hours/mcs
-hours_to_simulate = 30.0
+hours_to_simulate = 40.0
+um_to_vl = 3.0 #um/vl
 
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 
-Replicate = 1
+Replicate = Parameters.R
 
 '''Jordan J. A. Weaver and Jason E. Shoemaker. Mathematical Modeling of RNA Virus Sensing Pathways Reveal Paracrine Signaling as the Primary Factor 
 Regulating Excessive Cytokine Production'''
