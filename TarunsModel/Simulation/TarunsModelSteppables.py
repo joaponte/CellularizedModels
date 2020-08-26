@@ -6,7 +6,7 @@ days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 30.0
 
 virus_infection_feedback = 3
-use_LymphModel_outputs = False
+use_LymphModel_outputs = True
 
 contact_cytotoxicity = True
 
@@ -45,6 +45,7 @@ J10: Da ->; dD*Da;
 
 J11: -> Dm; kD*Da;
 J12: Dm ->; dDm*Dm;
+
 J13: -> Tc; dC*Tc0;
 J14: Tc ->; dC*Tc;
 //# J15: Dm -> Tc; rT1*Dm*Tc/(Dm+pT2) + Dm; 
@@ -272,7 +273,7 @@ dG=0.04;
 dM=0.2;
 pT2=600;
 v = 0.5;
-drt = 30;
+drt = 3;
 
 proport_init_inf = 0.01;
 
@@ -310,7 +311,7 @@ class TarunsModelSteppable(SteppableBasePy):
         self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
         self.add_free_floating_antimony(model_string=lymph_node_string, model_name='LymphModel', step_size=days_to_mcs)
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
-        self.initial_uninfected = len(self.cell_list_by_type(self.E))
+        # self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.get_xml_element('virus_decay').cdata = self.sbml.FullModel['cV'] * days_to_mcs
         lattice_factor = .14
         self.max_virus_gamma = .75 * float(self.get_xml_element("virus_D").cdata) / lattice_factor
@@ -339,13 +340,13 @@ class TarunsModelSteppable(SteppableBasePy):
 
         self.init_variables()
         p_Ev = self.sbml.FullModel['proport_init_inf']
-        print('@@@@@@@@@@@@@@@@@@@@@@@\n', p_Ev, '\n@@@@@@@@@@@@@@@@@@@@@@')
+        # print('@@@@@@@@@@@@@@@@@@@@@@@\n', p_Ev, '\n@@@@@@@@@@@@@@@@@@@@@@')
         for cell in self.cell_list_by_type(self.E):
 
             if np.random.random() <= p_Ev:
-                print('@@@@@@@@@@@@@@@@@@@@@@@\ninit infected\n@@@@@@@@@@@@@@@@@@@@@@')
+                # print('@@@@@@@@@@@@@@@@@@@@@@@\ninit infected\n@@@@@@@@@@@@@@@@@@@@@@')
                 cell.type = self.EV
-
+        self.initial_uninfected = len(self.cell_list_by_type(self.E))
         self.seed_APC_cells()
 
     def J1_DtoE(self, cell):
@@ -381,9 +382,9 @@ class TarunsModelSteppable(SteppableBasePy):
 
         if p_EtoEv > np.random.random():
             cell.type = self.EV
-            print('infected', cell.id)
-            print('prob infect', p_EtoEv)
-            print('old prob inf', bE * V)
+            # print('infected', cell.id)
+            # print('prob infect', p_EtoEv)
+            # print('old prob inf', bE * V)
 
     def J4_EvtoE(self, cell):
         ## Transition from Ev to E
@@ -428,7 +429,7 @@ class TarunsModelSteppable(SteppableBasePy):
             ## Virus Production
             # J7: -> V; pV*Ev;
             pV = self.sbml.FullModel['pV'] * days_to_mcs * self.sbml.FullModel['E0'] / self.initial_uninfected
-            print(pV)
+            # print(pV)
             release = self.virus_secretor.secreteInsideCellTotalCount(cell, pV / cell.volume)
             virus_production += abs(release.tot_amount)
         return virus_production
@@ -608,8 +609,8 @@ class TarunsModelSteppable(SteppableBasePy):
         p_Ev2D = nIgM * eE * days_to_mcs  # * self.initial_uninfected / self.sbml.FullModel['E0']
         if p_Ev2D > np.random.random():
             cell.type = self.D
-            print('killed by anti bodies M', cell.id)
-            print(p_Ev2D)
+            # print('killed by anti bodies M', cell.id)
+            # print(p_Ev2D)
         return
 
     def J50_Ev2D_from_nIgG(self, cell):
@@ -623,8 +624,8 @@ class TarunsModelSteppable(SteppableBasePy):
         p_Ev2D = nIgG * eE * days_to_mcs  # * self.initial_uninfected / self.sbml.FullModel['E0']
         if p_Ev2D > np.random.random():
             cell.type = self.D
-            print('killed by anti bodies G', cell.id)
-            print(p_Ev2D)
+            # print('killed by anti bodies G', cell.id)
+            # print(p_Ev2D)
         return
 
     def J51_virus_decay_from_sIgM(self):
@@ -694,7 +695,7 @@ class TarunsModelSteppable(SteppableBasePy):
                     self.shared_steppable_vars['Contact_Killing'] += 1
                     if contact_cytotoxicity:
                         neighbor.type = self.D
-                        print('killed by contact killing', cell.id)
+                        # print('killed by contact killing', cell.id)
 
     def test_prints(self):
         print('taruns\tcc3d')
@@ -706,7 +707,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def step(self, mcs):
         # self.test_prints()
-        print(mcs)
+        # print(mcs)
         self.lymph_model_input_from_full(len(self.cell_list_by_type(self.EV)), self.sbml.FullModel['Da'])
         for cell in self.cell_list_by_type(self.D):
             self.J1_DtoE(cell)
@@ -798,13 +799,13 @@ class PlotsSteppable(SteppableBasePy):
                                                      y_scale_type='linear',
                                                      grid=True)
 
-            self.plot_win.add_plot("ODEE", style='Dots', color='blue', size=5)
-            self.plot_win.add_plot("ODEEv", style='Dots', color='yellow', size=5)
-            self.plot_win.add_plot("ODED", style='Dots', color='red', size=5)
+            self.plot_win.add_plot("ODEE", style='Lines', color='blue', size=5)
+            self.plot_win.add_plot("ODEEv", style='Lines', color='yellow', size=5)
+            self.plot_win.add_plot("ODED", style='Lines', color='red', size=5)
 
-            self.plot_win.add_plot("CC3DE", style='Lines', color='blue', size=5)
-            self.plot_win.add_plot("CC3DEv", style='Lines', color='yellow', size=5)
-            self.plot_win.add_plot("CC3DD", style='Lines', color='red', size=5)
+            self.plot_win.add_plot("CC3DE", style='Dots', color='blue', size=5)
+            self.plot_win.add_plot("CC3DEv", style='Dots', color='yellow', size=5)
+            self.plot_win.add_plot("CC3DD", style='Dots', color='red', size=5)
 
         if plot_Virus:
             self.plot_win2 = self.add_new_plot_window(title='Virus',
@@ -812,8 +813,8 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_axis_title='Virus', x_scale_type='linear', y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win2.add_plot("ODEV", style='Dots', color='yellow', size=5)
-            self.plot_win2.add_plot("CC3DV", style='Lines', color='red', size=5)
+            self.plot_win2.add_plot("ODEV", style='Lines', color='yellow', size=5)
+            self.plot_win2.add_plot("CC3DV", style='Dots', color='red', size=5)
 
         if plot_Tcells:
             self.plot_win3 = self.add_new_plot_window(title='Epithelial Tcells',
@@ -822,8 +823,8 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win3.add_plot("ODETc", style='Dots', color='yellow', size=5)
-            self.plot_win3.add_plot("CC3DTc", style='Lines', color='red', size=5)
+            self.plot_win3.add_plot("ODETc", style='Lines', color='yellow', size=5)
+            self.plot_win3.add_plot("CC3DTc", style='Dots', color='red', size=5)
 
         if plot_APC:
             self.plot_win4 = self.add_new_plot_window(title='Epithelial APC',
@@ -832,9 +833,9 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win4.add_plot("ODEAPC", style='Dots', color='yellow', size=5)
-            self.plot_win4.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
-            self.plot_win4.add_plot("CC3DAPC", style='Lines', color='red', size=5)
+            self.plot_win4.add_plot("ODEAPC", style='Lines', color='yellow', size=5)
+            self.plot_win4.add_plot("CC3DAPC0", style='Dots', color='orange', size=5)
+            self.plot_win4.add_plot("CC3DAPC", style='Dots', color='red', size=5)
 
         if plot_Dm:
             self.plot_win5 = self.add_new_plot_window(title='Lymph node APC',
@@ -843,10 +844,10 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win5.add_plot("ODEAPC", style='Dots', color='yellow', size=5)
+            self.plot_win5.add_plot("ODEAPC", style='Lines', color='yellow', size=5)
             # self.plot_win5.add_plot("CC3DAPC0", style='Lines', color='orange', size=5)
 
-            self.plot_win5.add_plot("CC3DAPC", style='Lines', color='red', size=5)
+            self.plot_win5.add_plot("CC3DAPC", style='Dots', color='red', size=5)
 
         if contact_cytotoxicity and plot_Contact_Cytotoxicity:
             self.plot_win6 = self.add_new_plot_window(title='Contact Cytotoxicity',
@@ -855,8 +856,8 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='linear',
                                                       grid=True)
 
-            self.plot_win6.add_plot("ODECC", style='Dots', color='yellow', size=5)
-            self.plot_win6.add_plot("CC3DCC", style='Lines', color='red', size=5)
+            self.plot_win6.add_plot("ODECC", style='Lines', color='yellow', size=5)
+            self.plot_win6.add_plot("CC3DCC", style='Dots', color='red', size=5)
         if plot_viral_antibodies:
             self.plot_win7 = self.add_new_plot_window(title='Viral Anti-Bodies',
                                                       x_axis_title='Time (days)',
@@ -864,11 +865,11 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_scale_type='log',
                                                       grid=True)
 
-            self.plot_win7.add_plot("sIgM control SBML", style='Dots', color='yellow', size=5)
-            self.plot_win7.add_plot("sIgG control SBML", style='Dots', color='magenta', size=5)
+            self.plot_win7.add_plot("sIgM control SBML", style='Lines', color='yellow', size=5)
+            self.plot_win7.add_plot("sIgG control SBML", style='Lines', color='magenta', size=5)
 
-            self.plot_win7.add_plot("sIgM CC3D SBML", style='Lines', color='yellow', size=5)
-            self.plot_win7.add_plot("sIgG CC3D SBML", style='Lines', color='magenta', size=5)
+            self.plot_win7.add_plot("sIgM CC3D SBML", style='Dots', color='yellow', size=5)
+            self.plot_win7.add_plot("sIgG CC3D SBML", style='Dots', color='magenta', size=5)
 
         if plot_infected_antibodies:
             self.plot_win8 = self.add_new_plot_window(title='Infected Cell Anti-Bodies',
@@ -876,19 +877,19 @@ class PlotsSteppable(SteppableBasePy):
                                                       y_axis_title='Conc', x_scale_type='linear',
                                                       y_scale_type='log',
                                                       grid=True)
-            self.plot_win8.add_plot("nIgM control SBML", style='Dots', color='yellow', size=5)
-            self.plot_win8.add_plot("nIgG control SBML", style='Dots', color='magenta', size=5)
+            self.plot_win8.add_plot("nIgM control SBML", style='Lines', color='yellow', size=5)
+            self.plot_win8.add_plot("nIgG control SBML", style='Lines', color='magenta', size=5)
 
-            self.plot_win8.add_plot("nIgM CC3D SBML", style='Lines', color='yellow', size=5)
-            self.plot_win8.add_plot("nIgG CC3D SBML", style='Lines', color='magenta', size=5)
+            self.plot_win8.add_plot("nIgM CC3D SBML", style='Dots', color='yellow', size=5)
+            self.plot_win8.add_plot("nIgG CC3D SBML", style='Dots', color='magenta', size=5)
         if plot_current_virus_decay:
             self.plot_win9 = self.add_new_plot_window(title='effective virus decay',
                                                       x_axis_title='Time (days)',
                                                       y_axis_title='gamma', x_scale_type='linear',
                                                       y_scale_type='linear',
                                                       grid=True)
-            self.plot_win9.add_plot('ODE effective decay', style='Dots', color='yellow', size=5)
-            self.plot_win9.add_plot('CC3D effective decay', style='Lines', color='red', size=5)
+            self.plot_win9.add_plot('ODE effective decay', style='Lines', color='yellow', size=5)
+            self.plot_win9.add_plot('CC3D effective decay', style='Dots', color='red', size=5)
 
     def step(self, mcs):
 
