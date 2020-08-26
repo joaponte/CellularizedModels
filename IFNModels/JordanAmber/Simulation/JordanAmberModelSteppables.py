@@ -5,6 +5,7 @@ import Parameters
 
 plot_ODEModel = False
 plot_CellModel = False
+IFNWash = False #Whether the plate is prestimulated with IFNe before infection
 OutputData = True
 
 how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
@@ -177,6 +178,14 @@ class ODEModelSteppable(SteppableBasePy):
         self.add_antimony_to_cell_types(model_string=IFN_model_string, model_name='IModel',
                                         cell_types=[self.U], step_size=hours_to_mcs)
 
+        #Set prestimulated internal protein values
+        if IFNWash:
+            for cell in self.cell_list_by_type(self.U,self.I1):
+                cell.sbml.IModel['IFN'] = 0.035
+                cell.sbml.IModel['IRF7'] = 0.097
+                cell.sbml.IModel['IRF7P'] = 0.028
+                cell.sbml.IModel['STATP'] = 0.714 
+                
 class CellularModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
