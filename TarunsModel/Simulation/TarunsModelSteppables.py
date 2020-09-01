@@ -304,6 +304,9 @@ class TarunsModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
 
+    def decay_exp_prob(self, p):
+        return 1 - np.exp(-p)
+
     def seed_epithelial_sheet(self):
         for x in range(0, self.dim.x, int(3)):
             for y in range(0, self.dim.y, int(3)):
@@ -362,14 +365,18 @@ class TarunsModelSteppable(SteppableBasePy):
     def J1_DtoE(self, cell):
         ## Transition from D to E
         # J1: D -> E; dE*D;
-        if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
+
+        # 1 - np.exp(-self.sbml.FullModel['dE'] * days_to_mcs) ~ 1 - ( 1 - self.sbml.FullModel['dE'] * days_to_mcs)
+        # = self.sbml.FullModel['dE'] * days_to_mcs
+
+        if self.decay_exp_prob(self.sbml.FullModel['dE'] * days_to_mcs) > np.random.random():
             cell.type = self.E
 
     def J2_EtoD(self, cell):
         ## Transition from E to D
         # J2: E -> D; dE * E;
         # print('J2',self.sbml.FullModel['dE'] * days_to_mcs)
-        if self.sbml.FullModel['dE'] * days_to_mcs > np.random.random():
+        if self.decay_exp_prob(self.sbml.FullModel['dE'] * days_to_mcs) > np.random.random():
             cell.type = self.D
 
     def J3_EtoEv(self, cell):
@@ -387,7 +394,7 @@ class TarunsModelSteppable(SteppableBasePy):
         else:  # in case of things breaking have a default
             bE = self.sbml.FullModel['bE'] * days_to_mcs
             V = self.sbml.FullModel['V']
-        p_EtoEv = 1 - np.exp(-bE * V)
+        p_EtoEv = self.decay_exp_prob(bE * V)
         # p_EtoEv = bE * V
 
         if p_EtoEv > np.random.random():
@@ -399,7 +406,7 @@ class TarunsModelSteppable(SteppableBasePy):
     def J4_EvtoE(self, cell):
         ## Transition from Ev to E
         # J4: Ev -> E; aE*Ev;
-        if self.sbml.FullModel['aE'] * days_to_mcs > np.random.random():
+        if self.decay_exp_prob(self.sbml.FullModel['aE'] * days_to_mcs) > np.random.random():
             cell.type = self.E
             # print('became healthy', cell.id)
 
@@ -407,8 +414,7 @@ class TarunsModelSteppable(SteppableBasePy):
         ## Transition from Ev to D
         # J5: Ev -> D; dE*Ev;
         dE = self.sbml.FullModel['dE'] * days_to_mcs
-        p_EvtoD = dE
-
+        p_EvtoD = self.decay_exp_prob(dE)
         if p_EvtoD > np.random.random():
             cell.type = self.D
             # print('j5', p_EvtoD)
@@ -420,7 +426,8 @@ class TarunsModelSteppable(SteppableBasePy):
         # J6: Ev -> D; drt * g * Tc * Ev / (1000 + Ev + g * Tc);
         # drt = 30;
 
-        p_EvtoD = self.sbml.FullModel['drt'] * Tc * 1 / (1000 + 1 + Tc)
+        # p_EvtoD = self.sbml.FullModel['drt'] * Tc * 1 / (1000 + 1 + Tc)
+        p_EvtoD = self.decay_exp_prob(self.sbml.FullModel['drt'] * Tc * 1 / (1000 + 1 + Tc))
 
         # kE = self.sbml.FullModel['kE'] * days_to_mcs * 900
         # p_EvtoD = kE * Tc
@@ -477,7 +484,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 V = self.virus_secretor.amountSeenByCell(cell) * self.initial_uninfected
                 # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
 
-                p_tissue_2_lymph = bD * V
+                p_tissue_2_lymph = self.decay_exp_prob( bD * V)
                 if p_tissue_2_lymph > np.random.random():
                     cell.dict['Activation_State'] = 1
                     tissue_apc -= 1
@@ -485,6 +492,7 @@ class TarunsModelSteppable(SteppableBasePy):
             elif cell.dict['Activation_State'] == 1:  # in lymph
                 # transport of apc to lymph
                 lymph_apc += 1
+                # todo: rethink this probability and find a good parameter for transport
                 p_lymph_2_node = 1 / 50  # PLACEHOLDER
                 if p_lymph_2_node > np.random.random():
                     cell.dict['Activation_State'] = 2
@@ -495,7 +503,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 # J10: Da ->; dD*Da;
                 node_apc += 1
                 dD = self.sbml.FullModel['dD'] * days_to_mcs
-                p_lymph_2_tissue = dD
+                p_lymph_2_tissue = self.decay_exp_prob(dD)
                 if p_lymph_2_tissue > np.random.random():
                     cell.dict['Activation_State'] = 0
                     node_apc -= 1
@@ -523,7 +531,7 @@ class TarunsModelSteppable(SteppableBasePy):
             g = self.sbml.FullModel['g']
             Tc0 = self.sbml.FullModel['Tc0'] / self.sbml.FullModel['E0'] * self.initial_uninfected
         cell = False
-        if dc * g * Tc0 > np.random.random():
+        if self.decay_exp_prob(dc * g * Tc0) > np.random.random():
             while not cell:
                 x = np.random.randint(0, self.dim.x - 3)
                 y = np.random.randint(0, self.dim.y - 3)
@@ -541,11 +549,11 @@ class TarunsModelSteppable(SteppableBasePy):
         # J14: Tc ->; dc*Tc;
 
         for cell in self.cell_list_by_type(self.TCELL):
-            dc = self.sbml.FullModel['dC'] * days_to_mcs
+            dc = self.decay_exp_prob(self.sbml.FullModel['dC'] * days_to_mcs)
             if dc > np.random.random():
                 cell.targetVolume = 0.0
 
-    def J15a_Tcell_inflamatory_seeding(self):
+    def J15a_Tcell_inflamatory_seeding(self):  # REMOVE!!!
         # equation changed no longer used
         return
         ## Tcell seeding
@@ -557,7 +565,8 @@ class TarunsModelSteppable(SteppableBasePy):
             Dm = self.sbml.LymphModel['Dm'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
         else:
             Dm = self.sbml.FullModel['Dm'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
-        if Dm * g > np.random.random():
+
+        if self.decay_exp_prob(Dm * g) > np.random.random():
             cells_to_seed = max(1, round(Dm * g))
             for i in range(cells_to_seed):
                 cell = False
@@ -589,7 +598,7 @@ class TarunsModelSteppable(SteppableBasePy):
             pT2 = self.sbml.FullModel['pT2'] / self.sbml.FullModel['E0'] * self.initial_uninfected
             g = self.sbml.FullModel['g']
 
-        if g * rT1 * Dm * Tc / (Dm + pT2) > np.random.random():
+        if self.decay_exp_prob(g * rT1 * Dm * Tc / (Dm + pT2)) > np.random.random():
             cells_to_seed = max(1, round(g * rT1 * Dm * Tc / (Dm + pT2)))
             for i in range(cells_to_seed):
                 cell = False
@@ -617,7 +626,7 @@ class TarunsModelSteppable(SteppableBasePy):
         dT1 = self.sbml.FullModel['dT1'] * days_to_mcs * 3
         dT2 = self.sbml.FullModel['dT1'] * days_to_mcs / self.sbml.FullModel['E0'] * self.initial_uninfected
         for cell in self.cell_list_by_type(self.TCELL):
-            if dT1 * Ev / (Ev + dT2) > np.random.random():
+            if self.decay_exp_prob(dT1 * Ev / (Ev + dT2)) > np.random.random():
                 cell.targetVolume = 0.0
 
     def J49_Ev2D_from_nIgM(self, cell):
@@ -630,6 +639,7 @@ class TarunsModelSteppable(SteppableBasePy):
             nIgM = self.sbml.FullModel['nIgM']
             eE = self.sbml.FullModel['eE']
         p_Ev2D = nIgM * eE * days_to_mcs  # * self.initial_uninfected / self.sbml.FullModel['E0']
+        p_Ev2D = (p_Ev2D)
         if p_Ev2D > np.random.random():
             cell.type = self.D
             # print('killed by anti bodies M', cell.id)
@@ -645,6 +655,7 @@ class TarunsModelSteppable(SteppableBasePy):
             nIgG = self.sbml.FullModel['nIgG']
             eE = self.sbml.FullModel['eE']
         p_Ev2D = nIgG * eE * days_to_mcs  # * self.initial_uninfected / self.sbml.FullModel['E0']
+        p_Ev2D = self.decay_exp_prob(p_Ev2D)
         if p_Ev2D > np.random.random():
             cell.type = self.D
             # print('killed by anti bodies G', cell.id)
