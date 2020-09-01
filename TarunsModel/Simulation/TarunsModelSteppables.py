@@ -348,7 +348,6 @@ class TarunsModelSteppable(SteppableBasePy):
         proport_inf = False
         if proport_inf:
             for cell in self.cell_list_by_type(self.E):
-
                 if np.random.random() <= p_Ev:
                     # print('@@@@@@@@@@@@@@@@@@@@@@@\ninit infected\n@@@@@@@@@@@@@@@@@@@@@@')
                     cell.type = self.EV
@@ -675,9 +674,10 @@ class TarunsModelSteppable(SteppableBasePy):
         virus_decay = current_gamma * self.scalar_virus
         self.scalar_virus += virus_production - virus_decay
         self.shared_steppable_vars['scalar_virus'] = self.scalar_virus
-        if self.mcs % 50 == 0:
+        if self.mcs % 50 == 0 and self.mcs > 0:
             # do the actual integral
-            # self.scalar_virus = self.virus_secretor.totalFieldIntegral()
+            self.scalar_virus = self.virus_secretor.totalFieldIntegral()
+            # self.scalar_virus = self.get_field_secretor("Virus").totalFieldIntegral()
             pass
 
     def lymph_model_input(self, Ev, Da):
