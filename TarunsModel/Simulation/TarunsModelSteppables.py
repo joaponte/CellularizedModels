@@ -304,6 +304,88 @@ class TarunsModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
 
+    def get_ode_parameters(self):
+
+        ode_params = {}
+        ode_params['dE'] = 1e-3
+        ode_params['E0'] = 5e-2
+        ode_params['bE'] = 3e-6
+        ode_params['aE'] = 5e-2
+        ode_params['V0'] = 10.0
+        ode_params['pV'] = 19.0
+        ode_params['cV'] = 1.0
+        ode_params['kE'] = 1.19e-2/900
+        ode_params['g'] = 0.15 * 900
+        # rescaling for non - 0 T cell pop in tissue (/900)
+        # rescaling for non - 0 T cell pop in tissue (*900)
+        ode_params['tC'] = 0.5
+        # not included in the model
+        ode_params['eE'] = 0.05
+        ode_params['eV'] = 16.0
+        ode_params['D0'] = 1e3
+        ode_params['bD'] = 1e-7
+        ode_params['dD'] = 2.9
+        ode_params['kD'] = 0.5
+        ode_params['tD'] = 1.0
+        # not included in the model
+        ode_params['dDm'] = 0.5
+        ode_params['dC'] = 10.1e-3
+        ode_params['Tc0'] = 5e2
+        ode_params['rT1'] = 1.3
+        ode_params['rT2'] = 100.0
+        ode_params['dT1'] = 5.0
+        ode_params['dT2'] = 200.0
+        ode_params['sTh1'] = 0.25
+        ode_params['pTh1'] = 0.4
+        ode_params['dTh1'] = 0.03
+        ode_params['mTh'] = 0.25
+        ode_params['sTh2'] = 0.001
+        ode_params['pTh2'] = 0.0022
+        ode_params['ro'] = 0.2
+        ode_params['dB'] = 0.0009
+        ode_params['B0'] = 1e3
+        ode_params['rB1'] = 1e2
+        ode_params['rB2'] = 2e5
+        ode_params['h'] = 100
+        ode_params['pS'] = 0.1
+        ode_params['pL'] = 8e-3
+        ode_params['dS'] = 0.002
+        ode_params['dL'] = 0.02
+        ode_params['b'] = 2.4e-4
+        ode_params['d'] = 2.4e-2
+        ode_params['pAS'] = 0.8
+        ode_params['pAL'] = 1.2
+        #
+        # dS = 0.002;
+        # dL = 0.02;
+        # b = 2.4 * 10 ^ -4;
+        # d = 2.4 * 10 ^ -2;
+        # pAS = 0.8;
+        # pAL = 1.2;
+        # dG = 0.04;
+        # dM = 0.2;
+        #
+        # pT2 = 600;
+        # v = 0.5
+        # proport_init_inf = 0.01;
+        #
+        # // Initial
+        # Conditions
+        # // E = (1 - proport_init_inf) * E0;
+        # // Ev = proport_init_inf * E0;
+        #
+        # E = E0 - 1;
+        # Ev = 1;
+        #
+        # V = 0;
+        # Th1 = 10;
+        # Th2 = 10;
+        # drt = 3;
+
+
+
+        return ode_params
+
     def decay_exp_prob(self, p):
         return 1 - np.exp(-p)
 
@@ -337,8 +419,8 @@ class TarunsModelSteppable(SteppableBasePy):
             if not self.cell_field[x, y, 1]:
                 cell = self.new_cell(self.APC)
                 self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                cell.targetVolume = cell.volume
-                cell.lambdaVolume = cell.volume
+                cell.targetVolume = cell.volume + .5
+                cell.lambdaVolume = cell.volume * 3
                 cell.dict['Activation_State'] = 0  # in tissue
                 numberAPC += 1
 
@@ -422,7 +504,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def J6_EvtoD(self, cell, Tc):
         ## Transition from Ev to D
-        # OLD: J6: Ev -> D; kE * g * Ev * Tc;
+
         # J6: Ev -> D; drt * g * Tc * Ev / (1000 + Ev + g * Tc);
         # drt = 30;
 
@@ -484,7 +566,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 V = self.virus_secretor.amountSeenByCell(cell) * self.initial_uninfected
                 # V = self.sbml.FullModel['V'] / self.sbml.FullModel['E0'] * self.initial_uninfected
 
-                p_tissue_2_lymph = self.decay_exp_prob( bD * V)
+                p_tissue_2_lymph = self.decay_exp_prob(bD * V)
                 if p_tissue_2_lymph > np.random.random():
                     cell.dict['Activation_State'] = 1
                     tissue_apc -= 1
@@ -538,8 +620,8 @@ class TarunsModelSteppable(SteppableBasePy):
                 if not self.cell_field[x, y, 1]:
                     cell = self.new_cell(self.TCELL)
                     self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                    cell.targetVolume = cell.volume
-                    cell.lambdaVolume = cell.volume
+                    cell.targetVolume = cell.volume + .5
+                    cell.lambdaVolume = cell.volume * 3
                     cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
                     cd.setLambda(0)
                     cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
@@ -576,8 +658,8 @@ class TarunsModelSteppable(SteppableBasePy):
                     if not self.cell_field[x, y, 1]:
                         cell = self.new_cell(self.TCELL)
                         self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                        cell.targetVolume = cell.volume
-                        cell.lambdaVolume = cell.volume
+                        cell.targetVolume = cell.volume + .5
+                        cell.lambdaVolume = cell.volume * 3
                         cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
@@ -608,8 +690,8 @@ class TarunsModelSteppable(SteppableBasePy):
                     if not self.cell_field[x, y, 1]:
                         cell = self.new_cell(self.TCELL)
                         self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                        cell.targetVolume = cell.volume
-                        cell.lambdaVolume = cell.volume
+                        cell.targetVolume = cell.volume + .5
+                        cell.lambdaVolume = cell.volume * 3
                         cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
                         cd.setLambda(0)
                         cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
@@ -718,6 +800,7 @@ class TarunsModelSteppable(SteppableBasePy):
     def step(self, mcs):
         # self.test_prints()
         # print(mcs)
+        self.shared_steppable_vars['Contact_Killing'] = 0
 
         for cell in self.cell_list_by_type(self.D):
             self.J1_DtoE(cell)
@@ -792,7 +875,7 @@ class ChemotaxisSteppable(SteppableBasePy):
         self.secretor = self.get_field_secretor("Virus")
 
     def step(self, mcs):
-        lambda_chemotaxis = 250.0
+        lambda_chemotaxis = 250.0 * 2
         for cell in self.cell_list_by_type(self.APC, self.TCELL):
             cd = self.chemotaxisPlugin.getChemotaxisData(cell, "Virus")
             cd.setLambda(0)
@@ -961,9 +1044,11 @@ class PlotsSteppable(SteppableBasePy):
                                           self.sbml.LymphModel['Dm'] / self.sbml.FullModel['E0'])
 
         if contact_cytotoxicity and plot_Contact_Cytotoxicity:
-            # self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.sbml.FullModel['J6'])
+            self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs,
+                                          self.sbml.FullModel['J6'] / self.sbml.FullModel['E0'])
             # self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.shared_steppable_vars['ODE_Killing'])
-            self.plot_win6.add_data_point("CC3DCC", mcs * days_to_mcs, self.shared_steppable_vars['Contact_Killing'])
+            self.plot_win6.add_data_point("CC3DCC", mcs * days_to_mcs,
+                                          self.shared_steppable_vars['Contact_Killing'] / self.initial_uninfected)
 
         if plot_viral_antibodies:
             self.plot_win7.add_data_point("sIgM control SBML", mcs * days_to_mcs, self.sbml.FullModel['sIgM'])
