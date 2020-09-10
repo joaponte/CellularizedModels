@@ -306,83 +306,25 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def get_ode_parameters(self):
 
-        ode_params = {}
-        ode_params['dE'] = 1e-3
-        ode_params['E0'] = 5e-2
-        ode_params['bE'] = 3e-6
-        ode_params['aE'] = 5e-2
-        ode_params['V0'] = 10.0
-        ode_params['pV'] = 19.0
-        ode_params['cV'] = 1.0
-        ode_params['kE'] = 1.19e-2/900
-        ode_params['g'] = 0.15 * 900
-        # rescaling for non - 0 T cell pop in tissue (/900)
-        # rescaling for non - 0 T cell pop in tissue (*900)
-        ode_params['tC'] = 0.5
-        # not included in the model
-        ode_params['eE'] = 0.05
-        ode_params['eV'] = 16.0
-        ode_params['D0'] = 1e3
-        ode_params['bD'] = 1e-7
-        ode_params['dD'] = 2.9
-        ode_params['kD'] = 0.5
-        ode_params['tD'] = 1.0
-        # not included in the model
-        ode_params['dDm'] = 0.5
-        ode_params['dC'] = 10.1e-3
-        ode_params['Tc0'] = 5e2
-        ode_params['rT1'] = 1.3
-        ode_params['rT2'] = 100.0
-        ode_params['dT1'] = 5.0
-        ode_params['dT2'] = 200.0
-        ode_params['sTh1'] = 0.25
-        ode_params['pTh1'] = 0.4
-        ode_params['dTh1'] = 0.03
-        ode_params['mTh'] = 0.25
-        ode_params['sTh2'] = 0.001
-        ode_params['pTh2'] = 0.0022
-        ode_params['ro'] = 0.2
-        ode_params['dB'] = 0.0009
-        ode_params['B0'] = 1e3
-        ode_params['rB1'] = 1e2
-        ode_params['rB2'] = 2e5
-        ode_params['h'] = 100
-        ode_params['pS'] = 0.1
-        ode_params['pL'] = 8e-3
-        ode_params['dS'] = 0.002
-        ode_params['dL'] = 0.02
-        ode_params['b'] = 2.4e-4
-        ode_params['d'] = 2.4e-2
-        ode_params['pAS'] = 0.8
-        ode_params['pAL'] = 1.2
-        #
-        # dS = 0.002;
-        # dL = 0.02;
-        # b = 2.4 * 10 ^ -4;
-        # d = 2.4 * 10 ^ -2;
-        # pAS = 0.8;
-        # pAL = 1.2;
-        # dG = 0.04;
-        # dM = 0.2;
-        #
-        # pT2 = 600;
-        # v = 0.5
-        # proport_init_inf = 0.01;
-        #
-        # // Initial
-        # Conditions
-        # // E = (1 - proport_init_inf) * E0;
-        # // Ev = proport_init_inf * E0;
-        #
-        # E = E0 - 1;
-        # Ev = 1;
-        #
-        # V = 0;
-        # Th1 = 10;
-        # Th2 = 10;
-        # drt = 3;
-
-
+        ode_params = {'dE': 1e-3, 'E0': 5e-2, 'bE': 3e-6, 'aE': 5e-2, 'V0': 10.0, 'pV': 19.0, 'cV': 1.0,
+                      'kE': 1.19e-2 / 900, 'g': 0.15 * 900, # rescaling for non - 0 T cell pop in tissue (/900*900)
+                      'tC': 0.5, # not included in the model
+                      'eE': 0.05, 'eV': 16.0, 'D0': 1e3, 'bD': 1e-7,
+                      'dD': 2.9, 'kD': 0.5,
+                      'tD': 1.0, # not included in the model
+                      'dDm': 0.5, 'dC': 10.1e-3, 'Tc0': 5e2, 'rT1': 1.3, 'rT2': 100.0,
+                      'dT1': 5.0, 'dT2': 200.0, 'sTh1': 0.25, 'pTh1': 0.4, 'dTh1': 0.03, 'mTh': 0.25, 'sTh2': 0.001,
+                      'pTh2': 0.0022, 'ro': 0.2, 'dB': 0.0009, 'B0': 1e3, 'rB1': 1e2, 'rB2': 2e5, 'h': 100, 'pS': 0.1,
+                      'pL': 8e-3, 'dS': 0.002, 'dL': 0.02, 'b': 2.4e-4, 'd': 2.4e-2, 'pAS': 0.8, 'pAL': 1.2, 'dG': 0.04,
+                      'dM': 0.2, 'pT2': 600.0, 'v': 0.5,
+                      'proport_init_inf': 0.01 # unused
+                      }
+        ode_params['E'] = ode_params['E0'] - 1
+        ode_params['Ev'] = 1
+        ode_params['V'] = 0
+        ode_params['Th1'] = 10.0
+        ode_params['Th2'] = 10.0
+        ode_params['drt'] = 3.0
 
         return ode_params
 
