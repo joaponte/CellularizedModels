@@ -307,17 +307,17 @@ class TarunsModelSteppable(SteppableBasePy):
     def get_ode_parameters(self):
 
         ode_params = {'dE': 1e-3, 'E0': 5e-2, 'bE': 3e-6, 'aE': 5e-2, 'V0': 10.0, 'pV': 19.0, 'cV': 1.0,
-                      'kE': 1.19e-2 / 900, 'g': 0.15 * 900, # rescaling for non - 0 T cell pop in tissue (/900*900)
-                      'tC': 0.5, # not included in the model
+                      'kE': 1.19e-2 / 900, 'g': 0.15 * 900,  # rescaling for non - 0 T cell pop in tissue (/900*900)
+                      'tC': 0.5,  # not included in the model
                       'eE': 0.05, 'eV': 16.0, 'D0': 1e3, 'bD': 1e-7,
                       'dD': 2.9, 'kD': 0.5,
-                      'tD': 1.0, # not included in the model
+                      'tD': 1.0,  # not included in the model
                       'dDm': 0.5, 'dC': 10.1e-3, 'Tc0': 5e2, 'rT1': 1.3, 'rT2': 100.0,
                       'dT1': 5.0, 'dT2': 200.0, 'sTh1': 0.25, 'pTh1': 0.4, 'dTh1': 0.03, 'mTh': 0.25, 'sTh2': 0.001,
                       'pTh2': 0.0022, 'ro': 0.2, 'dB': 0.0009, 'B0': 1e3, 'rB1': 1e2, 'rB2': 2e5, 'h': 100, 'pS': 0.1,
                       'pL': 8e-3, 'dS': 0.002, 'dL': 0.02, 'b': 2.4e-4, 'd': 2.4e-2, 'pAS': 0.8, 'pAL': 1.2, 'dG': 0.04,
                       'dM': 0.2, 'pT2': 600.0, 'v': 0.5,
-                      'proport_init_inf': 0.01 # unused
+                      'proport_init_inf': 0.01  # unused
                       }
         ode_params['E'] = ode_params['E0'] - 1
         ode_params['Ev'] = 1
@@ -365,6 +365,18 @@ class TarunsModelSteppable(SteppableBasePy):
                 cell.lambdaVolume = cell.volume * 3
                 cell.dict['Activation_State'] = 0  # in tissue
                 numberAPC += 1
+
+    def new_T_cell_in_location(self, x, y, z):
+        print('in net t cell func')
+        cell = self.new_cell(self.TCELL)
+        cell.dict['body_count'] = 0
+        self.cell_field[x:x + 3, y:y + 3, z] = cell
+        cell.targetVolume = cell.volume + .5
+        cell.lambdaVolume = cell.volume * 3
+        cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
+        cd.setLambda(0)
+        cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+        return cell
 
     def start(self):
         self.seed_epithelial_sheet()
@@ -560,13 +572,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 x = np.random.randint(0, self.dim.x - 3)
                 y = np.random.randint(0, self.dim.y - 3)
                 if not self.cell_field[x, y, 1]:
-                    cell = self.new_cell(self.TCELL)
-                    self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                    cell.targetVolume = cell.volume + .5
-                    cell.lambdaVolume = cell.volume * 3
-                    cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
-                    cd.setLambda(0)
-                    cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+                    cell = self.new_T_cell_in_location(x, y, 1)
 
     def J14_Tcell_clearance(self):
         ## Clearance of Tcells
@@ -598,13 +604,7 @@ class TarunsModelSteppable(SteppableBasePy):
                     x = np.random.randint(0, self.dim.x - 3)
                     y = np.random.randint(0, self.dim.y - 3)
                     if not self.cell_field[x, y, 1]:
-                        cell = self.new_cell(self.TCELL)
-                        self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                        cell.targetVolume = cell.volume + .5
-                        cell.lambdaVolume = cell.volume * 3
-                        cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
-                        cd.setLambda(0)
-                        cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+                        cell = self.new_T_cell_in_location(x, y, 1)
 
     def J15b_Tcell_inflamatory_seeding(self):
         ## Tcell seeding
@@ -630,13 +630,7 @@ class TarunsModelSteppable(SteppableBasePy):
                     x = np.random.randint(0, self.dim.x - 3)
                     y = np.random.randint(0, self.dim.y - 3)
                     if not self.cell_field[x, y, 1]:
-                        cell = self.new_cell(self.TCELL)
-                        self.cell_field[x:x + 3, y:y + 3, 1] = cell
-                        cell.targetVolume = cell.volume + .5
-                        cell.lambdaVolume = cell.volume * 3
-                        cd = self.chemotaxisPlugin.addChemotaxisData(cell, "Virus")
-                        cd.setLambda(0)
-                        cd.assignChemotactTowardsVectorTypes([self.MEDIUM])
+                        cell = self.new_T_cell_in_location(x, y, 1)
 
     def J15_Tcell_inflamatory_seeding(self):
         # self.J15a_Tcell_inflamatory_seeding()
