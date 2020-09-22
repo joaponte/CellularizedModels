@@ -723,6 +723,7 @@ class TarunsModelSteppable(SteppableBasePy):
                     self.shared_steppable_vars['Contact_Killing'] += 1
                     if contact_cytotoxicity:
                         neighbor.type = self.D
+                        cell.dict['body_count'] += 1
                         # print('killed by contact killing', cell.id)
 
     def test_prints(self):
@@ -895,6 +896,7 @@ class PlotsSteppable(SteppableBasePy):
 
             self.plot_win6.add_plot("ODECC", style='Lines', color='yellow', size=5)
             self.plot_win6.add_plot("CC3DCC", style='Dots', color='red', size=5)
+            self.plot_win6.add_plot("body_count", style='Dots', color='blue', size=5)
         if plot_viral_antibodies:
             self.plot_win7 = self.add_new_plot_window(title='Viral Anti-Bodies',
                                                       x_axis_title='Time (days)',
@@ -982,6 +984,7 @@ class PlotsSteppable(SteppableBasePy):
         if contact_cytotoxicity and plot_Contact_Cytotoxicity:
             self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs,
                                           self.sbml.FullModel['J6'] / self.sbml.FullModel['E0'])
+            # g * Tc
             # self.plot_win6.add_data_point("ODECC", mcs * days_to_mcs, self.shared_steppable_vars['ODE_Killing'])
             self.plot_win6.add_data_point("CC3DCC", mcs * days_to_mcs,
                                           self.shared_steppable_vars['Contact_Killing'] / self.initial_uninfected)
