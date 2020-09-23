@@ -207,6 +207,10 @@ nIgG = 0.0; // NP-specific IgG
 lymph_node_string = '''
 // Systemic reactions in Lymph
 
+J7: -> Tct; g*Tc;
+J8: Tct ->; dC*Tct;
+J9: Tct ->; dT1*Tct*Da/(Da+dT2);
+
 J14: -> Dm; 0.0*kD*Da; // MUST STAY SHUT OFF, DM IS AN INPUT Dm are apc in lymph
 J15: Dm ->; dDm*Dm;
 J16: -> Tc; dC*Tc0; // Tc0 => initial number of naive Tc-cells
@@ -431,7 +435,7 @@ class TarunsModelSteppable(SteppableBasePy):
                 numberAPC += 1
 
     def new_T_cell_in_location(self, x, y, z):
-        print('in net t cell func')
+        # print('in net t cell func')
         cell = self.new_cell(self.TCELL)
         cell.dict['body_count'] = 0
         self.cell_field[x:x + 3, y:y + 3, z] = cell
@@ -533,15 +537,17 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def J7_Tct_seeding(self):
         # J7: -> Tct; g*Tc;
-
+        use_LymphModel_outputs = False
         if use_LymphModel_outputs:
-            n_tct = self.sbml.LymphModel['g'] * self.sbml.LymphModel['Tc'] * \
+            n_tct = self.sbml.LymphModel['Tct'] * \
                     self.initial_uninfected / self.sbml.FullModel['E0']
         else:
-            n_tct = self.sbml.FullModel['g'] * self.sbml.FullModel['Tc'] * \
+            n_tct = self.sbml.FullModel['Tct'] * \
                     self.initial_uninfected / self.sbml.FullModel['E0']
-
-        if n_tct > len(self.cell_list_by_type(self.TCELL)):
+        lm_n_tct = self.sbml.LymphModel['Tct'] * \
+                    self.initial_uninfected / self.sbml.FullModel['E0']
+        print(n_tct, len(self.cell_list_by_type(self.TCELL)), lm_n_tct)
+        if int(n_tct) > len(self.cell_list_by_type(self.TCELL)):
             for i in range(int(round(n_tct - len(self.cell_list_by_type(self.TCELL))))):
                 cell = False
                 while not cell:
@@ -1075,9 +1081,8 @@ class PlotsSteppable(SteppableBasePy):
         if plot_Tcells:
             self.plot_win3.add_data_point("CC3DTc", mcs * days_to_mcs,
                                           len(self.cell_list_by_type(self.TCELL)))
-            self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs,
-                                          self.sbml.FullModel['g'] * self.sbml.FullModel['Tc']
-                                          / self.sbml.FullModel['E0'] * self.initial_uninfected)
+            self.plot_win3.add_data_point("ODETc", mcs * days_to_mcs, self.sbml.FullModel['Tct'] *
+                                          self.initial_uninfected / self.sbml.FullModel['E0'])
 
         if plot_APC:
             self.plot_win4.add_data_point("ODEAPC", mcs * days_to_mcs,
