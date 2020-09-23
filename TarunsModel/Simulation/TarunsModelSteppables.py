@@ -37,7 +37,7 @@ J4: Ev -> E; aE*Ev;
 J5: Ev -> D; dEv*Ev;
 J6: Ev -> D; kE*Tct*Ev/(KEv + Ev + Tct);
 
-J7: -> Tct; g*Tc;
+J7: Tc -> Tct; g*Tc;
 J8: Tct ->; dC*Tct;
 J9: Tct ->; dT1*Tct*Da/(Da+dT2);
 
@@ -207,7 +207,7 @@ nIgG = 0.0; // NP-specific IgG
 lymph_node_string = '''
 // Systemic reactions in Lymph
 
-J7: -> Tct; g*Tc;
+J7: Tc -> Tct; g*Tc;
 J8: Tct ->; dC*Tct;
 J9: Tct ->; dT1*Tct*Da/(Da+dT2);
 
