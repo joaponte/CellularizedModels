@@ -25,36 +25,36 @@ plot_current_virus_decay = True
 
 # changed J6, added drt = 30;
 
-model_string = '''
+full_model_string = """
 /////////////////////// Reactions //////////////////////////////
-​
+
 //Tissue infection
-​
+
 J1: D -> E; dE*E0; // E0 => initial number of E-cells
 J2: E -> D; dE*E;
 J3: E -> Ev; bE*V*E;
 J4: Ev -> E; aE*Ev;
 J5: Ev -> D; dEv*Ev;
 J6: Ev -> D; kE*Tct*Ev/(KEv + Ev + Tct);
-​
+
 J7: -> Tct; g*Tc;
 J8: Tct ->; dC*Tct;
 J9: Tct ->; dT1*Tct*Da/(Da+dT2);
-​
+
 J10: -> V; pV*Ev;
 J11: V ->; cV*V;
 J12: -> Da; bD*V*(D0-Da); // D0 => initial number of inactive D-cells
 J13: Da ->; dD*Da;
-​
+
 // Systemic reactions in Lymph
-​
+
 J14: -> Dm; kD*Da;
 J15: Dm ->; dDm*Dm;
 J16: -> Tc; dC*Tc0; // Tc0 => initial number of naive Tc-cells
 J17: Tc ->; dC*Tc;
 J18:  -> Tc; rT1*Dm*Tc/(Dm+rT2); 
 J19: Tc ->; dT1*Tc*Dm/(Dm+dT2);
-​
+
 J20: -> Th1; sTh1*Th1/(1+Th2)^2;
 J21:  -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2;
 J22: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
@@ -62,9 +62,9 @@ J23: Th1 ->; mTh*Th1;
 J24: -> Th2; sTh2*Th2/(1+Th2);
 J25:  -> Th2; pTh2*(ro+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) 
 J26: Th2 ->; mTh*Th2;
-​
+
 // Antibody production
-​
+
 J27: -> B; dB*B0; // B0 => initial number of inactive B-cells
 J28: B ->; dB*B;
 J29:  -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
@@ -84,7 +84,7 @@ J42:  -> Psn; b*v*Psn;
 J43:  -> Pln; b*v*Pln;
 J44: Pls -> Pss; d*(1-v)*Pls;
 J45: Pln -> Psn; d*(1-v)*Pln; 
-​
+
 J46:  -> sIgM; pAS*Pss;
 J47:  -> nIgM; pAS*Psn;
 J48:  -> sIgG; pAS*Pls;
@@ -93,19 +93,19 @@ J50: sIgM ->; dM*sIgM;
 J51: sIgG ->; dG*sIgG;
 J52: nIgM ->; dM*nIgM;
 J53: nIgG ->; dG*nIgG;
-​
+
 // Antibody feedback to tissue
-​
+
 J54: Ev + nIgM -> D; eE*Ev*nIgM; 
 J55: Ev + nIgG -> D; eE*Ev*nIgG;
 J56: V + sIgM ->; eV*V*sIgM;
 J57: V + sIgG ->; eV*V*sIgG;
-​
-​
+
+
 /////////////////// Parameters ///////////////////////
-​
+
 // Epithelial infection
-​
+
 dE=10^-3;
 E0 = 5.0*10^5;
 bE=7.0*10^-6;
@@ -113,32 +113,32 @@ dEv=0.12;
 aE=5.0*10^-1;
 pV=1.9;
 cV=1.0;
-​
+
 // Dendritic cell infection, activation, migration
-​
+
 D0=10^4;
 bD=10^-6;
 dD=2.9;
 kD = 0.5;
 dDm = 0.5;
-​
+
 // Cytotoxic T-cell activation, proliferation
-​
+
 dC=2.0*10^-3;
 Tc0=2.0*10^3;
 rT1=3.5;
 rT2=2.0*10^3;
 dT1=1.0;
 dT2=1.0;
-​
+
 // T-cell mediated Cytotoxicity
-​
-kE=1.19*10^-2;
-g=0.15;
+
+kE=1.19*10^-2 / 900;
+g=0.15 * 900; // 900 rescaling for non-0 T cell pop in tissue
 KEv = 500.0;
-​
+
 // Helper T-cell activation, proliferation
-​
+
 sTh1=1.0;
 pTh1=0.012;
 dTh1=0.001;
@@ -147,17 +147,17 @@ mTh=0.0225;
 sTh2=0.04;
 pTh2=0.003;
 ro=1.0;
-​
+
 // B-cell activation, proliferation, differentiation
-​
+
 dB=0.02;
 B0=2.0*10^1;
 rB1=4.5;
 rB2=1*10^4;
 h=1.0;
-​
+
 // Plasma cell proliferation, differentiation and antibody production
-​
+
 pS=3.0*10^-1;
 pL=1.5*10^-4;
 dS=0.2;
@@ -168,42 +168,41 @@ pAS=0.8*10^2;
 pAL=1.2*10^2;
 dG=0.5;
 dM=2.0;
-​
+
 // Switching functions of the Plasma Cells
-​
+
 u =  0.5;
 v =  0.5;
-​
+
 // Antibody activity: virus and cell killing
-​
+
 eE=0.0001;
 eV=0.00018;
-​
+
 ////////////////// Initial Conditions /////////////////////
-​
+
 E = 5.0*10^5; // Uninfected epithelial cells
 Ev = 10.0; // Virus-infected epithelial cells
 V = 1000.0; // 
 Da = 0.0; // Infected-activated dendtritic cells in Tissue
-​
+
 Dm = 0.0; // Migrated dendritic cells in Lymph
 Tc = 1.0; // Effector cytotoxic T-cells in Lymph
 Tct = 0.0; // Effector cytotoxic T-cells in Tissue
 Th1 = 1.0; // Type I helper T-cells
 Th2 = 1.0; // Type II helper T-cells
-​
+
 B = 1.0; // Activated B-cells
 pSs = 0.0; // SP-RBD-specific Short-living plasma cells
 pLs = 0.0; // SP-RBD-specific Long-living plasma cells
 pSn = 0.0; // NP-specific Short-living plasma cells
 pLn = 0.0; // NP-specific Long-living plasma cells
-​
+
 sIgM = 0.0; // SP-RBD-specific IgM
 sIgG = 0.0; // SP-RBD-specific IgG
 nIgM = 0.0; // NP-specific IgM
 nIgG = 0.0; // NP-specific IgG
-​
-'''
+"""
 
 lymph_node_string = '''
 J11: -> Dm; 0.0*kD*Da; // MUST STAY SHUT OFF, DM IS AN INPUT Dm are apc in lymph
@@ -267,7 +266,7 @@ bE=3*10^-6;
 aE=5.0*10^-2;
 V0=10;
 pV=19;
-cV=1;
+cV=1.0;
 kE=1.19*10^-3 / 900; // 900 rescaling for non-0 T cell pop in tissue
 g=0.15 * 900;
 tC=0.5;// not included in the model
@@ -371,7 +370,7 @@ class TarunsModelSteppable(SteppableBasePy):
 
     def init_variables(self):
         # Updating max simulation steps using scaling factor to simulate 10 days
-        self.add_free_floating_antimony(model_string=model_string, model_name='FullModel', step_size=days_to_mcs)
+        self.add_free_floating_antimony(model_string=full_model_string, model_name='FullModel', step_size=days_to_mcs)
         self.add_free_floating_antimony(model_string=lymph_node_string, model_name='LymphModel', step_size=days_to_mcs)
         self.get_xml_element('simulation_steps').cdata = days_to_simulate / days_to_mcs
         # self.initial_uninfected = len(self.cell_list_by_type(self.E))
@@ -510,9 +509,13 @@ class TarunsModelSteppable(SteppableBasePy):
                     self.initial_uninfected / self.sbml.FullModel['E0']
 
         if n_tct > len(self.cell_list_by_type(self.TCELL)):
-
-            pass
-
+            for i in range(int(round(n_tct - len(self.cell_list_by_type(self.TCELL))))):
+                cell = False
+                while not cell:
+                    x = np.random.randint(0, self.dim.x - 3)
+                    y = np.random.randint(0, self.dim.y - 3)
+                    if not self.cell_field[x, y, 1]:
+                        cell = self.new_T_cell_in_location(x, y, 1)
         return
 
     def J8_J9_Tct_death(self, cell, tissue_apc):
@@ -524,10 +527,7 @@ class TarunsModelSteppable(SteppableBasePy):
         dC = self.sbml.FullModel['dC'] * days_to_mcs
         dT1 = self.sbml.FullModel['dT1'] * days_to_mcs
         dT2 = self.sbml.FullModel['dT2'] * days_to_mcs * self.initial_uninfected / self.sbml.FullModel['E0']
-        if use_LymphModel_outputs:
-            p = dC * 1 + dT1 * 1 * tissue_apc / (dT2 + tissue_apc)
-        else:
-            p = dC * 1 + dT1 * 1 * tissue_apc / (dT2 + self.sbml.FullModel['Da'])
+        p = dC * 1 + dT1 * 1 * tissue_apc / (dT2 + tissue_apc)
         p = self.decay_exp_prob(p)
         if p > np.random.random():
             cell.targetVolume = 0
@@ -608,7 +608,7 @@ class TarunsModelSteppable(SteppableBasePy):
     def J14_APC_travel_Lymph_Model_input(self, just_moved_in_to_node):
         ## APC "travel" to lymph node
         # we'll implement it as a signal that is proportional to the activated apcs
-        # J11: -> Dm; kD * Da; // Dm are apc in lymph
+        # J14: -> Dm; kD*Da; // Dm are apc in lymph
         # print(node_apc)
         self.sbml.LymphModel['Dm'] += max(0, (just_moved_in_to_node * self.sbml.FullModel['D0'] *
                                               self.initial_uninfected / self.sbml.FullModel['E0']))
@@ -831,17 +831,19 @@ class TarunsModelSteppable(SteppableBasePy):
         for cell in self.cell_list_by_type(self.EV):
             self.J5_EvtoD(cell)
 
-        g = self.sbml.FullModel['g']
-        # Tc = self.sbml.FullModel['Tc'] * g
-        Tc = len(self.cell_list_by_type(self.TCELL)) / self.initial_uninfected * self.sbml.FullModel['E0']
-        for cell in self.cell_list_by_type(self.EV):
-            self.J6_EvtoD_ODE_killing(cell, Tc)
+        self.J7_Tct_seeding()
+        Tct = len(self.cell_list_by_type(self.TCELL)) / self.initial_uninfected * self.sbml.FullModel['E0']
 
         for cell in self.cell_list_by_type(self.EV):
-            self.old_J49_Ev2D_from_nIgM(cell)
+            self.J6_EvtoD_ODE_killing(cell, Tct)
 
-        for cell in self.cell_list_by_type(self.EV):
-            self.old_J50_Ev2D_from_nIgG(cell)
+        # for cell in self.cell_list_by_type(self.EV):
+        #     self.old_J49_Ev2D_from_nIgM(cell)
+        #
+        # for cell in self.cell_list_by_type(self.EV):
+        #     self.old_J50_Ev2D_from_nIgG(cell)
+
+        self.J54_J55_antibody_cell_death()
 
         virus_production = self.J10_virus_production()
 
@@ -850,16 +852,22 @@ class TarunsModelSteppable(SteppableBasePy):
         # activated_APC_count = 0
 
         tissue_apc, lymph_apc, node_apc, just_moved_in_to_node = self.J12_J13_APC_activation_deactivation()
+        if use_LymphModel_outputs:
+            Da = tissue_apc
+        else:
+            Da = self.sbml.FullModel['Da']
+        for cell in self.cell_list_by_type(self.TCELL):
+            self.J8_J9_Tct_death(cell, Da)
 
         self.J14_APC_travel_Lymph_Model_input(just_moved_in_to_node)
 
-        self.old_J13_Tcell_stable_population_seeding()
-
-        self.old_J14_Tcell_clearance()
-
-        self.old_J15_Tcell_inflamatory_seeding()
-
-        self.old_J16_Tcell_clearance()
+        # self.old_J13_Tcell_stable_population_seeding()
+        #
+        # self.old_J14_Tcell_clearance()
+        #
+        # self.old_J15_Tcell_inflamatory_seeding()
+        #
+        # self.old_J16_Tcell_clearance()
 
         ## Tcell Contact Killing
         for cell in self.cell_list_by_type(self.TCELL):
