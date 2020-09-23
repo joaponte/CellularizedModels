@@ -6,7 +6,7 @@ days_to_mcs = min_to_mcs / 1440.0  # day/mcs
 days_to_simulate = 30.0
 
 virus_infection_feedback = 3
-use_LymphModel_outputs = False
+use_LymphModel_outputs = True
 
 contact_cytotoxicity = True
 
@@ -205,129 +205,162 @@ nIgG = 0.0; // NP-specific IgG
 """
 
 lymph_node_string = '''
-J11: -> Dm; 0.0*kD*Da; // MUST STAY SHUT OFF, DM IS AN INPUT Dm are apc in lymph
-J12: Dm ->; dDm*Dm;
-J13: -> Tc; dC*Tc0;
-J14: Tc ->; dC*Tc;
-// J15: Dm -> Tc; (rT1*Dm*Tc/(Dm+pT2) + Dm);
-J15:  -> Tc; rT1*Dm*Tc/(Dm+pT2); 
-J16: Tc ->; dT1*Tc*Ev/(Ev+dT2);
-J17: -> Th1; sTh1*Th1/(1+Th2)^2;
-//J18: Dm -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2 + Dm;
-J18:  -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2;
-J19: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
-J20: Th1 ->; mTh*Th1;
-J21: -> Th2; sTh2*Th2/(1+Th2);
-//J22: Dm -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) + Dm
-J22:  -> Th2; pTh2*(r+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) 
-J23: Th2 ->; mTh*Th2;
-// new eqs
+// Systemic reactions in Lymph
 
-J24: -> B; dB*B0;
-J25: B ->; dB*B;
-//J26: Dm + Th2 -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
-J26:  -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
+J14: -> Dm; 0.0*kD*Da; // MUST STAY SHUT OFF, DM IS AN INPUT Dm are apc in lymph
+J15: Dm ->; dDm*Dm;
+J16: -> Tc; dC*Tc0; // Tc0 => initial number of naive Tc-cells
+J17: Tc ->; dC*Tc;
+J18:  -> Tc; rT1*Dm*Tc/(Dm+rT2); 
+J19: Tc ->; dT1*Tc*Dm/(Dm+dT2);
 
-J27: B -> Pss; pS*B;
-J28: B -> Psn; pS*B;
-J29: B -> Pls; pL*B*Th2;
-J30: B -> Pln; pL*B*Th2;
-J31: Pss ->; dS*Pss;
-J32: Psn ->; dS*Psn;
-J33: Pls ->; dL*Pls;
-J34: Pln ->; dL*Pln;
-J35: Pss -> Pls; d*(1-v)*Pss;
-J36: Psn -> Pln; d*(1-v)*Psn;
-J37: Pss -> Pss; b*v*Pss;
-J38: Psn -> Psn; b*v*Psn;
-J39: Pls -> Pss; d*(1-v)*Pls;
-J40: Pln -> Psn; d*(1-v)*Pln; 
+J20: -> Th1; sTh1*Th1/(1+Th2)^2;
+J21:  -> Th1; pTh1*Dm*(Th1^2)/(1+Th2)^2;
+J22: Th1 ->; dTh1*Dm*(Th1^3)/(1+Th2);
+J23: Th1 ->; mTh*Th1;
+J24: -> Th2; sTh2*Th2/(1+Th2);
+J25:  -> Th2; pTh2*(ro+Th1)*Dm*(Th2^2)/((1+Th2)*(1+Th1+Th2)) 
+J26: Th2 ->; mTh*Th2;
 
-J41:  -> sIgM; pAS*Pss;
-J42:  -> nIgM; pAS*Psn;
-J43:  -> sIgG; pAS*Pls;
-J44:  -> nIgG; pAS*Pln;
-J45: sIgM ->; dM*sIgM;
-J46: sIgG ->; dG*sIgG;
-J47: nIgM ->; dM*nIgM;
-J48: nIgG ->; dG*nIgG; 
+// Antibody production
 
-// feed back to tissue
-J49: Ev + nIgM -> D; eE*Ev*nIgM; // reevaluate these set (49-52) due to anti-bodies being consumed 
-J50: Ev + nIgG -> D; eE*Ev*nIgG;
-J51: V + sIgM ->; eV*V*sIgM;
-//J52: V  ->; eV*V*sIgG;
-J52: V + sIgG ->; eV*V*sIgG;
+J27: -> B; dB*B0; // B0 => initial number of inactive B-cells
+J28: B ->; dB*B;
+J29:  -> B; rB1*B*(Dm+h*Th2)/(Dm+h*Th2+rB2);
+J30: B -> Pss; pS*B;
+J31: B -> Psn; pS*B;
+J32: B -> Pls; pL*B*Th2;
+J33: B -> Pln; pL*B*Th2;
+J34: Pss ->; dS*Pss;
+J35: Psn ->; dS*Psn;
+J36: Pls ->; dL*Pls;
+J37: Pln ->; dL*Pln;
+J38: Pss -> Pls; d*(1-v)*Pss;
+J39: Psn -> Pln; d*(1-v)*Psn;
+J40:  -> Pss; b*v*Pss;
+J41:  -> Pls; b*v*Pls;
+J42:  -> Psn; b*v*Psn;
+J43:  -> Pln; b*v*Pln;
+J44: Pls -> Pss; d*(1-v)*Pls;
+J45: Pln -> Psn; d*(1-v)*Pln; 
 
-// Parameters
+J46:  -> sIgM; pAS*Pss;
+J47:  -> nIgM; pAS*Psn;
+J48:  -> sIgG; pAS*Pls;
+J49:  -> nIgG; pAS*Pln;
+J50: sIgM ->; dM*sIgM;
+J51: sIgG ->; dG*sIgG;
+J52: nIgM ->; dM*nIgM;
+J53: nIgG ->; dG*nIgG;
+
+// Antibody feedback to tissue
+
+J54: Ev + nIgM -> D; eE*Ev*nIgM; 
+J55: Ev + nIgG -> D; eE*Ev*nIgG;
+J56: V + sIgM ->; eV*V*sIgM;
+J57: V + sIgG ->; eV*V*sIgG;
+
+
+/////////////////// Parameters ///////////////////////
+
+// Epithelial infection
+
 dE=10^-3;
-E0=5*10^5;
-bE=3*10^-6;
-aE=5.0*10^-2;
-V0=10;
-pV=19;
+E0 = 5.0*10^5;
+bE=7.0*10^-6;
+dEv=0.12;
+aE=5.0*10^-1;
+pV=1.9;
 cV=1.0;
-kE=1.19*10^-3 / 900; // 900 rescaling for non-0 T cell pop in tissue
-g=0.15 * 900;
-tC=0.5;// not included in the model
-eE=0.05;
-eV=16;
-D0=10^3;
-bD=10^-2;
+
+// Dendritic cell infection, activation, migration
+
+D0=10^4;
+bD=10^-6;
 dD=2.9;
-kD=0.5;
-tD=1;// not included in the model
-dDm=0.5;
-dC=10.1*10^-3;
-Tc0=5*10^2;
-rT1=1.3;
-rT2=1;
-dT1=5.0;
-dT2=2000;
-sTh1=2.5;
-pTh1=4;
-dTh1=0.03;
-mTh=0.25;
-sTh2=0.001;
-pTh2=0.0012;
-r=0.2;
-dB=0.0009;
-B0=1*10^3;
-rB1=100;
-rB2=2*10^5;
-h=100;
-pS=10^-1;
-pL=8*10^-3;
-dS=0.002;
+kD = 0.5;
+dDm = 0.5;
+
+// Cytotoxic T-cell activation, proliferation
+
+dC=2.0*10^-3;
+Tc0=2.0*10^3;
+rT1=3.5;
+rT2=2.0*10^3;
+dT1=1.0;
+dT2=1.0;
+
+// T-cell mediated Cytotoxicity
+
+kE=1.19*10^-2 / 900;
+g=0.15 * 900; // 900 rescaling for non-0 T cell pop in tissue
+KEv = 500.0;
+
+// Helper T-cell activation, proliferation
+
+sTh1=1.0;
+pTh1=0.012;
+dTh1=0.001;
+KTh1 =500.0;
+mTh=0.0225;
+sTh2=0.04;
+pTh2=0.003;
+ro=1.0;
+
+// B-cell activation, proliferation, differentiation
+
+dB=0.02;
+B0=2.0*10^1;
+rB1=4.5;
+rB2=1*10^4;
+h=1.0;
+
+// Plasma cell proliferation, differentiation and antibody production
+
+pS=3.0*10^-1;
+pL=1.5*10^-4;
+dS=0.2;
 dL=0.02;
-b=2.4*10^-4;
+b=2.4*10^-2;
 d=2.4*10^-2;
-pAS=0.2;
-pAL=0.3;
-dG=0.04;
-dM=0.2;
-pT2=600;
-v = 0.5;
-drt = 3;
+pAS=0.8*10^2;
+pAL=1.2*10^2;
+dG=0.5;
+dM=2.0;
 
-proport_init_inf = 0.01;
+// Switching functions of the Plasma Cells
 
-// Initial Conditions
-E = (1-proport_init_inf) * E0;
-Ev = proport_init_inf * E0;
-V = 10;
-Th1=10;
-Th2=10;
-// inputs
-Da=0.0; // kD*Da
-Ev = 0.0;
-// ck1
+u =  0.5;
+v =  0.5;
 
-// outputs
+// Antibody activity: virus and cell killing
 
-// Tc
-// ck1
-// ck2
+eE=0.0001;
+eV=0.00018;
+
+////////////////// Initial Conditions /////////////////////
+
+E = 5.0*10^5; // Uninfected epithelial cells
+Ev = 10.0; // Virus-infected epithelial cells
+V = 1000.0; // 
+Da = 0.0; // Infected-activated dendtritic cells in Tissue
+
+Dm = 0.0; // Migrated dendritic cells in Lymph
+Tc = 1.0; // Effector cytotoxic T-cells in Lymph
+Tct = 0.0; // Effector cytotoxic T-cells in Tissue
+Th1 = 1.0; // Type I helper T-cells
+Th2 = 1.0; // Type II helper T-cells
+
+B = 1.0; // Activated B-cells
+pSs = 0.0; // SP-RBD-specific Short-living plasma cells
+pLs = 0.0; // SP-RBD-specific Long-living plasma cells
+pSn = 0.0; // NP-specific Short-living plasma cells
+pLn = 0.0; // NP-specific Long-living plasma cells
+
+sIgM = 0.0; // SP-RBD-specific IgM
+sIgG = 0.0; // SP-RBD-specific IgG
+nIgM = 0.0; // NP-specific IgM
+nIgG = 0.0; // NP-specific IgG
 '''
 
 
