@@ -83,9 +83,9 @@
       <DiffusionField Name="Virus">
          <DiffusionData>
             <FieldName>Virus</FieldName>
-            <GlobalDiffusionConstant>1.0</GlobalDiffusionConstant>
+            <GlobalDiffusionConstant id="virus_D">10.0</GlobalDiffusionConstant>
             <GlobalDecayConstant id='virus_decay'>0.0</GlobalDecayConstant>
-            <InitialConcentrationExpression>10/(300*300)</InitialConcentrationExpression>
+            <InitialConcentrationExpression>1000/(300*300)</InitialConcentrationExpression>
             <DoNotDiffuseTo>Medium</DoNotDiffuseTo>
          </DiffusionData>
          <BoundaryConditions>
