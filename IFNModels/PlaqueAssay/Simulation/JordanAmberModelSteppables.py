@@ -6,7 +6,7 @@ import Parameters
 plot_ODEModel = False
 plot_CellModel = False
 plot_PlaqueAssay = False
-OutputData = True
+OutputData = False
 
 IFNWash = False #Whether the plate is prestimulated with IFNe before infection
 
@@ -22,6 +22,10 @@ virus_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 IFNe_diffusion_coefficient = 1.0/10.0 #vl^2 / min
 
 Replicate = Parameters.R
+Multiplier = 50.0
+Parameter = 'k31'
+# virus_diffusion_coefficient *= Multiplier
+# IFNe_diffusion_coefficient *= 15.0 * Multiplier
 
 '''Smith AP, Moquin DJ, Bernhauerova V, Smith AM. Influenza virus infection model with density dependence 
 supports biphasic viral decay. Frontiers in microbiology. 2018 Jul 10;9:1554.'''
@@ -69,7 +73,8 @@ IFNModel_string = '''
     E8b: V ->           ; k73*V                                             ;
 
     //Parameters
-    k11 = 0.0       ; 
+    // k11 = 10.0^5  ; 
+    k11 = 0.0       ;
     k12 = 9.746     ; 
     k13 = 12.511    ; 
     k14 = 13.562    ;
@@ -129,6 +134,7 @@ IFN_model_string = '''
     E6b: IRF7P ->       ; t5*IRF7P                                          ;
 
     //Parameters
+    //k11 = 10.0^(6)  ; 
     k11 = 0.0       ; 
     k12 = 9.746     ; 
     k13 = 12.511    ; 
@@ -178,6 +184,16 @@ class ODEModelSteppable(SteppableBasePy):
         # Load IFN Model inside Cells
         self.add_antimony_to_cell_types(model_string=IFN_model_string, model_name='IModel',
                                         cell_types=[self.U], step_size=hours_to_mcs)
+
+        # Parameter Scan
+        # self.sbml.FluModel['beta'] *= Multiplier
+        # self.sbml.FluModel['c'] *= Multiplier
+        # self.sbml.FluModel['k'] *= Multiplier
+        self.sbml.IFNModel['k31'] *= Multiplier
+        for cell in self.cell_list:
+            cell.sbml.IModel['k31'] *= Multiplier
+            # cell.sbml.VModel['k73'] *= Multiplier
+            # cell.sbml.VModel['t5'] *= Multiplier
 
         # Initial conditions: infected cell in the center
         cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
@@ -280,7 +296,6 @@ class CellularModelSteppable(SteppableBasePy):
             p_T1oI2 = 1.0 - np.exp(-r)
             if np.random.random() < p_T1oI2:
                 cell.type = self.I2
-                cell.dict['lifetime'] = np.random.normal(24, 2)
 
         ## U to I1 transition
         # E1: T -> I1 ; beta * V * T
@@ -505,23 +520,27 @@ class OutputSteppable(SteppableBasePy):
     def start(self):
         if OutputData:
             folder_path = '/Users/Josua/Data/'
-            # folder_path = '/N/u/joaponte/Carbonate/PlaqueAssay/Output/'
+            # folder_path = '/N/u/joaponte/Carbonate/IFNParameterSweep/Output/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
+
             # Output ODE Data
-            file_name1 = 'FullModelCellular_%i.txt' % Replicate
+            file_name1 = 'FullModelCellular_%s_%.2f_%i.txt' % (Parameter,Multiplier,Replicate)
             self.output1 = open(folder_path + file_name1, 'w')
             self.output1.write("%s,%s,%s,%s,%s,%s,%s\n" %('Time','U','I1','I2','D','Ve','IFNe'))
             self.output1.flush()
 
             # Output CC3D Data
-            file_name2 = 'FullModelIntracellular_%i.txt' % Replicate
+            file_name2 = 'FullModelIntracellular_%s_%.2f_%i.txt' % (Parameter,Multiplier,Replicate)
             self.output2 = open(folder_path + file_name2, 'w')
             self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %
                               ('Time','CC3DV','CC3DH','CC3DP','CC3DIFNe_Scalar','CC3DIFNe_Field','CC3DSTATP','CC3DIRF7',
                                'CC3DIRF7P','CC3DIFN'))
             self.output2.flush()
 
+            #IFNe secretor
+            self.secretorIFNe = self.get_field_secretor("IFNe")
+            
     def step(self, mcs):
         if OutputData:
             Time = mcs * hours_to_mcs
@@ -530,7 +549,9 @@ class OutputSteppable(SteppableBasePy):
             I2 = len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells']
             D =  len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells']
             Ve = self.shared_steppable_vars['ExtracellularVirus_Field']
-            IFNe = self.shared_steppable_vars['ExtracellularIFN_Field']
+            IFNe = 0.0
+            for cell in self.cell_list:
+                IFNe += self.secretorIFNe.amountSeenByCell(cell)
 
             self.output1.write("%e,%e,%e,%e,%e,%e,%e\n" % (Time,U,I1,I2,D,Ve,IFNe))
             self.output1.flush()
@@ -566,11 +587,11 @@ class PlaqueAssaySteppable(SteppableBasePy):
     def start(self):
         if OutputData:
             folder_path = '/Users/Josua/Data/'
-            # folder_path = '/N/u/joaponte/Carbonate/PlaqueAssay/Output/'
+            # folder_path = '/N/u/joaponte/Carbonate/IFNParameterSweep/Output/'
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
-            file_name = 'PlaqueAssay_%i.txt' % Replicate
-            self.output3 = open(folder_path + file_name, 'w')
+            file_name3 = 'PlaqueAssay_%s_%.2f_%i.txt' % (Parameter,Multiplier,Replicate)
+            self.output3 = open(folder_path + file_name3, 'w')
             self.output3.write("%s,%s,%s,%s,%s,%s\n" % ('Time', 'avgI1rd', 'avgI2rd', 'avgDrd', 'Beta','Beff'))
             self.output3.flush()
 

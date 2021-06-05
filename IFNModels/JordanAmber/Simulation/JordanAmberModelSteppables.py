@@ -510,6 +510,9 @@ class OutputSteppable(SteppableBasePy):
                                'CC3DIRF7P','CC3DIFN'))
             self.output2.flush()
 
+            #IFNe secretor
+            self.secretorIFNe = self.get_field_secretor("IFNe")
+
     def step(self, mcs):
         if OutputData:
             Time = mcs * hours_to_mcs
@@ -518,7 +521,9 @@ class OutputSteppable(SteppableBasePy):
             I2 = len(self.cell_list_by_type(self.I2)) / self.shared_steppable_vars['InitialNumberCells']
             D =  len(self.cell_list_by_type(self.DEAD)) / self.shared_steppable_vars['InitialNumberCells']
             Ve = self.shared_steppable_vars['ExtracellularVirus_Field']
-            IFNe = self.shared_steppable_vars['ExtracellularIFN_Field']
+            IFNe = 0.0
+            for cell in self.cell_list:
+                IFNe += self.secretorIFNe.amountSeenByCell(cell)
 
             self.output1.write("%e,%e,%e,%e,%e,%e,%e\n" % (Time,U,I1,I2,D,Ve,IFNe))
             self.output1.flush()

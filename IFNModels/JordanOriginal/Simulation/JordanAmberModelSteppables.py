@@ -5,7 +5,7 @@ import Parameters
 
 plot_ODEModel = False
 plot_CellModel = False
-OutputData = True
+OutputData = False
 
 how_to_determine_IFNe = 3 # Determines the IFNe from the ODE model (1) from Cell model as scalar (2) or from field (3)
 

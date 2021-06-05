@@ -5,13 +5,13 @@ import os
 plot_ODEModel = True
 plot_CellModel = True
 plot_Residuals = False
-Data_writeout = True
+Data_writeout = False
 
 ## How to determine V
 # 1 pulls from the scalar virus from the ODE original model (no feedback in the cellular model)
 # 2 pulls from the scalar virus from the cellular model (feedback in the cellular model but no field)
 # 3 pulls from the virus field
-how_to_determine_V = 2
+how_to_determine_V = 3
 
 min_to_mcs = 10.0  # min/mcs
 days_to_mcs = min_to_mcs / 1440.0  # day/mcs
