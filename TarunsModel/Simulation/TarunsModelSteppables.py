@@ -48,7 +48,7 @@ J13: Da ->; dD*Da;
 
 // Systemic reactions in Lymph
 
-J14: -> Dm; kD*Da;
+J14: Da -> Dm; kD*Da;
 J15: Dm ->; dDm*Dm;
 J16: -> Tc; dC*Tc0; // Tc0 => initial number of naive Tc-cells
 J17: Tc ->; dC*Tc;
