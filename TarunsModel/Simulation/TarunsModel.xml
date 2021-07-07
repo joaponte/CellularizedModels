@@ -1,0 +1,115 @@
+<CompuCell3D Revision="20200118" Version="4.1.1">
+   
+   <Metadata>
+      <!-- Basic properties simulation -->
+      <NumberOfProcessors>1</NumberOfProcessors>
+      <DebugOutputFrequency>10</DebugOutputFrequency>
+      <!-- <NonParallelModule Name="Potts"/> -->
+   </Metadata>
+   
+   <Potts>
+      <!-- Basic properties of CPM (GGH) algorithm -->
+      <Dimensions x="300" y="300" z="2"/>
+      <Steps id="simulation_steps">100000</Steps>
+      <Temperature>10.0</Temperature>
+
+      <NeighborOrder>2</NeighborOrder>
+
+   </Potts>
+   
+   <Plugin Name="CellType">
+      <!-- Listing all cell types in the simulation -->
+      <CellType TypeId="0" TypeName="Medium"/>
+      <CellType Freeze="" TypeId="1" TypeName="E"/>
+      <CellType Freeze="" TypeId="2" TypeName="EV"/>
+      <CellType Freeze="" TypeId="3" TypeName="D"/>
+      <CellType TypeId="4" TypeName="APC"/>
+      <CellType TypeId="5" TypeName="Tcell"/>
+   </Plugin>
+   
+   <Plugin Name="Volume">
+   </Plugin>
+
+   <Plugin Name="CenterOfMass">
+   </Plugin>
+   
+   <Plugin Name="NeighborTracker">
+   </Plugin>
+   
+   <Plugin Name="PixelTracker">
+   </Plugin>
+   
+   <Plugin Name="BoundaryPixelTracker">
+      <NeighborOrder>1</NeighborOrder>
+   </Plugin>
+
+   <Plugin Name="Chemotaxis">
+        <ChemicalField Name="Virus">
+        </ChemicalField>
+   </Plugin>
+
+
+   <Plugin Name="Secretion">
+   </Plugin>
+
+   <Plugin Name="Contact">
+      <!-- Specification of adhesion energies -->
+      <Energy Type1="Medium" Type2="Medium">10.0</Energy>
+      <Energy Type1="Medium" Type2="E">10.0</Energy>
+      <Energy Type1="Medium" Type2="EV">10.0</Energy>
+      <Energy Type1="Medium" Type2="D">10.0</Energy>
+      <Energy Type1="Medium" Type2="APC">10.0</Energy>
+      <Energy Type1="Medium" Type2="Tcell">10.0</Energy>
+      <Energy Type1="E" Type2="E">10.0</Energy>
+      <Energy Type1="E" Type2="EV">10.0</Energy>
+      <Energy Type1="E" Type2="D">10.0</Energy>
+      <Energy Type1="E" Type2="APC">10.0</Energy>
+      <Energy Type1="E" Type2="Tcell">10.0</Energy>
+      <Energy Type1="EV" Type2="EV">10.0</Energy>
+      <Energy Type1="EV" Type2="D">10.0</Energy>
+      <Energy Type1="EV" Type2="APC">10.0</Energy>
+      <Energy Type1="EV" Type2="Tcell">10.0</Energy>
+      <Energy Type1="D" Type2="D">10.0</Energy>
+      <Energy Type1="D" Type2="APC">10.0</Energy>
+      <Energy Type1="D" Type2="Tcell">10.0</Energy>
+      <Energy Type1="APC" Type2="APC">10.0</Energy>
+      <Energy Type1="APC" Type2="Tcell">10.0</Energy>
+      <Energy Type1="Tcell" Type2="Tcell">10.0</Energy>
+      <NeighborOrder>4</NeighborOrder>
+   </Plugin>
+
+   <Steppable Type="DiffusionSolverFE">
+      <!-- Specification of PDE solvers -->
+      <DiffusionField Name="Virus">
+         <DiffusionData>
+            <FieldName>Virus</FieldName>
+            <GlobalDiffusionConstant id="virus_D">10.0</GlobalDiffusionConstant>
+            <GlobalDecayConstant id='virus_decay'>0.0</GlobalDecayConstant>
+            <InitialConcentrationExpression>1000/(300*300)</InitialConcentrationExpression>
+            <DoNotDiffuseTo>Medium</DoNotDiffuseTo>
+         </DiffusionData>
+         <BoundaryConditions>
+            <Plane Axis="X">
+               <Periodic/>
+            </Plane>
+            <Plane Axis="Y">
+               <Periodic/>
+            </Plane>
+            <Plane Axis="Z">
+               <Periodic/>
+            </Plane>
+         </BoundaryConditions>
+      </DiffusionField>
+   </Steppable>
+
+<!--<Steppable Type="UniformInitializer">-->
+
+<!--   <Region>-->
+<!--      <BoxMin x="0" y="0" z="1"/>-->
+<!--      <BoxMax x="300" y="300" z="2"/>-->
+<!--      <Gap>0</Gap>-->
+<!--      <Width>3</Width>-->
+<!--      <Types>E</Types>-->
+<!--   </Region>-->
+<!--</Steppable>-->
+</CompuCell3D>
